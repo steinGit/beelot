@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/> 
+    <title>BeeLot</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  </head>
+  <body>
+
+    <header>
+      <a href="index.html" title="Zur Startseite">
+        <img src="logo.png" alt="BeeLot Logo" class="logo">
+      </a>
+      <nav>
+        <a href="#gruenlandtemperatursumme">Grünlandtemperatursumme</a>
+        <a href="help.html">Help</a> <!-- Neuer Help-Button -->
+        <a href="impressum.html">Impressum</a>
+        <a href="#sprache">Sprache</a>
+      </nav>
+    </header>
+
+    <main>
+      <h1>BeeLot</h1>
+
+      <section class="eingabe-section">
+        <h2>Eingabe</h2>
+        <div class="input-group">
+          <label for="ort">Ort:</label><br>
+          <input type="text" id="ort" name="ort" placeholder="Aktuelle Position oder Ort wählen..."><br>
+          <button id="ort-karte-btn">Ort auf Karte wählen</button>
+        </div>
+        <div class="input-group">
+          <label for="datum">Datum:</label><br>
+          <input type="date" id="datum" name="datum"><br>
+          <button id="datum-plus">+</button>
+          <button id="datum-minus">-</button>
+        </div>
+        <div class="input-group">
+          <label for="zeitraum">Zeitraum:</label><br>
+          <select id="zeitraum" name="zeitraum">
+            <option value="7">1 Woche</option>
+            <option value="14" selected>2 Wochen</option>
+            <option value="28">4 Wochen</option>
+            <option value="ytd">Seit Jahresanfang</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <button id="berechnen-btn">Berechnen</button>
+        </div>
+      </section>
+
+      <section class="ergebnis-section">
+        <h2>Ergebnis</h2>
+        <p id="ergebnis-text" Grünlandtemperatursumme am [Datum] beträgt [GTS Ergebnis]</p>
+      </section>
+
+      <section class="plot-section">
+        <h2>Diagramm (GTS) in °C</h2>
+        <div class="plot-container">
+          <canvas id="plot-canvas"></canvas>
+        </div>
+
+        <h2>Diagramm (Tagesmitteltemperaturen)in °C </h2>
+        <button id="toggle-temp-plot">Temperaturen anzeigen</button>
+        <div class="plot-container" id="temp-plot-container" style="display:none;">
+          <canvas id="temp-plot"></canvas>
+        </div>
+      </section>
+
+      <section class="hinweis-section">
+        <h2>Hinweise</h2>
+        <p>Hinweis 1</p>
+        <p>Hinweis 2</p>
+        <p>Hinweis 3</p>
+        <p>Hinweis 4</p>
+        <p>Hinweis 5</p>
+      </section>
+    </main>
+
+    <div class="map-container" id="map-popup">
+      <div class="map-controls">
+        <button id="map-close-btn">Schließen</button>
+        <button id="map-save-btn">Diesen Ort verwenden</button>
+      </div>
+      <div id="map"></div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script src="script.js"></script>
+  </body>
+</html>
