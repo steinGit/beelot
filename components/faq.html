@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ - BeeLot</title>
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <style>
+      body {
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          margin: 0;
+          padding: 0;
+          background-color: #f9f9f9;
+          color: #333;
+      }
+
+      main {
+          max-width: 800px;
+          margin: 20px auto;
+          padding: 20px;
+          background: #fff;
+          border-radius: 8px;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      h1 {
+          text-align: center;
+          color: #304030;
+      }
+
+      .faq-section {
+          margin-bottom: 20px;
+      }
+
+      details {
+          margin-bottom: 10px;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          padding: 10px;
+          background: #fefefe;
+      }
+
+      details summary {
+          cursor: pointer;
+          font-weight: bold;
+          color: #333;
+      }
+
+      details summary:hover {
+          color: #ff8000;
+      }
+
+      details[open] {
+          border-color: #ff8000;
+      }
+
+      footer {
+          margin-top: 30px;
+          text-align: center;
+          font-size: 0.9em;
+          color: #808080;
+      }
+
+      footer a {
+          color: #808080;
+          text-decoration: none;
+      }
+
+      footer a:hover {
+          color: #ff8000;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <div id="header-placeholder"></div>
+    <script>
+      fetch("/components/header.html")
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById("header-placeholder").innerHTML = html;
+    });
+    </script>
+
+    <!-- Main Content -->
+    <main>
+      <h1>Häufig gestellte Fragen (FAQ)</h1>
+      <section class="faq-section">
+        <details>
+          <summary>Grünland Temperatur Summe</summary>
+          <details>
+            <summary>Was ist das?</summary>
+          </details>
+        </details>
+
+        <details>
+          <summary>BeeLot</summary>
+          <details>
+            <summary>Was ist BeeLot?</summary>
+            <p>
+            BeeLot ist eine Plattform, die Imkerinnen und Imkern bei ihrer Arbeit helfen kann.
+            Sie unterstützt dabei, imkerliche Tätigkeiten an den phänologischen Kalender anzupassen.
+          </p>
+          <p>
+            Unsere Bienen orientieren sich an den Blühzeiten der Pflanzen. Die Pflanzenwelt wiederum richtet sich nach der verfügbaren Wärmeenergie.
+            Diese Energie hängt im Freien von der Tageslänge und dem Wetter ab.
+            Die Grünland-Temperatursumme ist ein nützlicher Wert, um die empfangene Wärme einzuschätzen.
+          </p>
+        </details>
+        <details>
+          <summary>Für wen ist Beelot?</summary>
+          <p>
+            BeeLot ist für Imker
+            <ul>
+              <li>die den phänologischen Kalender nicht im Blut haben</li>
+              <li>bei denen keine Zeigerpflanzen vor der Haustür stehen</li>
+              <li>die sich manchmal unsicher sind, was als nächstes dran ist</li>
+              <li>die sich manchmal unsicher sind, was als nächstes dran ist</li>
+              <\ul>
+          </p>
+        </details>
+        <details>
+          <summary>Warum heisst das BeeLot?</summary>
+          <p>
+            Die Idee zu "BeeLot" kam mir nachts um 4 Uhr. Wirklich!
+            Aufgewacht, und da war der Name ... Bee-Lot, der Pi-lot für die Bienenhaltung.
+          </p>
+            Das wichtigste: solch einen doofen Namen können sich die meisten gut merken.
+          </p>
+          <p>
+            Bee-Lot ... das Lot ist ein Messinstrument. Wie cool ist das denn 😊
+          </p>
+        </details>
+        <details>
+          <summary>Warum ist Beelot entstanden?</summary>
+          <p>
+            Ich fand einfach: das fehlt.
+            Viele sprechen über die GTS, es gibt den gemittelten phänologischen Kalender, viele Stockwaagen berechnen die GTS.
+            Ich wollte ein niederschwelliges einfach zu bedienendes Messinstrument.
+            Mit dem einfachen Anklicken des Standortes ist es getan.
+          </p>
+        <details>
+          <summary>Was kostet das?</summary>
+          <p>Nichts. Alles OpenSource und frei. Ich habe schon viel von OpenSource profitiert. Jetzt kann ich auch einmal etwas dazu beitragen.</p>
+        </details>
+        <details>
+          <summary>Was passiert mit den Daten?</summary>
+          <p>Nichts. Ich habe kein Interesse dran. Die Seite ist auch werbefrei.</p>
+        </details>
+        <details>
+          <summary>Welche Vorteile bietet BeeLot?</summary>
+          <p>BeeLot hilft Imkern durch Empfehlungen, Maßnahmen frühzeitig einzuleiten, wie z.Bsp. rechtzeitig die Honigräume aufzusetzen. Oder aber mitzubekommen wie es an entfernten Orten um die Raps oder Edelkastanienblüte steht.</p>
+        <details>
+          <summary>Beelot in der Blühzeit ... und danach?</summary>
+          <p>
+            Die meisten Trachten sind mit der Sommersonnenwende vorbei. Damit fängt man im zweiten Halbjahr mit Beelot wenig an. Vielleicht noch mit dem Hinweis wann es den ersten Frost gibt ... 3 Wochen danach ist die Oxalsäurebehandlung in Form von Beträufeln der Wintertraube dran.
+          </p>
+        </details>
+        <details>
+          <summary>Gibt es Beelot auch als App?</summary>
+          <p>Noch nicht. Aber in dem Browser auf Deinem Smartphone oder Tablet kannst Du es jederzeit aufrufen.</p>
+          <details>
+            <summary>Wo kommen die Wetterdaten her?</summary>
+            <p>Die sind öffentlich. Ich beziehe sie von https://open-meteo.com</p>
+          </details>
+          </details>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <div id="footer-placeholder"></div>
+    <script>
+      fetch("/components/footer.html")
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById("footer-placeholder").innerHTML = html;
+    });
+    </script>
+  </body>
+</html>
