@@ -52,13 +52,13 @@ toggleTempPlotBtn.addEventListener('click', () => {
     const tempPlotContainer = document.getElementById('temp-plot-container');
     if (tempPlotContainer.style.display === 'none') {
         tempPlotContainer.style.display = 'block';
-        toggleTempPlotBtn.textContent = 'Temperaturen ausblenden';
+        toggleTempPlotBtn.textContent = 'ausblenden';
         // updatePlots wird aufgerufen um sicherzustellen,
         // dass der Temperaturplot angezeigt wird (sofern Daten vorhanden sind)
         updatePlots();
     } else {
         tempPlotContainer.style.display = 'none';
-        toggleTempPlotBtn.textContent = 'Temperaturen anzeigen';
+        toggleTempPlotBtn.textContent = 'anzeigen';
     }
 });
 

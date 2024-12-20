@@ -89,8 +89,8 @@ export function plotDailyTemps(dates, temps) {
             datasets: [{
                 label: 'Tagesmitteltemperatur (°C)',
                 data: temps,
-                borderColor: 'blue',
-                backgroundColor: 'rgba(0, 0, 255, 0.2)',
+                borderColor: 'rgba(20, 60, 60)',
+                backgroundColor: 'rgba(20, 60, 60, 0.2)',
                 fill: true,
                 tension: 0.1,
                 pointRadius: 5,

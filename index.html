@@ -15,7 +15,8 @@
         <img src="assets/img/logo.png" alt="BeeLot Logo" class="logo">
       </a>
       <nav>
-        <a href="#gruenlandtemperatursumme">Grünlandtemperatursumme</a>
+        <a href="components/info.html">Info</a>
+        <a href="components/ueber-mich.html">Über Mich</a>
         <a href="components/help.html">Help</a> <!-- Neuer Help-Button -->
         <a href="components/impressum.html">Impressum</a>
         <a href="#sprache">Sprache</a>
@@ -39,7 +40,7 @@
           <button id="datum-minus">-</button>
         </div>
         <div class="input-group">
-          <label for="zeitraum">Zeitraum:</label><br>
+          <label for="zeitraum">Darstellungs Zeitraum:</label><br>
           <select id="zeitraum" name="zeitraum">
             <option value="7">1 Woche</option>
             <option value="14" selected>2 Wochen</option>
@@ -62,8 +63,7 @@
           <canvas id="plot-canvas"></canvas>
         </div>
 
-        <h2>Diagramm (Tagesmitteltemperaturen) in °C </h2>
-        <button id="toggle-temp-plot">Temperaturen anzeigen</button>
+        <h2>Diagramm (Tagesmitteltemperaturen) in °C        <button id="toggle-temp-plot">anzeigen</button> </h2>
         <div class="plot-container" id="temp-plot-container" style="display:none;">
           <canvas id="temp-plot"></canvas>
         </div>

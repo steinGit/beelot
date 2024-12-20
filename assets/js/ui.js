@@ -106,7 +106,7 @@ export async function updatePlots() {
     const ortVal = ortInput.value;
     const today = new Date();
     const endDate = getSelectedEndDate();
-    
+
     if (!ortVal.includes("Lat") || !ortVal.includes("Lon")) {
         // Ergebnis zurücksetzen
         ergebnisTextEl.textContent = "Grünlandtemperatursumme am [Datum] beträgt [GTS Ergebnis]";
@@ -195,17 +195,19 @@ export async function updatePlots() {
         const todayStr = today.toLocaleDateString('de-DE');
 
         // Formatierung für Ergebnistext
-        let dateColor = "#202020";
-        let dateWeight = "normal";
+        let dateColor = "#802020";
+        let dateWeight = "bold";
+        let betragen_str = "betrug";
+
         if (formattedDate === todayStr) {
             dateColor = "#206020";
-            dateWeight = "bold";
+            betragen_str = "beträgt"
         }
 
         ergebnisTextEl.innerHTML = `
-            <span style="font-weight: normal; color: #202020;">Grünlandtemperatursumme am </span>
+            <span style="font-weight: normal; color: #202020;">Die Grünlandtemperatursumme am </span>
             <span style="font-weight: ${dateWeight}; color: ${dateColor};">${formattedDate}</span>
-            <span style="font-weight: normal; color: #202020;"> beträgt </span>
+            <span style="font-weight: normal; color: #202020;"> ${betragen_str} </span>
             <span style="font-weight: bold; color: darkgreen;">${lastGTS.toFixed(2)}</span>
         `;
 
@@ -218,8 +220,8 @@ export async function updatePlots() {
             chartTemp.destroy();
             chartTemp = null;
         }
-        chartGTS = plotData(filteredResults);  
-        
+        chartGTS = plotData(filteredResults);
+
         const tempPlotContainer = document.getElementById('temp-plot-container');
         if (tempPlotContainer.style.display !== 'none') {
             chartTemp = plotDailyTemps(filteredTempsDates, filteredTempsData);
