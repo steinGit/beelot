@@ -4,28 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/> 
     <title>BeeLot</title>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="/assets/css/style.css">
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   </head>
   <body>
 
-    <header>
-      <a href="index.html" title="Zur Startseite">
-        <img src="assets/img/logo.png" alt="BeeLot Logo" class="logo">
-      </a>
-      <nav>
-        <a href="components/info.html">Info</a>
-        <a href="components/ueber-mich.html">Über Mich</a>
-        <a href="components/help.html">Help</a> <!-- Neuer Help-Button -->
-        <a href="components/impressum.html">Impressum</a>
-        <a href="#sprache">Sprache</a>
-      </nav>
-    </header>
+    <div id="header-placeholder"></div>
+    <script>
+      fetch("/components/header.html")
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById("header-placeholder").innerHTML = html;
+        });
+    </script>
+
 
     <main>
-      <h1>BeeLot</h1>
-
       <section class="eingabe-section">
         <h2>Eingabe</h2>
         <div class="input-group">
@@ -55,45 +50,55 @@
 
       <section class="ergebnis-section">
         <p id="ergebnis-text" Die Grünlandtemperatursumme am [Datum] beträgt [GTS Ergebnis]</p>
-      </section>
+           </section>
 
-      <section class="plot-section">
-        <h2>Diagramm (GTS) in °C</h2>
-        <div class="plot-container">
-          <canvas id="plot-canvas"></canvas>
-        </div>
+<section class="plot-section">
+  <h2>Diagramm (GTS) in °C</h2>
+  <div class="plot-container">
+    <canvas id="plot-canvas"></canvas>
+  </div>
 
-        <h2>Diagramm (Tagesmitteltemperaturen) in °C        <button id="toggle-temp-plot">anzeigen</button> </h2>
-        <div class="plot-container" id="temp-plot-container" style="display:none;">
-          <canvas id="temp-plot"></canvas>
-        </div>
-      </section>
+  <h2>Diagramm (Tagesmitteltemperaturen) in °C        <button id="toggle-temp-plot">anzeigen</button> </h2>
+  <div class="plot-container" id="temp-plot-container" style="display:none;">
+    <canvas id="temp-plot"></canvas>
+  </div>
+</section>
 
-      <section class="hinweis-section">
-        <h2>Hinweise</h2>
-        <p>Hinweis 1</p>
-        <p>Hinweis 2</p>
-        <p>Hinweis 3</p>
-        <p>Hinweis 4</p>
-        <p>Hinweis 5</p>
-      </section>
-    </main>
+<section class="hinweis-section">
+  <h2>Hinweise</h2>
+  <p>Hinweis 1</p>
+  <p>Hinweis 2</p>
+  <p>Hinweis 3</p>
+  <p>Hinweis 4</p>
+  <p>Hinweis 5</p>
+</section>
+</main>
 
-    <div class="map-container" id="map-popup">
-      <div class="map-controls">
-        <button id="map-close-btn">Schließen</button>
-        <button id="map-save-btn">Diesen Ort verwenden</button>
-      </div>
-      <div id="map"></div>
-    </div>
+<div class="map-container" id="map-popup">
+  <div class="map-controls">
+    <button id="map-close-btn">Schließen</button>
+    <button id="map-save-btn">Diesen Ort verwenden</button>
+  </div>
+  <div id="map"></div>
+</div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- main.js -->
-    <script type="module" src="assets/js/main.js"></script>
-  </body>
+<!-- main.js -->
+<script type="module" src="assets/js/main.js"></script>
+
+<div id="footer-placeholder"></div>
+<script>
+  fetch("/components/footer.html")
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById("footer-placeholder").innerHTML = html;
+    });
+</script>
+
+</body>
 </html>
