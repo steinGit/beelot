@@ -420,32 +420,42 @@ async function updatePlots() {
         return;
     }
 
-    const plotStartDate = computeStartDate(); 
+    // NEU: Berechnung der Anzahl Tage Differenz von heute
+    const differenceInDays = Math.floor((today - endDate) / (1000 * 3600 * 24));
+
+    const plotStartDate = computeStartDate();
     const fetchStartDate = new Date(endDate.getFullYear(), 0, 1); // Immer vom 1.1. dieses Jahres
     const recentStartDate = new Date(endDate);
     recentStartDate.setDate(recentStartDate.getDate() - 30);
 
     try {
-        // Historische Daten
+        // Historische Daten laden
         const histData = await fetchHistoricalData(lat, lon, fetchStartDate, endDate);
         const histDates = histData.daily.time;
         const histTemps = histData.daily.temperature_2m_mean;
 
-        // Aktuelle Daten (letzte 30 Tage)
-        const recentData = await fetchRecentData(lat, lon, recentStartDate, endDate);
-        const recentDates = recentData.daily.time;
-        const recentTemps = recentData.daily.temperature_2m_mean;
+        // NEU: Wenn mehr als 10 Tage in der Vergangenheit, nur historische Daten
+        let dataByDate = {};
+        if (differenceInDays > 10) {
+            // Nur historische Daten verwenden
+            for (let i = 0; i < histDates.length; i++) {
+                dataByDate[histDates[i]] = histTemps[i];
+            }
+        } else {
+            // Weniger oder gleich 10 Tage -> historische + aktuelle Daten kombinieren
+            const recentData = await fetchRecentData(lat, lon, recentStartDate, endDate);
+            const recentDates = recentData.daily.time;
+            const recentTemps = recentData.daily.temperature_2m_mean;
 
-        // Kombinieren
-        const dataByDate = {};
-        // Historische Daten eintragen
-        for (let i = 0; i < histDates.length; i++) {
-            dataByDate[histDates[i]] = histTemps[i];
-        }
+            // Historische Daten eintragen
+            for (let i = 0; i < histDates.length; i++) {
+                dataByDate[histDates[i]] = histTemps[i];
+            }
 
-        // Aktuelle Daten überschreiben historische
-        for (let i = 0; i < recentDates.length; i++) {
-            dataByDate[recentDates[i]] = recentTemps[i];
+            // Aktuelle Daten überschreiben bzw. ergänzen
+            for (let i = 0; i < recentDates.length; i++) {
+                dataByDate[recentDates[i]] = recentTemps[i];
+            }
         }
 
         // Sortieren nach Datum
@@ -493,3 +503,4 @@ async function updatePlots() {
         alert("Fehler beim Laden der Daten: " + err.message);
     }
 }
+
