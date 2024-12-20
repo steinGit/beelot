@@ -261,6 +261,25 @@ function calculateGTS(dates, values) {
     return results;
 }
 
+// Hilfsfunktion zur Bestimmung der Bienenfarbgebung nach Jahr
+function beekeeperColor(year) {
+    // Bee-keeper-Farben:
+    // Jahr % 5 == 0 -> Blau
+    // Jahr % 5 == 1 -> Grau
+    // Jahr % 5 == 2 -> Gelb (#ddaa00)
+    // Jahr % 5 == 3 -> Rot
+    // Jahr % 5 == 4 -> Grün
+    const remainder = year % 5;
+    const colorMap = {
+        0: "blue",
+        1: "grey",
+        2: "#ddaa00",
+        3: "red",
+        4: "green"
+    };
+    return colorMap[remainder];
+}
+
 function plotData(results) {
     const labels = results.map(r => {
         const d = new Date(r.date);
@@ -268,6 +287,21 @@ function plotData(results) {
     });
 
     const data = results.map(r => r.gts);
+
+    // Ermitteltes Jahr des ausgewählten Datums
+    const endDate = getSelectedEndDate();
+    const yearColor = beekeeperColor(endDate.getFullYear());
+
+    // Optional: Für den Hintergrund eine transparente Variante der gewählten Farbe verwenden.
+    // Da wir hier einfache Farbnamen und ein Hex haben, können wir für Transparenz z.B. eine RGBA-Farbe bauen.
+    // Für gelb (#ddaa00) könnten wir eine RGBA-Variante setzen; für einfache Farbnamen nutzen wir etwas generisches.
+    // Beispiel: Wir mischen die Hintergrundfarbe in RGBA (kann je nach Bedarf verfeinert werden).
+    let bgColor = 'rgba(0,0,255,0.2)'; // Fallback: Blau transparent
+    if (yearColor === 'grey') bgColor = 'rgba(128,128,128,0.2)';
+    else if (yearColor === '#ddaa00') bgColor = 'rgba(221,170,0,0.2)';
+    else if (yearColor === 'red') bgColor = 'rgba(255,0,0,0.2)';
+    else if (yearColor === 'green') bgColor = 'rgba(0,128,0,0.2)';
+    else if (yearColor === 'blue') bgColor = 'rgba(0,0,255,0.2)';
 
     if (chartGTS) {
         chartGTS.destroy();
@@ -281,11 +315,11 @@ function plotData(results) {
             datasets: [{
                 label: 'Grünlandtemperatursumme (GTS)',
                 data: data,
-                borderColor: 'orange',
-                backgroundColor: 'rgba(255, 165, 0, 0.2)',
+                borderColor: yearColor,
+                backgroundColor: bgColor,
                 fill: true,
                 tension: 0.1,
-                pointRadius: 5,           // Größere Punkte für bessere Hover-Erkennung
+                pointRadius: 5,           
                 pointHoverRadius: 7
             }]
         },
@@ -308,10 +342,10 @@ function plotData(results) {
                 mode: 'nearest',
                 intersect: false
             }
-            // Tooltips werden automatisch angezeigt
         }
     });
 }
+
 
 function plotDailyTemps(dates, temps) {
     const labels = dates.map(dStr => {
@@ -331,8 +365,8 @@ function plotDailyTemps(dates, temps) {
             datasets: [{
                 label: 'Tagesmitteltemperatur (°C)',
                 data: temps,
-                borderColor: 'blue',
-                backgroundColor: 'rgba(0, 0, 255, 0.2)',
+                borderColor: 'rgba(30, 100, 100)',
+                backgroundColor: 'rgba(30, 100, 100, 0.2)',
                 fill: true,
                 tension: 0.1,
                 pointRadius: 5,           // Größere Punkte für bessere Hover-Erkennung
@@ -488,8 +522,36 @@ async function updatePlots() {
 
         // Letzter GTS Wert
         const lastGTS = gtsResults.length > 0 ? gtsResults[gtsResults.length - 1].gts : 0;
+        //const formattedDate = endDate.toLocaleDateString('de-DE');
+        //ergebnisTextEl.textContent = `Grünlandtemperatursumme am ${formattedDate} beträgt ${lastGTS.toFixed(2)}`;
+
+        // Innerhalb der updatePlots() Funktion, nach der Berechnung von lastGTS:
         const formattedDate = endDate.toLocaleDateString('de-DE');
-        ergebnisTextEl.textContent = `Grünlandtemperatursumme am ${formattedDate} beträgt ${lastGTS.toFixed(2)}`;
+        const todayStr = today.toLocaleDateString('de-DE');
+
+        // Formatierung für historisch (datum != heute)
+        let dateColor = "#A02020";
+        let dateWeight = "bold";
+        let betragen_str = "betrug"
+
+        // Wenn Datum == heute, dann andere Formatierung
+        if (formattedDate === todayStr) {
+            dateColor = "#206020";
+            betragen_str = "beträgt"
+        }
+
+        // HTML-String mit Formatierungen
+        // "Grünlandtemperatursumme am" in normal und #202020
+        // Datum in dateWeight und dateColor
+        // "beträgt" in normal und #202020
+        // GTS in bold und darkgreen
+        ergebnisTextEl.innerHTML = `
+    <span style="font-weight: normal; color: #202020;">Die Grünlandtemperatursumme am </span>
+    <span style="font-weight: ${dateWeight}; color: ${dateColor};">${formattedDate}</span>
+    <span style="font-weight: normal; color: #202020;"> ${betragen_str} </span>
+    <span style="font-weight: bold; color: darkgreen;">${lastGTS.toFixed(2)}</span>
+`;
+
 
         // Plotten
         plotData(filteredResults);
