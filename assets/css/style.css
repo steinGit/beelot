@@ -177,3 +177,9 @@ footer nav a {
 footer nav a:hover {
     color: #ff8000;          /* Farbe bei Hover */
 }
+
+.leaflet-popup-content-wrapper {
+    max-width: 80vw; /* 80% of the viewport width */
+    max-height: 60vh; /* 60% of the viewport height */
+    overflow-y: auto; /* Scroll content if needed */
+}
