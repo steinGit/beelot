@@ -13,82 +13,204 @@ header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-nav a {
-    font-size: 2em;
-    margin: 0 10px;
-    text-decoration: none;
-    color: #333;
-    font-weight: bold; /* Fett */
-}
-
-nav a:hover {
-    color: #ff8000;
+.logo-container {
+    display: flex;
+    align-items: center;
 }
 
 .logo {
-    height: 150px;  /* Höhe auf 150px setzen */
-    width: auto;    /* Breite automatisch anpassen */
+    height: 50px;
+    margin-right: 10px;
 }
 
 h1 {
     margin: 0;
 }
 
-.eingabe-section, .ergebnis-section, .plot-section, .hinweis-section {
-    border-top: 1px solid #ccc;
-    padding: 20px;
+nav {
+    display: flex;
+    align-items: center;
+    gap: 15px;
 }
 
-.input-group {
-    margin-bottom: 15px;
-}
-
-.input-group label {
+nav a {
+    font-size: 1.2em;
+    margin: 0 15px;
+    text-decoration: none;
+    color: #333;
     font-weight: bold;
+    transition: color 0.3s ease;
 }
 
-.input-group input, .input-group select, .input-group button {
-    margin-top: 5px;
+nav a:hover {
+    color: #ff8000;
 }
 
-#ergebnis-text {
-    font-size: 2em;          /* Doppelte Größe */
-    font-weight: bold;      /* Fett */
-    color: darkgreen;       /* Dunkelgrün */
+nav img {
+    height: 1.2em;
+    vertical-align: middle;
+    margin-left: 5px;
+    transition: transform 0.3s ease;
 }
 
-#ergebnis-text2 {
-    font-size: 2em;          /* Doppelte Größe */
-    font-weight: bold;      /* Fett */
-    color: #304030;
+nav img:hover {
+    transform: rotate(20deg);
 }
 
-.map-container {
-    display: none;
-    position: fixed;
-    top: 10%;
-    left: 10%;
-    right: 10%;
-    bottom: 10%;
-    background: #fff;
-    border: 2px solid #333;
-    z-index: 1000;
+.einstellungen-container {
+    border: none;
+    padding: 10px 0;
+    margin: 20px 0;
 }
 
-#map {
+/* Abschnittsbeschreibungen */
+.section-description {
+    margin: 0 0 10px;
+    font-size: 1em;
+    color: #555;
+}
+
+/* Heading-Stil */
+.settings-heading {
     width: 100%;
-    height: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-weight: bold;
+    margin: 0 0 10px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+    user-select: none;
+    border-radius: 5px;
 }
 
-.map-controls {
+.settings-heading:hover {
+    background-color: #eaeaea;
+}
+
+.settings-heading span.arrow {
+    margin-left: 10px;
+}
+
+/* Collapsible Content */
+.settings-content {
+    display: none;
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid #ddd;
+    background: #fff;
+    border-radius: 5px;
+}
+
+.settings-content p {
+    margin: 0;
+}
+
+/* Tabellen-Stil */
+#tracht-table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+#tracht-table th, #tracht-table td {
+    border: 1px solid #ddd;
+    padding: 6px 8px;
+}
+
+#tracht-table th {
+    text-align: center;
+}
+
+.numeric-cell {
     text-align: right;
-    padding: 5px;
+    width: 60px;
 }
 
-.map-controls button {
-    margin: 5px;
+.plant-cell {
+    text-align: left;
+    width: 250px;
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.checkbox-cell {
+    text-align: center;
+    width: 60px;
+}
+
+.trash-cell {
+    text-align: center;
+    width: 50px;
+}
+
+.row-active {
+    color: black;
+}
+
+.row-inactive {
+    color: #808080;
+}
+
+input.digits {
+    border: none;
+    text-align: right;
+    width: 50px;
+    outline: none;
+    font-size: 1em;
+}
+
+.active-input {
+    background-color: #ffffc0;
+}
+
+.inactive-input {
+    background-color: #c0c0c0;
+}
+
+/* Buttons */
+.add-button {
+    margin-top: 10px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.reset-button {
+    color: red;
+    font-weight: bold;
+    margin-top: 10px;
+    cursor: pointer;
+}
+
+/* Pfeildrehen */
+.rotate-90 {
+    transform: rotate(90deg);
+}
+
+/* Footer */
+footer {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    background: transparent;
+    padding: 10px;
+}
+
+footer nav a {
+    font-size: 0.9em;
+    color: #808080;
+    text-decoration: none;
+}
+
+footer nav a:hover {
+    color: #ff8000;
 }
 
 @media (max-width: 600px) {
@@ -122,58 +244,4 @@ h1 {
 .plot-container canvas {
     width: 100%;
     height: 100%;
-}
-
-#toggle-temp-plot {
-    margin-top: 10px;
-}
-
-header {
-    background: #f0f0f0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.logo-container {
-    display: flex;
-    align-items: center;
-}
-
-.logo {
-    height: 50px;
-    margin-right: 10px;
-}
-
-nav a {
-    font-size: 1.2em;
-    margin: 0 15px;
-    text-decoration: none;
-    color: #333;
-    font-weight: bold;
-    transition: color 0.3s ease;
-}
-
-nav a:hover {
-    color: #ff8000;
-}
-
-footer {
-    position: fixed;          /* Footer bleibt immer sichtbar */
-    bottom: 0;               /* An der unteren Kante des Fensters */
-    right: 0;                /* Rechts ausgerichtet */
-    background: transparent; /* Kein Hintergrund, damit es unauffällig ist */
-    padding: 10px;           /* Etwas Abstand zum Rand */
-}
-
-footer nav a {
-    font-size: 0.9em;        /* Etwas kleinere Schriftgröße */
-    color: #808080;          /* Graue Schriftfarbe */
-    text-decoration: none;   /* Entfernt die Unterstreichung */
-}
-
-footer nav a:hover {
-    color: #ff8000;          /* Farbe bei Hover */
 }
