@@ -2,11 +2,12 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>BeeLot</title>
     <link rel="stylesheet" href="/assets/css/style.css">
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="/assets/css/index.css">
   </head>
   <body>
 
@@ -24,18 +25,12 @@
       <section class="eingabe-section">
         <h2>Eingabe</h2>
         <div class="input-group">
-          <label for="ort">Ort:</label><br>
-          <input type="text" id="ort" name="ort" placeholder="Aktuelle Position oder Ort wählen..."><br>
-          <button id="ort-karte-btn">Ort auf Karte wählen</button>
+          <button id="ort-karte-btn">Ort auf Karte wählen</button><br>
+          <label for="ort">Koordinaten:</label>
+          <output type="text" id="ort" name="ort" placeholder="Aktuelle Position oder Ort wählen...">
         </div>
         <div class="input-group">
-          <label for="datum">Datum:</label><br>
-          <input type="date" id="datum" name="datum"><br>
-          <button id="datum-plus">+</button>
-          <button id="datum-minus">-</button>
-        </div>
-        <div class="input-group">
-          <label for="zeitraum">Darstellungs Zeitraum:</label><br>
+          <label for="zeitraum">Darstellungs Zeitraum:</label>
           <select id="zeitraum" name="zeitraum">
             <option value="7">1 Woche</option>
             <option value="14" selected>2 Wochen</option>
@@ -43,8 +38,15 @@
             <option value="ytd">Seit Jahresanfang</option>
           </select>
         </div>
+      </section class="zeitreise-section">
+      <section>
+        <h2>Zeitreise</h2>
         <div class="input-group">
-          <button id="berechnen-btn">Berechnen</button>
+          <label for="datum">Datum:</label>
+          <input type="date" id="datum" name="datum">
+          <button id="datum-plus">+</button>
+          <button id="datum-minus">-</button>
+          <button id="datum-heute">heute</button>
         </div>
       </section>
 
