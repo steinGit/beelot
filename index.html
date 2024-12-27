@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <link rel="icon" type="image/png" href="/assets/img/favicon.png">
     <title>BeeLot</title>
     <link rel="stylesheet" href="/assets/css/style.css">
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="/assets/css/index.css">
   </head>
@@ -19,7 +19,6 @@
             document.getElementById("header-placeholder").innerHTML = html;
         });
     </script>
-
 
     <main>
       <section class="eingabe-section">
@@ -38,69 +37,78 @@
             <option value="ytd">Seit Jahresanfang</option>
           </select>
         </div>
-      </section class="zeitreise-section">
-      <section>
-        <h2>Zeitreise</h2>
+      </section>
+
+      <section class="zeitreise-section">
+        <h2>Simulation</h2>
         <div class="input-group">
           <label for="datum">Datum:</label>
           <input type="date" id="datum" name="datum">
           <button id="datum-plus">+</button>
           <button id="datum-minus">-</button>
+          <!-- Always visible -->
           <button id="datum-heute">heute</button>
+          <!-- Keep hidden if your code references it -->
+          <button id="berechnen-btn" style="display: none;">Berechnen</button>
         </div>
       </section>
 
       <section class="ergebnis-section">
-        <p id="ergebnis-text" Die Grünlandtemperatursumme am [Datum] beträgt [GTS Ergebnis]</p>
-           </section>
+        <p id="ergebnis-text">Die Grünlandtemperatursumme am [Datum] beträgt [GTS Ergebnis]</p>
+      </section>
 
-<section class="plot-section">
-  <h2>Diagramm (GTS) in °C</h2>
-  <div class="plot-container">
-    <canvas id="plot-canvas"></canvas>
-  </div>
+      <section class="plot-section">
+        <!-- GTS DIAGRAM + toggle button -->
+        <h2>Diagramm (GTS) in °C
+          <button id="toggle-gts-plot">anzeigen</button>
+        </h2>
 
-  <h2>Diagramm (Tagesmitteltemperaturen) in °C        <button id="toggle-temp-plot">anzeigen</button> </h2>
-  <div class="plot-container" id="temp-plot-container" style="display:none;">
-    <canvas id="temp-plot"></canvas>
-  </div>
-</section>
+        <div class="plot-container" id="gts-plot-container" style="display:none;">
+          <canvas id="plot-canvas"></canvas>
+        </div>
 
-<section class="hinweis-section">
-  <h2>Hinweise</h2>
-  <p>Hinweis 1</p>
-  <p>Hinweis 2</p>
-  <p>Hinweis 3</p>
-  <p>Hinweis 4</p>
-  <p>Hinweis 5</p>
-</section>
-</main>
+        <!-- TEMPERATURE DIAGRAM + toggle button (already works) -->
+        <h2>Diagramm (Tagesmitteltemperaturen) in °C
+          <button id="toggle-temp-plot">anzeigen</button>
+        </h2>
+        <div class="plot-container" id="temp-plot-container" style="display:none;">
+          <canvas id="temp-plot"></canvas>
+        </div>
+      </section>
 
-<div class="map-container" id="map-popup">
-  <div class="map-controls">
-    <button id="map-close-btn">Schließen</button>
-    <button id="map-save-btn">Diesen Ort verwenden</button>
-  </div>
-  <div id="map"></div>
-</div>
+      <section class="hinweis-section">
+        <h2>Hinweise</h2>
+        <p>Hinweis 1</p>
+        <p>Hinweis 2</p>
+        <p>Hinweis 3</p>
+        <p>Hinweis 4</p>
+        <p>Hinweis 5</p>
+      </section>
+    </main>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <div class="map-container" id="map-popup">
+      <div class="map-controls">
+        <button id="map-close-btn">Schließen</button>
+        <button id="map-save-btn">Diesen Ort verwenden</button>
+      </div>
+      <div id="map"></div>
+    </div>
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- main.js -->
+    <script type="module" src="assets/js/main.js"></script>
 
-<!-- main.js -->
-<script type="module" src="assets/js/main.js"></script>
+    <div id="footer-placeholder"></div>
+    <script>
+      fetch("/components/footer.html")
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById("footer-placeholder").innerHTML = html;
+        });
+    </script>
 
-<div id="footer-placeholder"></div>
-<script>
-  fetch("/components/footer.html")
-    .then(response => response.text())
-    .then(html => {
-        document.getElementById("footer-placeholder").innerHTML = html;
-    });
-</script>
-
-</body>
+  </body>
 </html>
