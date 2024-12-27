@@ -14,10 +14,10 @@
     <div id="header-placeholder"></div>
     <script>
       fetch("/components/header.html")
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById("header-placeholder").innerHTML = html;
-        });
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById("header-placeholder").innerHTML = html;
+    });
     </script>
 
     <main>
@@ -57,17 +57,17 @@
         <p id="ergebnis-text">Die Grünlandtemperatursumme am [Datum] beträgt [GTS Ergebnis]</p>
       </section>
 
+
       <section class="plot-section">
-        <!-- GTS DIAGRAM + toggle button -->
         <h2>Diagramm (GTS) in °C
           <button id="toggle-gts-plot">anzeigen</button>
+          <!-- NEW: Toggle for 5-year overlay -->
+          <button id="toggle-5yr-plot" style="display:inline-block;">past 5 years</button>
         </h2>
-
         <div class="plot-container" id="gts-plot-container" style="display:none;">
           <canvas id="plot-canvas"></canvas>
         </div>
 
-        <!-- TEMPERATURE DIAGRAM + toggle button (already works) -->
         <h2>Diagramm (Tagesmitteltemperaturen) in °C
           <button id="toggle-temp-plot">anzeigen</button>
         </h2>
@@ -75,6 +75,8 @@
           <canvas id="temp-plot"></canvas>
         </div>
       </section>
+
+
 
       <section class="hinweis-section">
         <h2>Hinweise</h2>
@@ -104,10 +106,10 @@
     <div id="footer-placeholder"></div>
     <script>
       fetch("/components/footer.html")
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById("footer-placeholder").innerHTML = html;
-        });
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById("footer-placeholder").innerHTML = html;
+    });
     </script>
 
   </body>

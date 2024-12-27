@@ -18,8 +18,10 @@ import {
   toggleGtsPlotBtn,
   gtsPlotContainer,
   toggleTempPlotBtn,
-  tempPlotContainer
+  tempPlotContainer,
+  toggle5yrPlotBtn
 } from './ui.js';
+
 
 /**
  * Helper: get local "today" in YYYY-MM-DD format
@@ -51,6 +53,18 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     console.log("[DEBUG] No lastLocation found in localStorage.");
   }
+});
+
+let showFiveYear = false; // starts off
+
+toggle5yrPlotBtn.addEventListener('click', () => {
+  console.log("[DEBUG] toggle5yrPlotBtn clicked. Current showFiveYear=", showFiveYear);
+  // Flip the boolean
+  showFiveYear = !showFiveYear;
+  window.showFiveYear = showFiveYear;
+  console.log("[DEBUG] showFiveYear set to:", showFiveYear);
+  // Re-run updatePlots() to fetch + re-plot with or without the overlay
+  updatePlots();
 });
 
 // Register listeners
