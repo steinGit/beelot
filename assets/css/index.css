@@ -1,0 +1,68 @@
+.input-group {
+    margin-bottom: 15px;
+}
+
+.input-group label {
+    font-weight: bold;
+}
+
+.eingabe-section, .zeitreise-section, .ergebnis-section, .plot-section, .hinweis-section {
+    border-top: 1px solid #ccc;
+    padding: 20px;
+}
+
+.input-group input, .input-group select, .input-group button {
+    margin-top: 5px;
+}
+
+#ergebnis-text {
+    font-size: 2em;          /* Doppelte Größe */
+    font-weight: bold;      /* Fett */
+    color: darkgreen;       /* Dunkelgrün */
+}
+
+#ergebnis-text2 {
+    font-size: 2em;          /* Doppelte Größe */
+    font-weight: bold;      /* Fett */
+    color: #304030;
+}
+
+.leaflet-popup-content-wrapper {
+    max-width: 80vw; /* 80% of the viewport width */
+    max-height: 60vh; /* 60% of the viewport height */
+    overflow-y: auto; /* Scroll content if needed */
+}
+
+.map-controls button {
+    margin: 5px;
+}
+
+
+.map-container {
+    display: none;            /* hidden by default */
+    position: fixed;          /* so it’s an overlay, not inline */
+    top: 10%;
+    left: 10%;
+    width: 80%;
+    height: 80%;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    box-shadow: 2px 2px 12px rgba(0, 0, 0, 0.3);
+    z-index: 9999;            /* above the footer */
+    overflow: hidden;         /* scroll or hidden as you like */
+}
+
+.map-controls {
+    background: #f0f0f0;
+    padding: 5px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: flex-start;
+    border-bottom: 1px solid #ccc;
+}
+
+#map {
+    width: 100%;
+    height: calc(100% - 40px); /* fill leftover space minus controls */
+}

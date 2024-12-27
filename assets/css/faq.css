@@ -1,0 +1,54 @@
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #f9f9f9;
+    color: #333;
+    text-align: left; /* Ensure all text is left-aligned */
+}
+
+main {
+    max-width: 100%; /* Remove width restriction */
+    margin: 30px 10px 0px 10px; /* Align the main block to the left of the page */
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: left;
+}
+
+
+h1 {
+    text-align: left;
+    color: #304030;
+}
+
+.faq-section {
+    margin-bottom: 20px;
+    text-align: left; /* Ensure all FAQ text is left-aligned */
+}
+
+details {
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    background: #fefefe;
+    text-align: left; /* Ensure all details text is left-aligned */
+}
+
+details summary {
+    cursor: pointer;
+    font-weight: bold;
+    color: #333;
+    text-align: left; /* Ensure all summary text is left-aligned */
+}
+
+details summary:hover {
+    color: #ff8000;
+}
+
+details[open] {
+    border-color: #ff8000;
+}

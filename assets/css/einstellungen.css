@@ -1,0 +1,132 @@
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #f9f9f9;
+    color: #333;
+    text-align: left; /* Ensure all text is left-aligned */
+}
+
+main {
+    max-width: 100%; /* Use full width */
+    margin: 20px;
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: left; /* Explicitly set text alignment for main */
+}
+
+/* Container around the settings page */
+.einstellungen-container {
+    border: none;
+    padding: 10px 0;
+    margin: 20px 0;
+}
+
+/* Collapsible headings */
+.settings-heading {
+    width: 100%;
+    max-width: 400px; /* limit width */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-weight: bold;
+    padding: 10px;
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+    user-select: none;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+.settings-heading:hover {
+    background-color: #ff8000;
+}
+.settings-heading span.arrow {
+    margin-left: 10px;
+}
+
+/* Collapsible content area */
+.settings-content {
+    display: none;
+    max-width: 1000px;  /* also limit content width */
+    padding: 10px;
+    border: 1px solid #ddd;
+    background: #fff;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+
+h1 {
+    text-align: left;
+    color: #304030;
+}
+
+.faq-section {
+    margin-bottom: 20px;
+    text-align: left; /* Ensure all FAQ text is left-aligned */
+}
+
+/* The Tracht table */
+#tracht-table {
+    border-collapse: collapse;
+    width: 100%; /* Increase width by 50% */
+    margin: 0; /* Remove auto-centering */
+}
+
+#tracht-table th,
+#tracht-table td {
+    border: 1px solid #ddd;
+    padding: 6px 8px;
+    text-align: center;
+}
+
+/* Specific column widths */
+#tracht-table .checkbox-cell {
+    width: 50px; /* Keep "Aktiv" column width */
+}
+#tracht-table .numeric-cell {
+    width: 40px; /* Narrow for 4 digits */
+    text-align: right; /* Align numbers to the right */
+}
+#tracht-table .plant-cell {
+    width: calc(100% - 140px); /* Expand remaining space */
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word; /* Break long words */
+}
+#tracht-table .plant-cell input {
+    width: 100%; /* Make plant cell editable */
+    border: none;
+    background-color: transparent;
+    padding: 4px;
+    box-sizing: border-box;
+    white-space: normal; /* Allow multiline */
+    overflow-wrap: break-word; /* Wrap text within input */
+}
+#tracht-table .plant-cell input:focus {
+    outline: 1px solid #ff8000; /* Highlight on focus */
+}
+#tracht-table .trash-cell {
+    width: 50px; /* Keep "Löschen" column width */
+}
+
+/* row-active, row-inactive, .add-button, etc. */
+.row-active { color: black; }
+.row-inactive { color: #a0a0a0; }
+
+.add-button {
+    margin-top: 10px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.reset-button {
+    color: red;
+    font-weight: bold;
+    margin-top: 10px;
+    cursor: pointer;
+}
