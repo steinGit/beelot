@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FAQ - BeeLot</title>
-    <link rel="stylesheet" href="/assets/css/style.css">
-    <link rel="stylesheet" href="/assets/css/faq.css">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/faq.css">
   </head>
   <body>
     <!-- Header -->
     <div id="header-placeholder"></div>
     <script>
-      fetch("/components/header.html")
+      fetch("../components/header.html")
     .then(response => response.text())
     .then(html => {
         document.getElementById("header-placeholder").innerHTML = html;
@@ -106,7 +106,7 @@
     <!-- Footer -->
     <div id="footer-placeholder"></div>
     <script>
-      fetch("/components/footer.html")
+      fetch("../components/footer.html")
     .then(response => response.text())
     .then(html => {
         document.getElementById("footer-placeholder").innerHTML = html;

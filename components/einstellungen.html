@@ -3,15 +3,15 @@
   <head>
     <meta charset="UTF-8"/>
     <title>Einstellungen</title>
-    <link rel="stylesheet" href="/assets/css/style.css">
-    <link rel="stylesheet" href="/assets/css/einstellungen.css">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/einstellungen.css">
   </head>
 
   <body>
     <!-- Header -->
     <div id="header-placeholder"></div>
     <script>
-      fetch("/components/header.html")
+      fetch("../components/header.html")
     .then(response => response.text())
     .then(html => {
         document.getElementById("header-placeholder").innerHTML = html;
@@ -83,12 +83,12 @@
     </main>
 
     <!-- settings.js -->
-    <script src="/assets/js/settings.js"></script>
+    <script src="../assets/js/settings.js"></script>
 
     <!-- Footer -->
     <div id="footer-placeholder"></div>
     <script>
-      fetch("/components/footer.html")
+      fetch("../components/footer.html")
     .then(response => response.text())
     .then(html => {
         document.getElementById("footer-placeholder").innerHTML = html;

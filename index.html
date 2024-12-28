@@ -3,17 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <link rel="icon" type="image/png" href="/assets/img/favicon.png">
+    <link rel="icon" type="image/png" href="assets/img/favicon.png">
     <title>BeeLot</title>
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/assets/css/index.css">
+    <link rel="stylesheet" href="assets/css/index.css">
   </head>
   <body>
 
     <div id="header-placeholder"></div>
     <script>
-      fetch("/components/header.html")
+      fetch("components/header.html")
     .then(response => response.text())
     .then(html => {
         document.getElementById("header-placeholder").innerHTML = html;
@@ -102,7 +102,7 @@
 
     <div id="footer-placeholder"></div>
     <script>
-      fetch("/components/footer.html")
+      fetch("components/footer.html")
     .then(response => response.text())
     .then(html => {
         document.getElementById("footer-placeholder").innerHTML = html;
