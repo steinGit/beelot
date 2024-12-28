@@ -59,26 +59,28 @@
         <h2>Diagramm (GTS) in °C
           <button id="toggle-gts-plot">anzeigen</button>
         </h2>
-        <div class="plot-container" id="gts-plot-container" style="display:none;">
-
+        <div class="plot-container" id="gts-plot-container">
           <div class="input-group">
             <label for="zeitraum">Darstellungs Zeitraum:</label>
             <select id="zeitraum" name="zeitraum">
               <option value="7">1 Woche</option>
-              <option value="14" selected>2 Wochen</option>
+              <option value="14">2 Wochen</option>
               <option value="28">4 Wochen</option>
-              <option value="ytd">Seit Jahresanfang</option>
-            </select> <br>
-            <button id="toggle-5yr-plot" style="display:inline-block;">past 5 years</button>
+              <option value="ytd" selected>Seit Jahresanfang</option>
+            </select>
+            <br>
+            <button id="toggle-5yr-plot" style="display: inline-block;">past 5 years</button>
           </div>
-
-          <canvas id="plot-canvas"></canvas>
+          <!-- Added a wrapper for the canvas -->
+          <div class="plot-wrapper">
+            <canvas id="plot-canvas"></canvas>
+          </div>
         </div>
 
         <h2>Diagramm (Tagesmitteltemperaturen) in °C
           <button id="toggle-temp-plot">anzeigen</button>
         </h2>
-        <div class="plot-container" id="temp-plot-container" style="display:none;">
+        <div class="plot-container" id="temp-plot-container">
           <canvas id="temp-plot"></canvas>
         </div>
       </section>

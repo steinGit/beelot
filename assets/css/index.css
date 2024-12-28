@@ -84,14 +84,46 @@
 }
 
 .plot-container {
-    max-height: 600px; /* Set a maximum height for the container */
-    overflow: auto; /* Prevent content from spilling out */
-    position: relative; /* Ensures proper layout within its parent */
-    border: 1px solid #ccc; /* Optional: adds a border for clarity */
-    padding: 10px; /* Optional: spacing inside the container */
+    display: none; /* Initially hidden */
+    position: relative;
+    border: 1px solid #ccc;
+    padding: 10px; /* Space around the content */
+    box-sizing: border-box;
+    width: 100%;
+    height: 600px; /* Fixed height */
+    overflow: hidden; /* Prevent unwanted overflow */
+    margin-top: 20px;
+    flex-direction: column; /* Stack children vertically */
+    justify-content: space-between; /* Evenly space children vertically */
 }
 
-#plot-canvas, #temp-plot {
+.plot-container.visible {
+    display: flex; /* Make visible */
+}
+
+.plot-wrapper {
+    height: 500px; /* Fixed height */
+    flex-grow: 1; /* Take up remaining space in the container */
+    display: flex; /* Flex layout to center canvas */
+    justify-content: center; /* Horizontally center the canvas */
+    align-items: center; /* Vertically center the canvas */
+    overflow: hidden; /* Ensure no overflow */
+}
+
+#plot-canvas {
+    width: 100%; /* Scale to fit container width */
+    height: 100%; /* Ensure the canvas fills the wrapper */
+    display: block;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 600px) {
+    .plot-container {
+        height: 400px; /* Smaller height for smaller screens */
+    }
+}
+
+#temp-plot {
     width: 100%; /* Ensure the canvas scales horizontally */
     height: 500px; /* Set a fixed height for the canvas */
 }

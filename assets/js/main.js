@@ -138,35 +138,34 @@ datumHeuteBtn.addEventListener('click', () => {
   updatePlots();
 });
 
-// Toggle GTS plot exactly like temperature
-toggleGtsPlotBtn.addEventListener('click', () => {
-  console.log("[DEBUG] GTS toggle clicked. Current display:", gtsPlotContainer.style.display);
-  if (gtsPlotContainer.style.display === 'none') {
-    gtsPlotContainer.style.display = 'block';
-    toggleGtsPlotBtn.textContent = 'ausblenden';
-    console.log("[DEBUG] GTS container set to 'block'. Now calling updatePlots()...");
-    updatePlots();
+// GTS plot toggle
+// Make sure the container is hidden on page load (no 'visible' class)
+gtsPlotContainer.classList.remove("visible");
+
+// Then toggle by class
+toggleGtsPlotBtn.addEventListener("click", () => {
+  // Toggle the class
+  gtsPlotContainer.classList.toggle("visible");
+
+  // Update the button text
+  if (gtsPlotContainer.classList.contains("visible")) {
+    toggleGtsPlotBtn.textContent = "ausblenden";
   } else {
-    gtsPlotContainer.style.display = 'none';
-    toggleGtsPlotBtn.textContent = 'anzeigen';
-    console.log("[DEBUG] GTS container set to 'none'.");
+    toggleGtsPlotBtn.textContent = "anzeigen";
   }
 });
 
+
 // Temperature plot toggle
-toggleTempPlotBtn.addEventListener('click', () => {
-  console.log("[DEBUG] Temp toggle clicked. Current display:", tempPlotContainer.style.display);
-  if (tempPlotContainer.style.display === 'none') {
-    tempPlotContainer.style.display = 'block';
-    toggleTempPlotBtn.textContent = 'ausblenden';
-    console.log("[DEBUG] Temp container set to 'block'. Now calling updatePlots()...");
-    updatePlots();
+toggleTempPlotBtn.addEventListener("click", () => {
+  tempPlotContainer.classList.toggle("visible");
+  if (tempPlotContainer.classList.contains("visible")) {
+    toggleTempPlotBtn.textContent = "ausblenden";
   } else {
-    tempPlotContainer.style.display = 'none';
-    toggleTempPlotBtn.textContent = 'anzeigen';
-    console.log("[DEBUG] Temp container set to 'none'.");
+    toggleTempPlotBtn.textContent = "anzeigen";
   }
 });
+
 
 // Map logic
 ortKarteBtn.addEventListener('click', () => {
