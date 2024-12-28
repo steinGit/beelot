@@ -145,7 +145,7 @@ window.saveMapSelection = () => {
 /**
  * Core function to fetch data, build GTS/Temp plots, and update #ergebnis-text
  * Checks if user selected "past 5 years" in main.js (window.showFiveYear).
- * Uses local noon for date checks, ensuring "Datum darf nicht in der Zukunft liegen" 
+ * Uses local noon for date checks, ensuring "Datum darf nicht in der Zukunft liegen"
  * only triggers if the chosen date is truly beyond today's local noon.
  */
 export async function updatePlots() {
@@ -172,15 +172,15 @@ export async function updatePlots() {
     // 2) Build a local noon version of "today" to avoid time-zone mismatch
     const now = new Date();
     const localTodayNoon = new Date(
-      now.getFullYear(), 
-      now.getMonth(), 
-      now.getDate(), 
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
       12, 0, 0, 0
     );
     console.log("[DEBUG ui.js] localTodayNoon =>", localTodayNoon.toISOString());
 
     // 3) Get endDate in local noon
-    const endDate = getSelectedEndDate(); 
+    const endDate = getSelectedEndDate();
     console.log("[DEBUG ui.js] endDate =>", endDate.toISOString());
 
     // If the user picks a date strictly beyond today's local noon => not allowed
@@ -205,7 +205,7 @@ export async function updatePlots() {
     const today = new Date();
     const differenceInDays = Math.floor((today - endDate) / (1000 * 3600 * 24));
     const plotStartDate = computeStartDate();
-    console.log("[DEBUG ui.js] differenceInDays=", differenceInDays, 
+    console.log("[DEBUG ui.js] differenceInDays=", differenceInDays,
                 "plotStartDate=", plotStartDate.toISOString().split('T')[0]);
 
     // The historical fetch starts from Jan 1 of the current endDate year
@@ -298,7 +298,7 @@ export async function updatePlots() {
         console.log("[DEBUG ui.js] betragen_str =>", betragen_str);
 
         ergebnisTextEl.innerHTML = `
-            <span style="font-weight: normal; color: #202020;">Die Grünlandtemperatursumme am </span>
+            <span style="font-weight: normal; color: #202020;">Die Grünland-Temperatur-Summe am </span>
             <span style="font-weight: ${dateWeight}; color: ${dateColor};">${formattedDate}</span>
             <span style="font-weight: normal; color: #202020;"> ${betragen_str} </span>
             <span style="font-weight: bold; color: darkgreen;">${lastGTS.toFixed(2)}</span>
