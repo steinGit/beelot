@@ -15,6 +15,22 @@
     margin-top: 5px;
 }
 
+#ort-karte-btn {
+    font-size: 1.2rem; /* Increases the button text size */
+    padding: 10px 20px; /* Adds space inside the button */
+    margin: 20px 0px; /* Adds margin around the button */
+    border-radius: 25px; /* Optional: makes the corners rounded */
+    background-color: #00FF7B; /* Optional: adds a background color */
+    color: black; /* Optional: changes text color */
+    border: none; /* Optional: removes border */
+    cursor: pointer; /* Optional: adds a pointer on hover */
+}
+
+#ort-karte-btn:hover {
+    background-color: #00b356; /* Optional: changes background color on hover */
+}
+
+
 #ergebnis-text {
     font-size: 2em;          /* Doppelte Größe */
     font-weight: bold;      /* Fett */
@@ -65,4 +81,17 @@
 #map {
     width: 100%;
     height: calc(100% - 40px); /* fill leftover space minus controls */
+}
+
+.plot-container {
+    max-height: 600px; /* Set a maximum height for the container */
+    overflow: auto; /* Prevent content from spilling out */
+    position: relative; /* Ensures proper layout within its parent */
+    border: 1px solid #ccc; /* Optional: adds a border for clarity */
+    padding: 10px; /* Optional: spacing inside the container */
+}
+
+#plot-canvas, #temp-plot {
+    width: 100%; /* Ensure the canvas scales horizontally */
+    height: 500px; /* Set a fixed height for the canvas */
 }

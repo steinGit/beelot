@@ -63,9 +63,18 @@ toggle5yrPlotBtn.addEventListener('click', () => {
   showFiveYear = !showFiveYear;
   window.showFiveYear = showFiveYear;
   console.log("[DEBUG] showFiveYear set to:", showFiveYear);
-  // Re-run updatePlots() to fetch + re-plot with or without the overlay
+
+  if (showFiveYear) {
+    // user just turned it on -> show “only selected year”
+    toggle5yrPlotBtn.textContent = 'only selected year';
+  } else {
+    // user turned it off -> show “past 5 years”
+    toggle5yrPlotBtn.textContent = 'past 5 years';
+  }
+
   updatePlots();
 });
+
 
 // Register listeners
 ortInput.addEventListener('change', () => {

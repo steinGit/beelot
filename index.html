@@ -22,21 +22,23 @@
 
     <main>
       <section class="eingabe-section">
-        <h2>Eingabe</h2>
         <div class="input-group">
           <button id="ort-karte-btn">Ort auf Karte wählen</button><br>
           <label for="ort">Koordinaten:</label>
           <output type="text" id="ort" name="ort" placeholder="Aktuelle Position oder Ort wählen...">
         </div>
-        <div class="input-group">
-          <label for="zeitraum">Darstellungs Zeitraum:</label>
-          <select id="zeitraum" name="zeitraum">
-            <option value="7">1 Woche</option>
-            <option value="14" selected>2 Wochen</option>
-            <option value="28">4 Wochen</option>
-            <option value="ytd">Seit Jahresanfang</option>
-          </select>
-        </div>
+      </section>
+
+
+      <section class="ergebnis-section">
+        <p id="ergebnis-text">Die Grünlandtemperatursumme am [Datum] beträgt [GTS Ergebnis]</p>
+      </section>
+
+      <section class="hinweis-section">
+        <h2>Imkerliche Empfehlungen</h2>
+        <p>Hinweis 1</p>
+        <p>...</p>
+        <p>Hinweis 5</p>
       </section>
 
       <section class="zeitreise-section">
@@ -53,18 +55,23 @@
         </div>
       </section>
 
-      <section class="ergebnis-section">
-        <p id="ergebnis-text">Die Grünlandtemperatursumme am [Datum] beträgt [GTS Ergebnis]</p>
-      </section>
-
-
       <section class="plot-section">
         <h2>Diagramm (GTS) in °C
           <button id="toggle-gts-plot">anzeigen</button>
-          <!-- NEW: Toggle for 5-year overlay -->
-          <button id="toggle-5yr-plot" style="display:inline-block;">past 5 years</button>
         </h2>
         <div class="plot-container" id="gts-plot-container" style="display:none;">
+
+          <div class="input-group">
+            <label for="zeitraum">Darstellungs Zeitraum:</label>
+            <select id="zeitraum" name="zeitraum">
+              <option value="7">1 Woche</option>
+              <option value="14" selected>2 Wochen</option>
+              <option value="28">4 Wochen</option>
+              <option value="ytd">Seit Jahresanfang</option>
+            </select> <br>
+            <button id="toggle-5yr-plot" style="display:inline-block;">past 5 years</button>
+          </div>
+
           <canvas id="plot-canvas"></canvas>
         </div>
 
@@ -76,16 +83,6 @@
         </div>
       </section>
 
-
-
-      <section class="hinweis-section">
-        <h2>Hinweise</h2>
-        <p>Hinweis 1</p>
-        <p>Hinweis 2</p>
-        <p>Hinweis 3</p>
-        <p>Hinweis 4</p>
-        <p>Hinweis 5</p>
-      </section>
     </main>
 
     <div class="map-container" id="map-popup">
