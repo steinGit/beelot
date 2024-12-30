@@ -8,13 +8,16 @@ import {
     calculateGTS,
     computeStartDate,
     getSelectedEndDate,
-    build5YearData     // <-- Import the multi-year builder
+    build5YearData     // <-- multi-year GTS from logic.js
 } from './logic.js';
 import {
     plotData,
     plotDailyTemps,
-    plotMultipleYearData  // <-- Import the multi-year plotting
+    plotMultipleYearData  // <-- multi-year plotting
 } from './charts.js';
+
+// NEW: import our information module
+import { updateHinweisSection } from './information.js';
 
 export const ortInput = document.getElementById('ort');
 export const datumInput = document.getElementById('datum');
@@ -145,8 +148,6 @@ window.saveMapSelection = () => {
 /**
  * Core function to fetch data, build GTS/Temp plots, and update #ergebnis-text
  * Checks if user selected "past 5 years" in main.js (window.showFiveYear).
- * Uses local noon for date checks, ensuring "Datum darf nicht in der Zukunft liegen"
- * only triggers if the chosen date is truly beyond today's local noon.
  */
 export async function updatePlots() {
     console.log("[DEBUG ui.js] updatePlots() => Start. #datum=", datumInput.value);
@@ -165,6 +166,12 @@ export async function updatePlots() {
         if (chartTemp) {
             chartTemp.destroy();
             chartTemp = null;
+        }
+        // Also clear the hinweis-section
+        const hinweisSection = document.querySelector(".hinweis-section");
+        if (hinweisSection) {
+          hinweisSection.innerHTML = `<h2>Imkerliche Information</h2>
+            <p style="color: grey;">Kein Standort definiert.</p>`;
         }
         return;
     }
@@ -280,7 +287,7 @@ export async function updatePlots() {
         }
         console.log("[DEBUG ui.js] filteredTempsDates.length=", filteredTempsDates.length);
 
-        // 9) Update result text in #ergebnisText
+        // 9) Update result text in #ergebnis-text
         const lastGTS = (gtsResults.length > 0) ? gtsResults[gtsResults.length - 1].gts : 0;
         const formattedDate = endDate.toLocaleDateString('de-DE');
         const localTodayStr = new Date().toLocaleDateString('de-DE');
@@ -294,8 +301,6 @@ export async function updatePlots() {
             dateColor = "#206020";
             betragen_str = "beträgt";
         }
-
-        console.log("[DEBUG ui.js] betragen_str =>", betragen_str);
 
         ergebnisTextEl.innerHTML = `
             <span style="font-weight: normal; color: #202020;">Die Grünland-Temperatur-Summe am </span>
@@ -321,10 +326,7 @@ export async function updatePlots() {
         if (gtsPlotContainer.style.display !== 'none') {
             if (window.showFiveYear) {
                 console.log("[DEBUG ui.js] showFiveYear => building multi-year overlay chart...");
-                // We gather older years from logic.js => build5YearData
                 const multiYearData = await build5YearData(lat, lon, plotStartDate, endDate);
-                console.log("[DEBUG ui.js] multiYearData.length=", multiYearData.length);
-                // Plot them as multiple lines
                 chartGTS = plotMultipleYearData(multiYearData);
             } else {
                 console.log("[DEBUG ui.js] single-year => plotData(filteredResults)");
@@ -341,6 +343,9 @@ export async function updatePlots() {
         } else {
             console.log("[DEBUG ui.js] tempPlotContainer is hidden => skipping temperature chart creation.");
         }
+
+        // 13) NEW => update the hinweis-section with your forecast logic
+        await updateHinweisSection(gtsResults, endDate);
 
         console.log("[DEBUG ui.js] updatePlots() => Done.");
     } catch (err) {

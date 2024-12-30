@@ -15,10 +15,10 @@
     <div id="header-placeholder"></div>
     <script>
       fetch("components/header.html")
-    .then(response => response.text())
-    .then(html => {
-        document.getElementById("header-placeholder").innerHTML = html;
-    });
+        .then(response => response.text())
+        .then(html => {
+          document.getElementById("header-placeholder").innerHTML = html;
+        });
     </script>
 
     <main>
@@ -30,11 +30,11 @@
         </div>
       </section>
 
-
       <section class="ergebnis-section">
         <p id="ergebnis-text">Die Grünland-Temperatur-Summe am [Datum] beträgt [GTS Ergebnis]</p>
       </section>
 
+      <!-- This section will get populated by information.js -->
       <section class="hinweis-section">
         <h2>Imkerliche Information</h2>
         <p>Hinweis 1</p>
@@ -102,14 +102,16 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- main.js -->
     <script type="module" src="assets/js/main.js"></script>
+    <!-- NEW: Load our new info logic after main.js -->
+    <script type="module" src="assets/js/information.js"></script>
 
     <div id="footer-placeholder"></div>
     <script>
       fetch("components/footer.html")
-    .then(response => response.text())
-    .then(html => {
-        document.getElementById("footer-placeholder").innerHTML = html;
-    });
+        .then(response => response.text())
+        .then(html => {
+          document.getElementById("footer-placeholder").innerHTML = html;
+        });
     </script>
 
   </body>
