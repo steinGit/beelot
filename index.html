@@ -31,15 +31,18 @@
       </section>
 
       <section class="ergebnis-section">
-        <p id="ergebnis-text">Die Grünland-Temperatur-Summe am [Datum] beträgt [GTS Ergebnis]</p>
+        <p id="ergebnis-text">Die Grünlandtemperatursumme wird berechnet wenn ein Ort ausgewählt ist.</p>
       </section>
 
       <!-- This section will get populated by information.js -->
       <section class="hinweis-section">
         <h2>Imkerliche Information</h2>
-        <p>Hinweis 1</p>
-        <p>...</p>
-        <p>Hinweis 5</p>
+        <p>
+          Die Tracht Einstellungen können <a href="http://127.0.0.1:8000/components/einstellungen.html">hier</a> ergänzt oder modifiziert werden.
+        </p>
+        <p>
+          Empfehlungen und Blühphasen Voraussagen werden berechnet wenn ein Ort ausgewählt wurde.
+        </p>
       </section>
 
       <section class="zeitreise-section">
@@ -50,7 +53,11 @@
           <button id="datum-plus">+</button>
           <button id="datum-minus">-</button>
           <!-- Always visible -->
-          <button id="datum-heute">heute</button>
+          <button id="datum-heute">heute</button><br>
+          <span class="small-gray-text">
+              Hinweis: benutze die "+" und "-" Taste auf der Tastatur oder Numpad
+          </span>
+
           <!-- Keep hidden if your code references it -->
           <button id="berechnen-btn" style="display: none;">Berechnen</button>
         </div>
@@ -70,7 +77,7 @@
               <option value="ytd" selected>Seit Jahresanfang</option>
             </select>
             <br>
-            <button id="toggle-5yr-plot" style="display: inline-block;">past 5 years</button>
+            <button id="toggle-5yr-plot" style="display: inline-block;">die letzten 5 Jahre</button>
           </div>
           <!-- Added a wrapper for the canvas -->
           <div class="plot-wrapper">

@@ -144,6 +144,12 @@ export async function updateHinweisSection(gtsResults, endDate) {
     //    We'll replace the 5 lines with new HTML
     let html = "<h2>Imkerliche Information</h2>\n";
 
+    html += `<p>
+          <span class="small-gray-text">
+              Die Tracht Einstellungen können <a href="http://127.0.0.1:8000/components/einstellungen.html">hier</a> ergänzt oder modifiziert werden.
+          </span>
+      </p>`;
+
     // 6A) Rearview info
     if (rearview_list.length === 0) {
         html += `<p style="color: grey;">

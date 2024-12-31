@@ -25,6 +25,23 @@ header {
     align-items: center;
 }
 
+.logo-text {
+    display: flex;
+    flex-direction: column;
+    margin-left: 10px; /* Abstand zwischen Logo und Text */
+}
+
+.logo-text h1 {
+    margin: 0;
+    font-size: 2rem; /* Aktuelle Schriftgröße für "BeeLot" */
+}
+
+.logo-text .version {
+    font-size: 0.8rem; /* Kleinere Schriftgröße für "Version 0.1" */
+    color: gray; /* Optional: eine hellere Farbe für die Version */
+    margin-top: 0.2rem; /* Kleiner Abstand nach oben */
+}
+
 .logo {
     height: 100px;
     margin-right: 10px;
@@ -123,3 +140,7 @@ footer nav a:hover {
     height: 100%;
 }
 
+.small-gray-text {
+    font-size: 0.7em; /* Kleiner als normal */
+    color: gray; /* Grauer Text */
+}

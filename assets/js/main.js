@@ -66,10 +66,10 @@ toggle5yrPlotBtn.addEventListener('click', () => {
 
   if (showFiveYear) {
     // user just turned it on -> show “only selected year”
-    toggle5yrPlotBtn.textContent = 'only selected year';
+    toggle5yrPlotBtn.textContent = 'das ausgewählte Jahr';
   } else {
     // user turned it off -> show “past 5 years”
-    toggle5yrPlotBtn.textContent = 'past 5 years';
+    toggle5yrPlotBtn.textContent = 'die letzten 5 Jahre';
   }
 
   updatePlots();
@@ -116,6 +116,7 @@ datumPlusBtn.addEventListener('click', () => {
   updatePlots();
 });
 
+
 // Datum -1
 datumMinusBtn.addEventListener('click', () => {
   console.log("[DEBUG] datumMinusBtn clicked => -1 day");
@@ -127,6 +128,17 @@ datumMinusBtn.addEventListener('click', () => {
   datumInput.value = current.toISOString().split('T')[0];
   console.log("[DEBUG] New date is:", datumInput.value, "=> updatePlots()");
   updatePlots();
+});
+
+// Keypress Functionality for "+" and "-"
+document.addEventListener('keydown', (event) => {
+  if (event.key === "+" || event.code === "NumpadAdd") {
+    console.log("[DEBUG] '+' key pressed => triggering datumPlusBtn functionality");
+    datumPlusBtn.click(); // Trigger the button click programmatically
+  } else if (event.key === "-" || event.code === "NumpadSubtract") {
+    console.log("[DEBUG] '-' key pressed => triggering datumMinusBtn functionality");
+    datumMinusBtn.click(); // Trigger the button click programmatically
+  }
 });
 
 // Heute button: sets the date to local "today" & updates
