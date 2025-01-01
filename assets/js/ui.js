@@ -158,7 +158,7 @@ export async function updatePlots() {
     // 1) Wenn keine lat/lon => Ergebnisse löschen
     if (!ortVal.includes("Lat") || !ortVal.includes("Lon")) {
         console.log("[DEBUG ui.js] No lat/lon => clearing text + destroying charts.");
-        ergebnisTextEl.textContent = "Die Grünlandtemperatursumme wird berechnet wenn ein Ort ausgewählt ist.";
+        ergebnisTextEl.textContent = "Die Grünland-Temperatur-Summe wird berechnet wenn ein Ort ausgewählt ist.";
         if (chartGTS) {
             chartGTS.destroy();
             chartGTS = null;
@@ -339,7 +339,7 @@ export async function updatePlots() {
             <span style="font-weight: normal; color: #202020;">Die Grünland-Temperatur-Summe am </span>
             <span style="font-weight: ${dateWeight}; color: ${dateColor};">${formattedDate}</span>
             <span style="font-weight: normal; color: #202020;"> ${betragen_str} </span>
-            <span style="font-weight: bold; color: darkgreen;">${lastGTS.toFixed(2)}</span>
+            <span style="font-weight: bold; color: darkgreen;">${lastGTS.toFixed(1)}</span>°
         `;
         console.log("[DEBUG ui.js] ergebnisTextEl =>", ergebnisTextEl.innerText);
 
