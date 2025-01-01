@@ -22,6 +22,11 @@ export function beekeeperColor(year) {
  * E.g. filteredResults => array of { date, gts }.
  */
 export function plotData(results) {
+    if (!results || results.length === 0) {
+        console.warn("[charts.js] plotData() aufgerufen mit leeren Ergebnissen.");
+        return null;
+    }
+
     const labels = results.map(r => {
         const d = new Date(r.date);
         return `${d.getDate()}.${d.getMonth() + 1}`;

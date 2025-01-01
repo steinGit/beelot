@@ -155,7 +155,7 @@ export async function updatePlots() {
     const ortVal = ortInput.value;
     console.log("[DEBUG ui.js] ortVal=", ortVal);
 
-    // 1) If no lat/lon => clear results
+    // 1) Wenn keine lat/lon => Ergebnisse löschen
     if (!ortVal.includes("Lat") || !ortVal.includes("Lon")) {
         console.log("[DEBUG ui.js] No lat/lon => clearing text + destroying charts.");
         ergebnisTextEl.textContent = "Die Grünlandtemperatursumme wird berechnet wenn ein Ort ausgewählt ist.";
@@ -167,7 +167,7 @@ export async function updatePlots() {
             chartTemp.destroy();
             chartTemp = null;
         }
-        // Also clear the hinweis-section
+        // Auch den hinweis-section leeren
         const hinweisSection = document.querySelector(".hinweis-section");
         if (hinweisSection) {
           hinweisSection.innerHTML = `<h2>Imkerliche Information</h2>
@@ -176,7 +176,7 @@ export async function updatePlots() {
         return;
     }
 
-    // 2) Build a local noon version of "today" to avoid time-zone mismatch
+    // 2) Lokales "Heute" um 12:00 Uhr erstellen
     const now = new Date();
     const localTodayNoon = new Date(
       now.getFullYear(),
@@ -186,21 +186,21 @@ export async function updatePlots() {
     );
     console.log("[DEBUG ui.js] localTodayNoon =>", localTodayNoon.toISOString());
 
-    // 3) Get endDate in local noon
+    // 3) Enddatum auf Basis der Benutzerauswahl holen
     const endDate = getSelectedEndDate();
     console.log("[DEBUG ui.js] endDate =>", endDate.toISOString());
 
-    // If the user picks a date strictly beyond today's local noon => not allowed
+    // Wenn das gewählte Datum in der Zukunft liegt, korrigiere es
     if (endDate.getTime() > localTodayNoon.getTime()) {
-        console.log("[DEBUG ui.js] endDate is after localTodayNoon => user set future => alert + fix");
+        console.log("[DEBUG ui.js] endDate ist nach localTodayNoon => Benutzer hat ein zukünftiges Datum gewählt => Alert + Korrektur");
         alert("Das Datum darf nicht in der Zukunft liegen.");
-        // Fix #datum to localTodayNoon
+        // Korrigiere #datum auf localTodayNoon
         datumInput.value = localTodayNoon.toISOString().split('T')[0];
         datumInput.max   = localTodayNoon.toISOString().split('T')[0];
         return;
     }
 
-    // 4) Parse lat/lon
+    // 4) Latitude und Longitude parsen
     const parts = ortVal.split(',');
     const latPart = parts[0].split(':')[1];
     const lonPart = parts[1].split(':')[1];
@@ -208,15 +208,14 @@ export async function updatePlots() {
     const lon = parseFloat(lonPart.trim());
     console.log("[DEBUG ui.js] parse lat=", lat, "lon=", lon);
 
-    // 5) Figure out date range for the user’s selection
+    // 5) Datumsbereich für die Benutzerauswahl bestimmen
     const today = new Date();
     const differenceInDays = Math.floor((today - endDate) / (1000 * 3600 * 24));
     const plotStartDate = computeStartDate();
     console.log("[DEBUG ui.js] differenceInDays=", differenceInDays,
                 "plotStartDate=", plotStartDate.toISOString().split('T')[0]);
 
-    // The historical fetch starts from Jan 1 of the current endDate year
-    // The forecast fetch starts 30 days before endDate
+    // Historische Daten ab dem 1. Januar des Jahres des Enddatums
     const fetchStartDate = new Date(endDate.getFullYear(), 0, 1, 12, 0, 0, 0);
     const recentStartDate = new Date(endDate);
     recentStartDate.setDate(recentStartDate.getDate() - 30);
@@ -225,7 +224,7 @@ export async function updatePlots() {
         "recentStartDate=", recentStartDate.toISOString().split('T')[0]);
 
     try {
-        // 6) Fetch historical data
+        // 6) Historische Daten abrufen
         console.log("[DEBUG ui.js] fetchHistoricalData(",
             fetchStartDate.toISOString().split('T')[0], "->", endDate.toISOString().split('T')[0], ")");
         const histData = await fetchHistoricalData(lat, lon, fetchStartDate, endDate);
@@ -233,15 +232,15 @@ export async function updatePlots() {
         const histDates = histData.daily.time;
         const histTemps = histData.daily.temperature_2m_mean;
 
-        // Combine with recent if differenceInDays <= 10
+        // Kombinieren mit aktuellen Daten, wenn differenceInDays <= 10
         let dataByDate = {};
         if (differenceInDays > 10) {
-            console.log("[DEBUG ui.js] differenceInDays>10 => only historical");
+            console.log("[DEBUG ui.js] differenceInDays>10 => nur historische Daten verwenden");
             for (let i = 0; i < histDates.length; i++) {
                 dataByDate[histDates[i]] = histTemps[i];
             }
         } else {
-            console.log("[DEBUG ui.js] differenceInDays<=10 => also fetch recent");
+            console.log("[DEBUG ui.js] differenceInDays<=10 => auch aktuelle Daten abrufen");
             const recentData = await fetchRecentData(lat, lon, recentStartDate, endDate);
             const recentDates = recentData.daily.time;
             const recentTemps = recentData.daily.temperature_2m_mean;
@@ -253,29 +252,62 @@ export async function updatePlots() {
             }
         }
 
-        // 7) Sort & map
+        // 7) Daten sortieren und mappen
         const allDates = Object.keys(dataByDate).sort((a,b) => new Date(a) - new Date(b));
         const allTemps = allDates.map(d => dataByDate[d]);
-        console.log("[DEBUG ui.js] combined allDates.length=", allDates.length);
+        console.log("[DEBUG ui.js] kombiniertes allDates.length=", allDates.length);
 
         if (allTemps.length === 0) {
-            console.log("[DEBUG ui.js] No temperature data => alert + return");
+            console.log("[DEBUG ui.js] Keine Temperaturdaten gefunden => Alert + Rückkehr");
             alert("Keine Daten gefunden. Anderen Ort oder anderes Datum wählen.");
             return;
         }
 
-        // 8) GTS results for the entire [fetchStart..endDate], even if partial
+        // 8) GTS-Ergebnisse für den gesamten Bereich berechnen
         const gtsResults = calculateGTS(allDates, allTemps);
         console.log("[DEBUG ui.js] gtsResults.length=", gtsResults.length);
 
-        // Filter GTS for display window [plotStartDate..endDate]
+        // 9) GTS filtern für das Anzeige-Fenster [plotStartDate..endDate]
         const filteredResults = gtsResults.filter(r => {
             const d = new Date(r.date);
             return (d >= plotStartDate && d <= endDate);
         });
         console.log("[DEBUG ui.js] filteredResults.length=", filteredResults.length);
 
-        // Filter daily temps for display
+        // 10) Überprüfung, ob filteredResults leer ist
+        const formattedDate = endDate.toLocaleDateString('de-DE'); // Verschiebe die Deklaration hierhin
+        if (filteredResults.length === 0) {
+            ergebnisTextEl.innerHTML = `
+                <span style="color: #700000;">
+                Die Grünland-Temperatur-Summe konnte am ${formattedDate} nicht berechnet werden, da für eine "Summe" noch keine Daten zur Verfügung stehen 😉.
+                </span>
+            `;
+            console.log("[DEBUG ui.js] Keine Daten zum Aufsummieren vorhanden. Ergebnistext aktualisiert.");
+
+            // Option: Alte Diagramme zerstören, falls vorhanden
+            if (chartGTS) {
+                console.log("[DEBUG ui.js] Zerstöre altes chartGTS...");
+                chartGTS.destroy();
+                chartGTS = null;
+            }
+            if (chartTemp) {
+                console.log("[DEBUG ui.js] Zerstöre altes chartTemp...");
+                chartTemp.destroy();
+                chartTemp = null;
+            }
+
+            // Option: Andere relevante Abschnitte aktualisieren oder leeren
+            const hinweisSection = document.querySelector(".hinweis-section");
+            if (hinweisSection) {
+                hinweisSection.innerHTML = `<h2>Imkerliche Information</h2>
+                    <p style="color: grey;">Keine ausreichenden Daten zur Berechnung vorhanden.</p>`;
+            }
+
+            return; // Beende die Funktion frühzeitig
+        }
+
+        // 11) Gefilterte GTS-Ergebnisse fortsetzen
+        // Filter tägliche Temperaturen für die Anzeige
         filteredTempsDates = [];
         filteredTempsData = [];
         for (let i = 0; i < allDates.length; i++) {
@@ -287,19 +319,20 @@ export async function updatePlots() {
         }
         console.log("[DEBUG ui.js] filteredTempsDates.length=", filteredTempsDates.length);
 
-        // 9) Update result text in #ergebnis-text
+        // 12) Ergebnistext aktualisieren
         const lastGTS = (gtsResults.length > 0) ? gtsResults[gtsResults.length - 1].gts : 0;
-        const formattedDate = endDate.toLocaleDateString('de-DE');
         const localTodayStr = new Date().toLocaleDateString('de-DE');
 
         let dateColor = "#802020";
         let dateWeight = "bold";
-        let betragen_str = "betrug"; // default (past tense)
+        let betragen_str = "beträgt"; // Korrigierter Standardwert
 
         if (formattedDate === localTodayStr) {
-            // if the chosen date is exactly "today" => present tense
+            // Wenn das gewählte Datum genau "heute" ist => Präsens
             dateColor = "#206020";
             betragen_str = "beträgt";
+        } else {
+            betragen_str = "betrug"; // Vergangenheitsform für frühere Daten
         }
 
         ergebnisTextEl.innerHTML = `
@@ -310,22 +343,22 @@ export async function updatePlots() {
         `;
         console.log("[DEBUG ui.js] ergebnisTextEl =>", ergebnisTextEl.innerText);
 
-        // 10) Destroy old charts if any
+        // 13) Alte Diagramme zerstören, falls vorhanden
         if (chartGTS) {
-            console.log("[DEBUG ui.js] Destroying old chartGTS...");
+            console.log("[DEBUG ui.js] Zerstöre altes chartGTS...");
             chartGTS.destroy();
             chartGTS = null;
         }
         if (chartTemp) {
-            console.log("[DEBUG ui.js] Destroying old chartTemp...");
+            console.log("[DEBUG ui.js] Zerstöre altes chartTemp...");
             chartTemp.destroy();
             chartTemp = null;
         }
 
-        // 11) Build GTS chart => single-year or multi-year
+        // 14) GTS Diagramm erstellen => Single-Year oder Multi-Year
         if (gtsPlotContainer.style.display !== 'none') {
             if (window.showFiveYear) {
-                console.log("[DEBUG ui.js] showFiveYear => building multi-year overlay chart...");
+                console.log("[DEBUG ui.js] showFiveYear => multi-year overlay chart erstellen...");
                 const multiYearData = await build5YearData(lat, lon, plotStartDate, endDate);
                 chartGTS = plotMultipleYearData(multiYearData);
             } else {
@@ -333,23 +366,23 @@ export async function updatePlots() {
                 chartGTS = plotData(filteredResults);
             }
         } else {
-            console.log("[DEBUG ui.js] gtsPlotContainer is hidden => skipping GTS chart creation.");
+            console.log("[DEBUG ui.js] gtsPlotContainer ist verborgen => überspringe Erstellung des GTS-Diagramms.");
         }
 
-        // 12) Build Temperature chart if needed
+        // 15) Temperaturdiagramm erstellen, falls benötigt
         if (tempPlotContainer.style.display !== 'none') {
-            console.log("[DEBUG ui.js] Building Temperature chart => plotDailyTemps()");
+            console.log("[DEBUG ui.js] Temperaturdiagramm wird erstellt => plotDailyTemps()");
             chartTemp = plotDailyTemps(filteredTempsDates, filteredTempsData);
         } else {
-            console.log("[DEBUG ui.js] tempPlotContainer is hidden => skipping temperature chart creation.");
+            console.log("[DEBUG ui.js] tempPlotContainer ist verborgen => überspringe Erstellung des Temperaturdiagramms.");
         }
 
-        // 13) NEW => update the hinweis-section with your forecast logic
+        // 16) Aktualisiere den Hinweis-Abschnitt mit der Vorhersagelogik
         await updateHinweisSection(gtsResults, endDate);
 
-        console.log("[DEBUG ui.js] updatePlots() => Done.");
-    } catch (err) {
-        console.error("[DEBUG ui.js] => Caught error:", err);
-        alert("Fehler beim Laden der Daten: " + err.message);
+        console.log("[DEBUG ui.js] updatePlots() => Fertig.");
+    }
+    catch (err) {
+        console.log("[DEBUG ui.js] => Caught error:", err);
     }
 }
