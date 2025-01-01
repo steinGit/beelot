@@ -146,7 +146,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
 
     html += `<p>
           <span class="small-gray-text">
-              Die Tracht Einstellungen können <a href="http://127.0.0.1:8000/components/einstellungen.html">hier</a> ergänzt oder modifiziert werden.
+              Die Tracht Einstellungen können <a href="components/einstellungen.html">hier</a> ergänzt oder modifiziert werden.
           </span>
       </p>`;
 
