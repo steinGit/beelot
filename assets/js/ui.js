@@ -217,8 +217,16 @@ export async function updatePlots() {
 
     // Historische Daten ab dem 1. Januar des Jahres des Enddatums
     const fetchStartDate = new Date(endDate.getFullYear(), 0, 1, 12, 0, 0, 0);
-    const recentStartDate = new Date(endDate);
-    recentStartDate.setDate(recentStartDate.getDate() - 30);
+    let recentStartDate;
+
+    if (endDate.getTime() - fetchStartDate.getTime() <= 30 * 24 * 60 * 60 * 1000) {
+        // Falls wir in den ersten 30 Tagen des Jahres sind, nur die Tage seit dem 1. Januar nehmen
+        recentStartDate = new Date(fetchStartDate);
+    } else {
+        // Ansonsten die letzten 30 Tage vom Enddatum ausgehend
+        recentStartDate = new Date(endDate);
+        recentStartDate.setDate(recentStartDate.getDate() - 30);
+    }
 
     console.log("[DEBUG ui.js] fetchStartDate=", fetchStartDate.toISOString().split('T')[0],
         "recentStartDate=", recentStartDate.toISOString().split('T')[0]);
