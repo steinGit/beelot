@@ -60,7 +60,6 @@ export function computeStartDate() {
  * GTS calculation with month weighting.
  */
 export function calculateGTS(dates, values) {
-    console.log("[DEBUG logic.js] calculateGTS() => input length=", dates.length);
     let cumulativeSum = 0;
     const results = [];
 
@@ -68,24 +67,29 @@ export function calculateGTS(dates, values) {
         let val = values[i] < 0 ? 0 : values[i];
         const currentDate = new Date(dates[i]);
         const month = currentDate.getMonth() + 1;
+        const day = currentDate.getDate();
 
-        let weightedVal = val;
-        if (month === 1) {
-            weightedVal = val * 0.5;
-        } else if (month === 2) {
-            weightedVal = val * 0.75;
+        // Set GTS to 0.0 explicitly for January 1
+        if (month === 1 && day === 1) {
+            cumulativeSum = 0;
+        } else {
+            let weightedVal = val;
+            if (month === 1) {
+                weightedVal = val * 0.5;
+            } else if (month === 2) {
+                weightedVal = val * 0.75;
+            }
+
+            cumulativeSum += weightedVal;
         }
 
-        cumulativeSum += weightedVal;
         results.push({
             date: dates[i],
             gts: cumulativeSum
         });
     }
-    console.log("[DEBUG logic.js] calculateGTS() => output length=", results.length);
     return results;
 }
-
 
 
 /**
@@ -107,7 +111,7 @@ export async function fetchGTSForYear(lat, lon, year, baseStartDate, baseEndDate
   // A) Build fetch range (for older or current year):
   //    - Start always Jan 1 of that year (noon).
   //    - End is "that year’s same day/month as user’s baseEndDate" (noon) + 1 day
-  const yearStart = new Date(year, 0, 1, 12, 0, 0, 0); 
+  const yearStart = new Date(year, 0, 1, 12, 0, 0, 0);
   const yearEnd   = new Date(year, baseEndDate.getMonth(), baseEndDate.getDate(), 12, 0, 0, 0);
   yearEnd.setDate(yearEnd.getDate() + 1);
 
@@ -199,5 +203,3 @@ export async function build5YearData(lat, lon, baseStartDate, baseEndDate) {
     console.log("[DEBUG logic.js] build5YearData() => total sets=", allResults.length);
     return allResults;
 }
-
-
