@@ -67,6 +67,9 @@ export async function updateHinweisSection(gtsResults, endDate) {
 
     // Now D_C[1..n] is the GTS curve up to endDate
 
+    // Log D_C after it is filled
+    //console.log("[INFO] D_C after being filled:", JSON.stringify(D_C, null, 2));
+
     // 2) Extend curve D by F=14 days linearly:
     //    We'll call the extended array => D_E. It has length m = n + F or up to 365/366.
     //    We do a simple approach: slope = average slope over the last F days of actual data.
@@ -98,6 +101,9 @@ export async function updateHinweisSection(gtsResults, endDate) {
         D_E[i] = D_E[i - 1] + slope;
     }
 
+    // Log D_C after extrapolation
+    //console.log("[INFO] D_C after extrapolation:", JSON.stringify(D_C, null, 2));
+
     // TSUM_current = D_E[n]
     // TSUM_max = D_E[m]
     const TSUM_current = D_E[n] || 0;
@@ -122,9 +128,17 @@ export async function updateHinweisSection(gtsResults, endDate) {
           .sort((a, b) => a.TSUM_start - b.TSUM_start);
 
     // 4) A) forecast_list => TSUM_start > TSUM_current
-    const forecast_list = relevant_list.filter(
-        row => row.TSUM_start > TSUM_current
-    );
+    let forecast_list = [];
+    if (n > 5) {
+        forecast_list = relevant_list.filter(
+            row => row.TSUM_start > TSUM_current
+        );
+
+        // For each item in the forecast_list, find the earliest day in D_E for which D_E[i] >= row.TSUM_start
+        computeDatesForList(forecast_list, D_E, n);
+    } else {
+        console.log("[INFO] No forecast generated: within the first 5 days of the year.");
+    }
 
     // 4) B) rearview_list => TSUM_start <= TSUM_current
     //        but also TSUM_start >= TSUM_start_rearview_list
