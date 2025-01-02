@@ -20,6 +20,8 @@ export async function updateHinweisSection(gtsResults, endDate) {
     const R = 7;   // Rearview window
     const F = 14;  // Forecast window
 
+    //console.log("[DEBUG] gtsResults:", JSON.stringify(gtsResults, null, 2));
+
     // 0) Grab the <section> element
     const hinweisSection = document.querySelector(".hinweis-section");
     if (!hinweisSection) {
@@ -51,6 +53,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
         const dObj = new Date(item.date);
         const dIndex = dayOfYear(dObj);
         if (dIndex >= 1 && dIndex < D_C.length) {
+            //console.log(`[DEBUG] Filling D_C[${dIndex}] with value:`, item.gts);
             D_C[dIndex] = item.gts;
         }
     });
@@ -59,9 +62,11 @@ export async function updateHinweisSection(gtsResults, endDate) {
     let lastKnown = 0;
     for (let i = 1; i < D_C.length; i++) {
         if (D_C[i] === null) {
+            //console.log(`[DEBUG] Filling D_C[${i}] with lastKnown:`, lastKnown);
             D_C[i] = lastKnown;
         } else {
             lastKnown = D_C[i];
+            //console.log(`[DEBUG] Updating lastKnown to:`, lastKnown);
         }
     }
 
