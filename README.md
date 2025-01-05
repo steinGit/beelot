@@ -27,6 +27,7 @@ beelot
    ├── tests/                  # Unit Tests
    ├── .gitignore              # ignored files for git
    ├── README.md               # project description
+   ├── scripts/                # some useful little helpers
    └── index.html              # starting page of the website
 ```
 
