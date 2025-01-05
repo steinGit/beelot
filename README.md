@@ -1,17 +1,40 @@
 # beelot
-Pilot for Beekeeping - GreenLandTemperatureSum
+Pilot for Bee-Keeping - The prediction of flowering phases based on the grassland temperature sum.
 
 
+## Website
+
+https://www.beelot.de
+
+Hosted under github.
+
+### Branches
+```plaintext
+"main" --> official current release
+"dev"  --> current development
+"v01"  --> version 0.1 (first release on Jan 1, 2025)
+```
+
+
+## Directory Tree
+```plaintext
+beelot
    ├── assets/
    │   ├── css/                # Stylesheets
-   │   ├── js/                 # JavaScript Dateien
-   │   ├── img/                # Bilder (PNG, JPEG, SVG, etc.)
-   │   ├── fonts/              # Webfonts (z. B. WOFF, WOFF2)
-   ├── components/             # Wiederverwendbare HTML-Komponenten
-   ├── pages/                  # Seiten (z. B. index.html, about.html)
-   ├── partials/               # Geteilte HTML-Dateien (Header, Footer, etc.)
-   ├── public/                 # Öffentlich zugängliche Dateien (z. B. favicon)
-   ├── tests/                  # Testfälle (z. B. für Unit Tests)
-   ├── .gitignore              # Ignorierte Dateien für Git
-   ├── README.md               # Projektbeschreibung
-   └── index.html              # Hauptseite der Webseite
+   │   ├── js/                 # JavaScript Files
+   │   ├── img/                # Images (PNG, JPEG, SVG, etc.)
+   ├── components/             # HTML-components
+   ├── tests/                  # Unit Tests
+   ├── .gitignore              # ignored files for git
+   ├── README.md               # project description
+   └── index.html              # starting page of the website
+```
+
+
+## Unit tests
+
+Run
+```
+npm install
+npm test
+```
