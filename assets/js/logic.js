@@ -48,7 +48,8 @@ export function computeStartDate() {
         startDate.setDate(endDate.getDate() - 28);
     } else if (selection === "ytd") {
         // go to Jan 1 of endDate's year, but stay at local noon
-        startDate = createLocalNoon(endDate.getFullYear(), 0, 1);
+        //bug startDate = createLocalNoon(endDate.getFullYear(), 0, 1);
+        startDate = createLocalNoon(endDate.getFullYear() - 1, 11, 31);
     }
 
     console.log("[DEBUG logic.js] computeStartDate() => startDate=",

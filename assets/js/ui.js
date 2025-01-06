@@ -325,6 +325,23 @@ export async function updatePlots() {
                 filteredTempsData.push(allTemps[i]);
             }
         }
+
+        if (false)
+        {
+            console.log(`
+        allDates ${JSON.stringify(allDates, null, 2)};
+        allTemps = ${JSON.stringify(allTemps, null, 2)};
+    `);
+            console.log(`
+        filteredTempsDates ${JSON.stringify(filteredTempsDates, null, 2)};
+        filteredTempsData = ${JSON.stringify(filteredTempsData, null, 2)};
+    `);
+
+            console.log("[DEBUG ui.js] plotStartDate=", plotStartDate);
+            console.log("[DEBUG ui.js] endDate      =", endDate);
+        }
+
+
         //console.log("[DEBUG ui.js] filteredTempsDates.length=", filteredTempsDates.length);
 
         // 12) Ergebnistext aktualisieren
@@ -349,16 +366,16 @@ export async function updatePlots() {
             <span style="font-weight: normal; color: #202020;"> ${betragen_str} </span>
             <span style="font-weight: bold; color: darkgreen;">${lastGTS.toFixed(1)}</span>°
         `;
-        console.log("[DEBUG ui.js] ergebnisTextEl =>", ergebnisTextEl.innerText);
+        //console.log("[DEBUG ui.js] ergebnisTextEl =>", ergebnisTextEl.innerText);
 
         // 13) Alte Diagramme zerstören, falls vorhanden
         if (chartGTS) {
-            console.log("[DEBUG ui.js] Zerstöre altes chartGTS...");
+            //console.log("[DEBUG ui.js] Zerstöre altes chartGTS...");
             chartGTS.destroy();
             chartGTS = null;
         }
         if (chartTemp) {
-            console.log("[DEBUG ui.js] Zerstöre altes chartTemp...");
+            //console.log("[DEBUG ui.js] Zerstöre altes chartTemp...");
             chartTemp.destroy();
             chartTemp = null;
         }
@@ -379,16 +396,16 @@ export async function updatePlots() {
 
         // 15) Temperaturdiagramm erstellen, falls benötigt
         if (tempPlotContainer.style.display !== 'none') {
-            console.log("[DEBUG ui.js] Temperaturdiagramm wird erstellt => plotDailyTemps()");
+            //console.log("[DEBUG ui.js] Temperaturdiagramm wird erstellt => plotDailyTemps()");
             chartTemp = plotDailyTemps(filteredTempsDates, filteredTempsData, true);
         } else {
-            console.log("[DEBUG ui.js] tempPlotContainer ist verborgen => überspringe Erstellung des Temperaturdiagramms.");
+            //console.log("[DEBUG ui.js] tempPlotContainer ist verborgen => überspringe Erstellung des Temperaturdiagramms.");
         }
 
         // 16) Aktualisiere den Hinweis-Abschnitt mit der Vorhersagelogik
         await updateHinweisSection(gtsResults, endDate);
 
-        console.log("[DEBUG ui.js] updatePlots() => Fertig.");
+        //console.log("[DEBUG ui.js] updatePlots() => Fertig.");
     }
     catch (err) {
         console.log("[DEBUG ui.js] => Caught error:", err);
