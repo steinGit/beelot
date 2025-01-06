@@ -21,7 +21,13 @@ export function beekeeperColor(year) {
  * Plot a single GTS dataset (the existing approach).
  * E.g. filteredResults => array of { date, gts }.
  */
-export function plotData(results) {
+export function plotData(results, verbose = false) {
+    // Log the input parameter for debugging
+    if (verbose)
+    {
+        console.log("[charts.js] plotData() called with results:", results);
+    }
+
     if (!results || results.length === 0) {
         console.warn("[charts.js] plotData() aufgerufen mit leeren Ergebnissen.");
         return null;
@@ -90,7 +96,14 @@ export function plotData(results) {
 /**
  * Plot daily temps (existing approach).
  */
-export function plotDailyTemps(dates, temps) {
+export function plotDailyTemps(dates, temps, verbose = false) {
+    // Log the input parameter for debugging
+    if (verbose)
+    {
+        console.log("[charts.js] plotDailyTemps() called with dates:", dates);
+        console.log("[charts.js] plotDailyTemps() called with temps:", temps);
+    }
+
     const labels = dates.map(dStr => {
         const d = new Date(dStr);
         return `${d.getDate()}.${d.getMonth() + 1}`;

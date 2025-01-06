@@ -59,38 +59,42 @@ export function computeStartDate() {
 /**
  * GTS calculation with month weighting.
  */
-export function calculateGTS(dates, values) {
+export function calculateGTS(dates, values, verbose = false) {
+    // Print the input parameters for debugging and test suite usage
+    if (verbose)
+    {
+        console.log(`
+        const dates = ${JSON.stringify(dates, null, 2)};
+        const values = ${JSON.stringify(values, null, 2)};
+    `);
+    }
+
     let cumulativeSum = 0;
     const results = [];
 
     for (let i = 0; i < values.length; i++) {
-        let val = values[i] < 0 ? 0 : values[i];
+        let val = Math.max(0, values[i]); // Replace negative values with 0.0
         const currentDate = new Date(dates[i]);
         const month = currentDate.getMonth() + 1;
-        const day = currentDate.getDate();
 
-        // Set GTS to 0.0 explicitly for January 1
-        if (month === 1 && day === 1) {
-            cumulativeSum = 0;
-        } else {
-            let weightedVal = val;
-            if (month === 1) {
-                weightedVal = val * 0.5;
-            } else if (month === 2) {
-                weightedVal = val * 0.75;
-            }
-
-            cumulativeSum += weightedVal;
+        // Apply weights based on the month
+        if (month === 1) {
+            val *= 0.5;
+        } else if (month === 2) {
+            val *= 0.75;
         }
 
+        cumulativeSum += val;
+
+        // Append the cumulative sum for the current date
         results.push({
             date: dates[i],
-            gts: cumulativeSum
+            gts: parseFloat(cumulativeSum.toFixed(2)), // Round to 2 decimal places
         });
     }
+
     return results;
 }
-
 
 /**
  * @module logic

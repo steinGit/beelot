@@ -60,9 +60,9 @@ let selectedLatLng = null;
  * Initializes or updates the Leaflet map overlay.
  */
 window.initOrUpdateMap = () => {
-    console.log("[DEBUG] initOrUpdateMap() called.");
+    //console.log("[DEBUG] initOrUpdateMap() called.");
     if (!map) {
-        console.log("[DEBUG] Creating a new Leaflet map instance...");
+        //console.log("[DEBUG] Creating a new Leaflet map instance...");
         map = L.map('map').setView([51.1657, 10.4515], 6);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -70,13 +70,13 @@ window.initOrUpdateMap = () => {
         }).addTo(map);
 
         map.on('click', (e) => {
-            console.log("[DEBUG] Map clicked at:", e.latlng);
+            //console.log("[DEBUG] Map clicked at:", e.latlng);
             if (marker) {
                 map.removeLayer(marker);
             }
             marker = L.marker(e.latlng).addTo(map);
             selectedLatLng = e.latlng;
-            console.log("[DEBUG] Marker set at:", selectedLatLng, "=> updatePlots()");
+            //console.log("[DEBUG] Marker set at:", selectedLatLng, "=> updatePlots()");
             updatePlots();
         });
 
@@ -87,7 +87,7 @@ window.initOrUpdateMap = () => {
             const coords = lastPos.split(',');
             const lat = parseFloat(coords[0]);
             const lon = parseFloat(coords[1]);
-            console.log("[DEBUG] Setting map to lastPos=", lat, lon, "zoom=", lastZoom);
+            //console.log("[DEBUG] Setting map to lastPos=", lat, lon, "zoom=", lastZoom);
             map.setView([lat, lon], parseInt(lastZoom));
             const lastLoc = localStorage.getItem("lastLocation");
             if (lastLoc && lastLoc.includes("Lat") && lastLoc.includes("Lon")) {
@@ -101,7 +101,7 @@ window.initOrUpdateMap = () => {
                     map.removeLayer(marker);
                 }
                 marker = L.marker([latSaved, lonSaved]).addTo(map);
-                console.log("[DEBUG] Marker re-added at lastLoc:", selectedLatLng);
+                //console.log("[DEBUG] Marker re-added at lastLoc:", selectedLatLng);
             }
         }
     } else {
@@ -121,7 +121,7 @@ window.initOrUpdateMap = () => {
                 }
                 marker = L.marker([latSaved, lonSaved]).addTo(map);
                 selectedLatLng = {lat: latSaved, lng: lonSaved};
-                console.log("[DEBUG] initOrUpdateMap() => re-positioned marker + map to last known location.");
+                //console.log("[DEBUG] initOrUpdateMap() => re-positioned marker + map to last known location.");
             }
         }, 100);
     }
@@ -138,7 +138,7 @@ window.saveMapSelection = () => {
         localStorage.setItem("lastLocation", locString);
         localStorage.setItem("lastPos", `${map.getCenter().lat},${map.getCenter().lng}`);
         localStorage.setItem("lastZoom", map.getZoom());
-        console.log("[DEBUG] Saved lastLocation=", locString, "=> updatePlots()");
+        //console.log("[DEBUG] Saved lastLocation=", locString, "=> updatePlots()");
         updatePlots();
     }
     const mapPopup = document.getElementById('map-popup');
@@ -150,14 +150,14 @@ window.saveMapSelection = () => {
  * Checks if user selected "past 5 years" in main.js (window.showFiveYear).
  */
 export async function updatePlots() {
-    console.log("[DEBUG ui.js] updatePlots() => Start. #datum=", datumInput.value);
+    //console.log("[DEBUG ui.js] updatePlots() => Start. #datum=", datumInput.value);
 
     const ortVal = ortInput.value;
-    console.log("[DEBUG ui.js] ortVal=", ortVal);
+    //console.log("[DEBUG ui.js] ortVal=", ortVal);
 
     // 1) Wenn keine lat/lon => Ergebnisse löschen
     if (!ortVal.includes("Lat") || !ortVal.includes("Lon")) {
-        console.log("[DEBUG ui.js] No lat/lon => clearing text + destroying charts.");
+        //console.log("[DEBUG ui.js] No lat/lon => clearing text + destroying charts.");
         ergebnisTextEl.textContent = "Die Grünland-Temperatur-Summe wird berechnet wenn ein Ort ausgewählt ist.";
         if (chartGTS) {
             chartGTS.destroy();
@@ -206,7 +206,7 @@ export async function updatePlots() {
     const lonPart = parts[1].split(':')[1];
     const lat = parseFloat(latPart.trim());
     const lon = parseFloat(lonPart.trim());
-    console.log("[DEBUG ui.js] parse lat=", lat, "lon=", lon);
+    //console.log("[DEBUG ui.js] parse lat=", lat, "lon=", lon);
 
     // 5) Datumsbereich für die Benutzerauswahl bestimmen
     const today = new Date();
@@ -263,7 +263,7 @@ export async function updatePlots() {
         // 7) Daten sortieren und mappen
         const allDates = Object.keys(dataByDate).sort((a,b) => new Date(a) - new Date(b));
         const allTemps = allDates.map(d => dataByDate[d]);
-        console.log("[DEBUG ui.js] kombiniertes allDates.length=", allDates.length);
+        //console.log("[DEBUG ui.js] kombiniertes allDates.length=", allDates.length);
 
         if (allTemps.length === 0) {
             console.log("[DEBUG ui.js] Keine Temperaturdaten gefunden => Alert + Rückkehr");
@@ -273,14 +273,14 @@ export async function updatePlots() {
 
         // 8) GTS-Ergebnisse für den gesamten Bereich berechnen
         const gtsResults = calculateGTS(allDates, allTemps);
-        console.log("[DEBUG ui.js] gtsResults.length=", gtsResults.length);
+        //console.log("[DEBUG ui.js] gtsResults.length=", gtsResults.length);
 
         // 9) GTS filtern für das Anzeige-Fenster [plotStartDate..endDate]
         const filteredResults = gtsResults.filter(r => {
             const d = new Date(r.date);
             return (d >= plotStartDate && d <= endDate);
         });
-        console.log("[DEBUG ui.js] filteredResults.length=", filteredResults.length);
+        //console.log("[DEBUG ui.js] filteredResults.length=", filteredResults.length);
 
         // 10) Überprüfung, ob filteredResults leer ist
         const formattedDate = endDate.toLocaleDateString('de-DE'); // Verschiebe die Deklaration hierhin
@@ -325,7 +325,7 @@ export async function updatePlots() {
                 filteredTempsData.push(allTemps[i]);
             }
         }
-        console.log("[DEBUG ui.js] filteredTempsDates.length=", filteredTempsDates.length);
+        //console.log("[DEBUG ui.js] filteredTempsDates.length=", filteredTempsDates.length);
 
         // 12) Ergebnistext aktualisieren
         const lastGTS = (gtsResults.length > 0) ? gtsResults[gtsResults.length - 1].gts : 0;
@@ -380,7 +380,7 @@ export async function updatePlots() {
         // 15) Temperaturdiagramm erstellen, falls benötigt
         if (tempPlotContainer.style.display !== 'none') {
             console.log("[DEBUG ui.js] Temperaturdiagramm wird erstellt => plotDailyTemps()");
-            chartTemp = plotDailyTemps(filteredTempsDates, filteredTempsData);
+            chartTemp = plotDailyTemps(filteredTempsDates, filteredTempsData, true);
         } else {
             console.log("[DEBUG ui.js] tempPlotContainer ist verborgen => überspringe Erstellung des Temperaturdiagramms.");
         }
