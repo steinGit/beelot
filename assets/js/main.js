@@ -197,3 +197,13 @@ mapSaveBtn.addEventListener('click', () => {
   console.log("[DEBUG] mapSaveBtn clicked => saveMapSelection()");
   window.saveMapSelection();
 });
+
+
+import { VERSION } from './version.js';
+
+document.addEventListener("DOMContentLoaded", () => {
+    const versionElement = document.getElementById("version-placeholder");
+    if (versionElement) {
+        versionElement.textContent = `Version ${VERSION}`;
+    }
+});
