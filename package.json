@@ -5,6 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "test1": "jest --testPathPattern='logic.test.js'",
+    "test2": "jest --testPathPattern='(logic|charts)\\.test\\.js'",
     "test": "jest",
     "lint": "eslint ."
   },
