@@ -52,35 +52,46 @@
           <button class="reset-button" onclick="resetTrachtData()">RESET</button>
         </div>
 
-        <!-- Beschreibung für Sonstiges
-        <p class="section-description">Hier können z.Bsp. Farbschemata angepasst werden.</p>
+        <!-- Beschreibung für Sonstiges         -->
+        <p class="section-description">System Settings</p>
 
-        !-- Heading: Sonstiges -- 
+        <!-- Heading: Sonstiges -->
         <div class="settings-heading" data-target="sonstiges-content">
-          <span>Sonstiges</span>
+          <span>System</span>
           <span class="arrow">▶</span>
         </div>
-        <div class="settings-content" id="sonstiges-content" style="display: none;">
-          <p>Weitere Einstellungen</p>
-          <label for="jahres-farbschema">Jahres Farbschema:</label><br>
-          <select id="jahres-farbschema">
-            <option value="Königinnen-Jahres-Farben">Königinnen-Jahres-Farben</option>
-            <option value="Regenbogen-Farben">Regenbogen-Farben</option>
-            <option value="Random">Random</option>
-          </select>
-          <br><br>
 
-          <label for="orts-farbschema">Orts Farbschema:</label><br>
-          <select id="orts-farbschema">
-            <option value="Regenbogen-Farben">Regenbogen-Farben</option>
-            <option value="Rot-Töne">Rot-Töne</option>
-            <option value="Blau-Töne">Blau-Töne</option>
-            <option value="Grün-Töne">Grün-Töne</option>
-            <option value="Grau-Töne">Grau-Töne</option>
-            <option value="Random">Random</option>
-          </select>
+        <div class="settings-content" id="sonstiges-content" style="display: none;">
+          <p>Local Storage</p>
+
+          <!-- Clear Local Storage Buttons -->
+          <div style="text-align: center; margin-top: 20px;">
+            <button class="red-button" onclick="clearLocalStorage()">Clear Local Storage</button>
+            <button class="red-button" onclick="clearCache()">Clear Cache</button>
+          </div>
+
+          <!--
+
+              <label for="jahres-farbschema">Jahres Farbschema:</label><br>
+              <select id="jahres-farbschema">
+                <option value="Königinnen-Jahres-Farben">Königinnen-Jahres-Farben</option>
+                <option value="Regenbogen-Farben">Regenbogen-Farben</option>
+                <option value="Random">Random</option>
+              </select>
+              <br><br>
+
+              <label for="orts-farbschema">Orts Farbschema:</label><br>
+              <select id="orts-farbschema">
+                <option value="Regenbogen-Farben">Regenbogen-Farben</option>
+                <option value="Rot-Töne">Rot-Töne</option>
+                <option value="Blau-Töne">Blau-Töne</option>
+                <option value="Grün-Töne">Grün-Töne</option>
+                <option value="Grau-Töne">Grau-Töne</option>
+                <option value="Random">Random</option>
+              </select>
+              -->
+
         </div>
-         -->
       </div>
     </main>
 
@@ -97,6 +108,27 @@
     });
     </script>
 
+
+    <!-- JavaScript for clearing local storage -->
+    <script>
+      function clearLocalStorage() {
+          console.log("[Clear Local Storage] Clearing all local storage...");
+          localStorage.clear();
+          console.log("[Clear Local Storage] Local storage cleared.");
+      }
+
+      function clearCache() {
+          console.log("[Clear Cache] Clearing cache...");
+          for (const key in localStorage) {
+              if (localStorage.hasOwnProperty(key) &&
+                  (key.includes("historical") || key.includes("recent"))) {
+                  localStorage.removeItem(key);
+                  console.log(`[Clear Cache] Cleared cache for key: ${key}`);
+              }
+          }
+          console.log("[Clear Cache] Cache clearing complete.");
+      }
+    </script>
 
   </body>
 </html>
