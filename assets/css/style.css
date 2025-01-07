@@ -144,3 +144,17 @@ footer nav a:hover {
     font-size: 0.7em; /* Kleiner als normal */
     color: gray; /* Grauer Text */
 }
+
+.red-button {
+  background-color: red;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  margin: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.red-button:hover {
+  background-color: darkred;
+}

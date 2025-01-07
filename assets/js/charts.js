@@ -22,9 +22,7 @@ export function beekeeperColor(year) {
  * E.g. filteredResults => array of { date, gts }.
  */
 export function plotData(results, verbose = false) {
-    // Log the input parameter for debugging
-    if (verbose)
-    {
+    if (verbose) {
         console.log("[charts.js] plotData() called with results:", results);
     }
 
@@ -46,11 +44,17 @@ export function plotData(results, verbose = false) {
 
     // Determine background color from that queen marking
     let bgColor = 'rgba(0,0,255,0.2)';
-    if (yearColor === 'grey') bgColor = 'rgba(128,128,128,0.2)';
-    else if (yearColor === '#ddaa00') bgColor = 'rgba(221,170,0,0.2)';
-    else if (yearColor === 'red') bgColor = 'rgba(255,0,0,0.2)';
-    else if (yearColor === 'green') bgColor = 'rgba(0,128,0,0.2)';
-    else if (yearColor === 'blue') bgColor = 'rgba(0,0,255,0.2)';
+    if (yearColor === 'grey') {
+      bgColor = 'rgba(128,128,128,0.2)';
+    } else if (yearColor === '#ddaa00') {
+      bgColor = 'rgba(221,170,0,0.2)';
+    } else if (yearColor === 'red') {
+      bgColor = 'rgba(255,0,0,0.2)';
+    } else if (yearColor === 'green') {
+      bgColor = 'rgba(0,128,0,0.2)';
+    } else if (yearColor === 'blue') {
+      bgColor = 'rgba(0,0,255,0.2)';
+    }
 
     const ctx = document.getElementById('plot-canvas').getContext('2d');
     const chartGTS = new Chart(ctx, {
@@ -94,12 +98,10 @@ export function plotData(results, verbose = false) {
 }
 
 /**
- * Plot daily temps (existing approach).
+ * Plot daily temps.
  */
 export function plotDailyTemps(dates, temps, verbose = false) {
-    // Log the input parameter for debugging
-    if (verbose)
-    {
+    if (verbose) {
         console.log("[charts.js] plotDailyTemps() called with dates:", dates);
         console.log("[charts.js] plotDailyTemps() called with temps:", temps);
     }
@@ -109,7 +111,6 @@ export function plotDailyTemps(dates, temps, verbose = false) {
         return `${d.getDate()}.${d.getMonth() + 1}`;
     });
 
-    // Use the last date's year for the label
     let yearLabel = '';
     if (dates.length > 0) {
         const lastDate = new Date(dates[dates.length - 1]);
@@ -117,13 +118,12 @@ export function plotDailyTemps(dates, temps, verbose = false) {
     }
 
     const ctx = document.getElementById('temp-plot').getContext('2d');
-
     const chartTemp = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
             datasets: [{
-                label: `Tagesmitteltemperatur ${yearLabel}`, // <--- Use yearLabel
+                label: `Tagesmitteltemperatur ${yearLabel}`,
                 data: temps,
                 borderColor: 'rgba(20, 60, 60)',
                 backgroundColor: 'rgba(20, 60, 60, 0.2)',
@@ -136,7 +136,11 @@ export function plotDailyTemps(dates, temps, verbose = false) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: { y: { beginAtZero: false } },
+            scales: {
+                y: {
+                    beginAtZero: false
+                }
+            },
             plugins: {
                 tooltip: {
                     enabled: true,
@@ -163,24 +167,25 @@ export function plotDailyTemps(dates, temps, verbose = false) {
  * ]
  */
 export function plotMultipleYearData(multiYearData) {
-    // We'll find the largest label set or you can do a
-    // day-of-year alignment. For simplicity we just take
-    // the first entry's labels as "master" here:
     const ctx = document.getElementById('plot-canvas').getContext('2d');
 
     // Build multiple Chart.js datasets
     const datasets = multiYearData.map(item => {
-        // Convert queen marking color for border
         const yearColor = beekeeperColor(item.year);
         let bgColor = 'rgba(0,0,255,0.0)';
-        if (yearColor === 'grey') bgColor = 'rgba(128,128,128,0.0)';
-        else if (yearColor === '#ddaa00') bgColor = 'rgba(221,170,0,0.0)';
-        else if (yearColor === 'red') bgColor = 'rgba(255,0,0,0.0)';
-        else if (yearColor === 'green') bgColor = 'rgba(0,128,0,0.0)';
-        else if (yearColor === 'blue') bgColor = 'rgba(0,0,255,0.0)';
+        if (yearColor === 'grey') {
+            bgColor = 'rgba(128,128,128,0.0)';
+        } else if (yearColor === '#ddaa00') {
+            bgColor = 'rgba(221,170,0,0.0)';
+        } else if (yearColor === 'red') {
+            bgColor = 'rgba(255,0,0,0.0)';
+        } else if (yearColor === 'green') {
+            bgColor = 'rgba(0,128,0,0.0)';
+        } else if (yearColor === 'blue') {
+            bgColor = 'rgba(0,0,255,0.0)';
+        }
 
-        // Turn item.labels into something more user-friendly
-        // We'll just do day.month for each date
+        // Convert the full date string to day.month
         const shortLabels = item.labels.map(dStr => {
             const d = new Date(dStr);
             return `${d.getDate()}.${d.getMonth() + 1}`;
@@ -188,7 +193,7 @@ export function plotMultipleYearData(multiYearData) {
 
         return {
             label: `${item.year}`,
-            data: item.gtsValues,     // same index as shortLabels
+            data: item.gtsValues,
             borderColor: yearColor,
             backgroundColor: bgColor,
             fill: true,
@@ -198,10 +203,9 @@ export function plotMultipleYearData(multiYearData) {
         };
     });
 
-    // We'll assume the first dataset's short labels is our main label set
+    // We'll use the first dataset's labels as the "master"
     const masterLabels = [];
     if (multiYearData.length > 0) {
-        // e.g. from the newest year (the first in your array)
         masterLabels.push(...multiYearData[0].labels.map(dStr => {
             const d = new Date(dStr);
             return `${d.getDate()}.${d.getMonth() + 1}`;

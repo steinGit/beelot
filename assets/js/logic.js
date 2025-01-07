@@ -1,44 +1,71 @@
+// logic.js
+
 /**
  * @module logic
- * Berechnungen und Hilfsfunktionen
+ * Handles calculations and helper functions related to data processing.
  */
 
-import { datumInput, zeitraumSelect } from './ui.js';
+import { formatDateLocal, isValidDate } from './utils.js';
 import { fetchHistoricalData } from './dataService.js';
 
 /**
- * Creates a Date at local "noon" to avoid dropping into the previous day in UTC.
+ * Creates a Date object set to local midnight to avoid time zone issues.
+ * @param {number} year - The year.
+ * @param {number} month - The month (0-based).
+ * @param {number} day - The day.
+ * @returns {Date} - The created Date object.
  */
-function createLocalNoon(year, month, day) {
-  // e.g. createLocalNoon(2024, 0, 1) => 2024-01-01T12:00 in local time
-  return new Date(year, month, day, 12, 0, 0, 0);
+function createLocalStartOfDay(year, month, day) {
+  // e.g., createLocalStartOfDay(2024, 0, 1) => 2024-01-01T00:00 in local time
+  return new Date(year, month, day, 0, 0, 0, 0);
 }
 
 /**
- * Returns a Date object based on what's currently in #datum
- * but also forced to local noon, so logs won't show the day before in UTC.
+ * Retrieves the selected end date from the #datum input.
+ * Ensures the date is set to local midnight.
+ * @returns {Date} - The selected end date.
  */
 export function getSelectedEndDate() {
+    const datumInput = document.getElementById('datum');
+    const ortVal = document.getElementById('ort').value || "";
+    if (!ortVal.includes("Lat") || !ortVal.includes("Lon")) {
+        console.warn("[DEBUG logic.js] getSelectedEndDate() => Invalid ort value:", ortVal);
+    }
+
     const parts = datumInput.value.split('-');
     const y = parseInt(parts[0], 10);
     const m = parseInt(parts[1], 10) - 1; // zero-based
     const d = parseInt(parts[2], 10);
-    const localNoon = createLocalNoon(y, m, d);
-    console.log("[DEBUG logic.js] getSelectedEndDate() =>", localNoon.toISOString());
-    return localNoon;
+    const localStartOfDay = createLocalStartOfDay(y, m, d);
+    console.log("[DEBUG logic.js] getSelectedEndDate() =>", localStartOfDay.toString());
+    return localStartOfDay;
 }
 
 /**
- * Based on the selected #datum and #zeitraum, returns a start Date
- * at local noon as well, to avoid confusion in logs.
+ * Computes the date range based on the selected end date.
+ * @param {Date} endDate - The selected end date.
+ * @returns {Object} - An object containing differenceInDays and plotStartDate.
  */
-export function computeStartDate() {
-    const endDate = getSelectedEndDate();
+export function computeDateRange(endDate) {
+    const today = new Date();
+    const differenceInTime = today.getTime() - endDate.getTime();
+    const differenceInDays = Math.floor(differenceInTime / (1000 * 3600 * 24));
+    const plotStartDate = computeStartDate(endDate);
+    return { differenceInDays, plotStartDate };
+}
+
+/**
+ * Computes the start date based on the selected timeframe.
+ * @param {Date} endDate - The selected end date.
+ * @returns {Date} - The computed start date.
+ */
+export function computeStartDate(endDate) {
+    const zeitraumSelect = document.getElementById('zeitraum');
     const selection = zeitraumSelect.value;
-    let startDate = new Date(endDate); // copy
+    const startDate = new Date(endDate); // Clone the endDate
 
     console.log("[DEBUG logic.js] computeStartDate() => selection=", selection,
-        "endDate=", endDate.toISOString().split('T')[0]);
+        "endDate=", formatDateLocal(endDate));
 
     if (selection === "7") {
         startDate.setDate(endDate.getDate() - 7);
@@ -47,23 +74,26 @@ export function computeStartDate() {
     } else if (selection === "28") {
         startDate.setDate(endDate.getDate() - 28);
     } else if (selection === "ytd") {
-        // go to Jan 1 of endDate's year, but stay at local noon
-        //bug startDate = createLocalNoon(endDate.getFullYear(), 0, 1);
-        startDate = createLocalNoon(endDate.getFullYear() - 1, 11, 31);
+        // Go to January 1st of the endDate's year
+        startDate.setMonth(0); // January
+        startDate.setDate(1);
     }
 
     console.log("[DEBUG logic.js] computeStartDate() => startDate=",
-        startDate.toISOString().split('T')[0]);
+        formatDateLocal(startDate));
     return startDate;
 }
 
 /**
- * GTS calculation with month weighting.
+ * Calculates the Grünland-Temperatur-Summe (GTS) with month-based weighting.
+ * Replaces toISOString().split('T')[0] with formatDateLocal for consistency.
+ * @param {Array<string>} dates - Array of date strings in 'YYYY-MM-DD' format.
+ * @param {Array<number>} values - Array of temperature values.
+ * @param {boolean} verbose - If true, logs additional debug information.
+ * @returns {Array<Object>} - Array of objects with 'date' and 'gts' properties.
  */
 export function calculateGTS(dates, values, verbose = false) {
-    // Print the input parameters for debugging and test suite usage
-    if (verbose)
-    {
+    if (verbose) {
         console.log(`
         const dates = ${JSON.stringify(dates, null, 2)};
         const values = ${JSON.stringify(values, null, 2)};
@@ -89,7 +119,7 @@ export function calculateGTS(dates, values, verbose = false) {
 
         // Append the cumulative sum for the current date
         results.push({
-            date: dates[i],
+            date: formatDateLocal(currentDate),
             gts: parseFloat(cumulativeSum.toFixed(2)), // Round to 2 decimal places
         });
     }
@@ -98,113 +128,145 @@ export function calculateGTS(dates, values, verbose = false) {
 }
 
 /**
- * @module logic
- * @function fetchGTSForYear
- *
- * 1) For each year: fetch from Jan1..(that year’s [month/day] of baseEndDate) + 1 day.
- * 2) Compute GTS from Jan1 (so the sum is large).
- * 3) Then "display" only from that year’s [month/day] of baseStartDate..baseEndDate.
- *    (E.g. 12/14..12/27, if the user picked 2 weeks.)
- *
- * So older years show the last 2 weeks of December,
- * but the GTS lines are big because they've accrued from Jan 1.
+ * Fetches GTS data for a specific year.
+ * @param {number} lat - Latitude.
+ * @param {number} lon - Longitude.
+ * @param {number} year - The year to fetch data for.
+ * @param {Date} baseStartDate - The user's chosen start date.
+ * @param {Date} baseEndDate - The user's chosen end date.
+ * @param {boolean} verbose - If true, logs additional debug information.
+ * @returns {Promise<Object>} - An object containing 'year', 'labels', and 'gtsValues'.
  */
-export async function fetchGTSForYear(lat, lon, year, baseStartDate, baseEndDate) {
-  console.log("[DEBUG logic.js] fetchGTSForYear() => year=", year,
-      " baseEndDate=", baseEndDate.toISOString().split('T')[0]);
-
-  // A) Build fetch range (for older or current year):
-  //    - Start always Jan 1 of that year (noon).
-  //    - End is "that year’s same day/month as user’s baseEndDate" (noon) + 1 day
-  const yearStart = new Date(year, 0, 1, 12, 0, 0, 0);
-  const yearEnd   = new Date(year, baseEndDate.getMonth(), baseEndDate.getDate(), 12, 0, 0, 0);
-  yearEnd.setDate(yearEnd.getDate() + 1);
-
-  console.log("[DEBUG logic.js] => yearStart=", yearStart.toISOString().split('T')[0],
-              " yearEnd=", yearEnd.toISOString().split('T')[0]);
-
-  // B) Fetch historical data from Jan1..(that day/month)
-  const histData = await fetchHistoricalData(lat, lon, yearStart, yearEnd);
-  if (!histData || !histData.daily) {
-      console.warn("[DEBUG logic.js] no daily data found for year=", year);
-      return { year, labels: [], gtsValues: [] };
-  }
-  const allDates = histData.daily.time;
-  const allTemps = histData.daily.temperature_2m_mean;
-
-  // C) Compute GTS from Jan1 => big sum
-  const gtsResults = calculateGTS(allDates, allTemps);
-
-  // D) Now figure out the "display" window for that year:
-  //    If user picks e.g. 2 weeks (2024-12-14..2024-12-28),
-  //    then for year=2023 we want 2023-12-14..2023-12-28, etc.
-  //    => So we shift baseStartDate/baseEndDate to that year:
-  const yearPlotStart = new Date(
-    year,
-    baseStartDate.getMonth(),
-    baseStartDate.getDate(),
-    12, 0, 0, 0
-  );
-  const yearPlotEnd = new Date(
-    year,
-    baseEndDate.getMonth(),
-    baseEndDate.getDate(),
-    12, 0, 0, 0
-  );
-
-  console.log("[DEBUG logic.js] => yearPlotStart=", yearPlotStart.toISOString().split('T')[0],
-              " yearPlotEnd=", yearPlotEnd.toISOString().split('T')[0]);
-
-  const yearPlotStartStr = yearPlotStart.toISOString().split('T')[0];
-  const yearPlotEndStr   = yearPlotEnd.toISOString().split('T')[0];
-
-  // E) Filter GTS to that final partial window (2 weeks) for each older year,
-  //    so only the last portion (e.g. 12/14..12/27) is "displayed."
-  const displayedResults = [];
-  for (const g of gtsResults) {
-    if (g.date >= yearPlotStartStr && g.date <= yearPlotEndStr) {
-      displayedResults.push(g);
+export async function fetchGTSForYear(lat, lon, year, baseStartDate, baseEndDate, verbose = true) {
+    if (verbose) {
+        console.log("[DEBUG logic.js] fetchGTSForYear() => year=", year,
+                    " baseStartDate=", formatDateLocal(baseStartDate),
+                    " baseEndDate=", formatDateLocal(baseEndDate));
     }
-  }
-  console.log("[DEBUG logic.js] => final displayed results for year=", year,
-      " =>", displayedResults.length, " points");
 
-  // F) Convert to Chart.js arrays
-  const labels = [];
-  const gtsValues = [];
-  for (const item of displayedResults) {
-    labels.push(item.date);
-    gtsValues.push(item.gts);
-  }
+    // A) Define the fetch range: January 1st to the same month/day as baseEndDate + 1 day
+    const yearStart = createLocalStartOfDay(year, 0, 1);
+    const yearEnd = new Date(year, baseEndDate.getMonth(), baseEndDate.getDate(), 0, 0, 0, 0);
+    yearEnd.setDate(yearEnd.getDate() + 1);
 
-  return {
-    year,
-    labels,
-    gtsValues
-  };
+    console.log("[DEBUG logic.js] => yearStart=", formatDateLocal(yearStart),
+                " yearEnd=", formatDateLocal(yearEnd));
+
+    // B) Fetch historical data from yearStart to yearEnd
+    const histData = await fetchHistoricalData(lat, lon, yearStart, yearEnd);
+    if (!histData || !histData.daily) {
+        console.warn("[DEBUG logic.js] no daily data found for year=", year);
+        return { year, labels: [], gtsValues: [] };
+    }
+    const allDates = histData.daily.time;
+    const allTemps = histData.daily.temperature_2m_mean;
+
+    // C) Compute GTS from January 1st
+    const gtsResults = calculateGTS(allDates, allTemps);
+
+    // D) Determine the display window for the plot based on baseStartDate and baseEndDate
+    const yearPlotStart = createLocalStartOfDay(
+        year,
+        baseStartDate.getMonth(),
+        baseStartDate.getDate()
+    );
+    const yearPlotEnd = createLocalStartOfDay(
+        year,
+        baseEndDate.getMonth(),
+        baseEndDate.getDate()
+    );
+
+    console.log("[DEBUG logic.js] => yearPlotStart=", formatDateLocal(yearPlotStart),
+                " yearPlotEnd=", formatDateLocal(yearPlotEnd));
+
+    // E) Filter GTS results to the display window
+    const displayedResults = gtsResults.filter(r => {
+        const d = new Date(r.date);
+        return (d >= yearPlotStart && d <= yearPlotEnd);
+    });
+    console.log("[DEBUG logic.js] => final displayed results for year=", year,
+        " =>", displayedResults.length, " points");
+
+    // F) Convert to Chart.js-compatible arrays
+    const labels = displayedResults.map(item => {
+        const d = new Date(item.date);
+        return `${d.getDate()}.${d.getMonth() + 1}`;
+    });
+    const gtsValues = displayedResults.map(item => item.gts);
+
+    return {
+        year,
+        labels,
+        gtsValues
+    };
 }
 
-
 /**
- * Build 5-year data. The older years get full lines,
- * the current year is partial up to baseEndDate.
+ * Builds 5-year data for plotting. For the current year, it uses existing data; for past years, it fetches new data.
+ * @param {number} lat - Latitude.
+ * @param {number} lon - Longitude.
+ * @param {Date} baseStartDate - The user's chosen start date.
+ * @param {Date} baseEndDate - The user's chosen end date.
+ * @param {Array<Object>} data_current_year - Array of objects like [{date, gts}, ...] for the current year.
+ * @returns {Promise<Array<Object>>} - Array of yearly data objects.
  */
-export async function build5YearData(lat, lon, baseStartDate, baseEndDate) {
+export async function build5YearData(lat, lon, baseStartDate, baseEndDate, data_current_year) {
     const mainYear = baseEndDate.getFullYear();
     const allResults = [];
 
     console.log("[DEBUG logic.js] build5YearData() => mainYear=", mainYear);
 
     for (let y = mainYear; y > mainYear - 5; y--) {
-        try {
-            const yearly = await fetchGTSForYear(lat, lon, y, baseStartDate, baseEndDate);
-            console.log("[DEBUG logic.js] build5YearData() => year=", y,
-                " => #points=", yearly.gtsValues.length);
-            allResults.push(yearly);
-        } catch (err) {
-            console.warn(`[build5YearData] Error year=${y}`, err);
+        const yearPlotStart = createLocalStartOfDay(
+            y,
+            baseStartDate.getMonth(),
+            baseStartDate.getDate()
+        );
+        const yearPlotEnd = createLocalStartOfDay(
+            y,
+            baseEndDate.getMonth(),
+            baseEndDate.getDate()
+        );
+
+        if (y === mainYear) {
+            //
+            // 1) Use data_current_year (already has { date, gts })
+            // 2) Filter for the chosen time window
+            //
+            const displayedResults = data_current_year.filter(item => {
+                const d = new Date(item.date);
+                return (d >= yearPlotStart && d <= yearPlotEnd);
+            });
+
+            // Convert to Chart.js data format
+            const labels = displayedResults.map(item => {
+                const d = new Date(item.date);
+                return `${d.getDate()}.${d.getMonth() + 1}`;
+            });
+            const gtsValues = displayedResults.map(item => item.gts);
+
+            allResults.push({
+                year: y,
+                labels,
+                gtsValues
+            });
+        } else {
+            //
+            // For past years, fetch from the server
+            //
+            try {
+                console.log("[DEBUG logic.js] build5YearData() y=", y, " yearPlotStart= ", formatDateLocal(yearPlotStart), " yearPlotEnd= ", formatDateLocal(yearPlotEnd));
+                const yearly = await fetchGTSForYear(lat, lon, y, yearPlotStart, yearPlotEnd);
+                console.log("[DEBUG logic.js] build5YearData() => year=", y,
+                    " => #points=", yearly.gtsValues.length);
+                allResults.push(yearly);
+            } catch (err) {
+                console.warn(`[build5YearData] Error year=${y}`, err);
+            }
         }
     }
+
     console.log("[DEBUG logic.js] build5YearData() => total sets=", allResults.length);
     return allResults;
 }
+

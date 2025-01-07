@@ -1,25 +1,26 @@
+// plotUpdater.js
+
 /**
  * @module plotUpdater
  * Responsible for orchestrating the steps to fetch, compute, and plot the data
  */
 
+import { plotData, plotDailyTemps, plotMultipleYearData } from './charts.js';
 import { fetchHistoricalData, fetchRecentData } from './dataService.js';
 import {
   calculateGTS,
   computeStartDate,
   getSelectedEndDate,
-  build5YearData
+  build5YearData,
+  computeDateRange
 } from './logic.js';
-import {
-  plotData,
-  plotDailyTemps,
-  plotMultipleYearData
-} from './charts.js';
 import { updateHinweisSection } from './information.js';
+import { formatDateLocal, isValidDate } from './utils.js';
 
 /**
  * Helper to forcibly destroy any leftover chart using a given canvas ID.
  * If no chart is associated, it just does nothing.
+ * @param {string} canvasId - The ID of the canvas element.
  */
 function destroyIfCanvasInUse(canvasId) {
   const existingChart = Chart.getChart(canvasId);
@@ -64,11 +65,11 @@ export class PlotUpdater {
       // Step 1) Validate lat/lon input
       if (!this.step1CheckLatLon()) return;
 
-      // Step 2) Create local "today noon"
-      const localTodayNoon = this.step2CreateLocalTodayNoon();
+      // Step 2) Create local "today midnight"
+      const localTodayMidnight = this.step2CreateLocalTodayMidnight();
 
       // Step 3) Get end date & ensure it's not in the future
-      const endDate = this.step3GetEndDate(localTodayNoon);
+      const endDate = this.step3GetEndDate(localTodayMidnight);
       if (!endDate) return;
 
       // Step 4) Parse lat/lon
@@ -120,6 +121,10 @@ export class PlotUpdater {
 
   // === Steps 1..16 below ===
 
+  /**
+   * Step 1: Validate latitude and longitude input.
+   * @returns {boolean} - True if valid, false otherwise.
+   */
   step1CheckLatLon() {
     const ortVal = this.ortInput.value || "";
     if (!ortVal.includes("Lat") || !ortVal.includes("Lon")) {
@@ -144,23 +149,40 @@ export class PlotUpdater {
     return true;
   }
 
-  step2CreateLocalTodayNoon() {
+  /**
+   * Step 2: Create a Date object representing today's date at local midnight.
+   * @returns {Date} - The Date object.
+   */
+  step2CreateLocalTodayMidnight() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   }
 
-  step3GetEndDate(localTodayNoon) {
+  /**
+   * Step 3: Get the selected end date and ensure it's not in the future.
+   * @param {Date} localTodayMidnight - Today's date at local midnight.
+   * @returns {Date|null} - The validated end date or null if invalid.
+   */
+  step3GetEndDate(localTodayMidnight) {
     const endDate = getSelectedEndDate();
-    if (endDate.getTime() > localTodayNoon.getTime()) {
+    if (!isValidDate(endDate)) {
+      console.error("[PlotUpdater] => Invalid endDate:", endDate);
+      return null;
+    }
+    if (endDate.getTime() > localTodayMidnight.getTime()) {
       alert("Das Datum darf nicht in der Zukunft liegen.");
-      const iso = localTodayNoon.toISOString().split("T")[0];
-      this.datumInput.value = iso;
-      this.datumInput.max = iso;
+      const formattedDate = formatDateLocal(localTodayMidnight);
+      this.datumInput.value = formattedDate;
+      this.datumInput.max = formattedDate;
       return null;
     }
     return endDate;
   }
 
+  /**
+   * Step 4: Parse latitude and longitude from the input field.
+   * @returns {Object} - An object containing latitude and longitude.
+   */
   step4ParseLatLon() {
     const ortVal = this.ortInput.value.trim();
     const parts = ortVal.split(",");
@@ -171,13 +193,20 @@ export class PlotUpdater {
     return { lat, lon };
   }
 
+  /**
+   * Step 5: Compute the date range based on the selected end date.
+   * @param {Date} endDate - The selected end date.
+   * @returns {Object} - An object containing differenceInDays and plotStartDate.
+   */
   step5ComputeDateRange(endDate) {
-    const today = new Date();
-    const differenceInDays = Math.floor((today - endDate) / (1000 * 3600 * 24));
-    const plotStartDate = computeStartDate();
-    return { differenceInDays, plotStartDate };
+    return computeDateRange(endDate);
   }
 
+  /**
+   * Step 6: Compute fetch start date and recent start date based on the end date.
+   * @param {Date} endDate - The selected end date.
+   * @returns {Object} - An object containing fetchStartDate and recentStartDate.
+   */
   step6ComputeFetchDates(endDate) {
     const fetchStartDate = new Date(endDate.getFullYear(), 0, 1, 0, 0, 0, 0);
     let recentStartDate;
@@ -190,47 +219,76 @@ export class PlotUpdater {
     return { fetchStartDate, recentStartDate };
   }
 
+  /**
+   * Step 7: Fetch all necessary data (historical and recent).
+   * @param {number} lat - Latitude.
+   * @param {number} lon - Longitude.
+   * @param {Date} fetchStartDate - Start date for fetching data.
+   * @param {Date} endDate - End date for fetching data.
+   * @param {Date} recentStartDate - Start date for recent data.
+   * @param {number} differenceInDays - Difference in days between today and end date.
+   * @returns {Promise<Object>} - An object containing allDates and allTemps arrays.
+   */
   async step7FetchAllData(lat, lon, fetchStartDate, endDate, recentStartDate, differenceInDays) {
-    console.log("[PlotUpdater] step7FetchAllData() =>", fetchStartDate, "->", endDate);
-    const histData = await fetchHistoricalData(lat, lon, fetchStartDate, endDate);
+    console.log("[PlotUpdater] step7FetchAllData() =>", formatDateLocal(fetchStartDate), "->", formatDateLocal(endDate));
+    let allDates = [];
+    let allTemps = [];
 
-    const histDates = histData.daily.time;
-    const histTemps = histData.daily.temperature_2m_mean;
-
-    const dataByDate = {};
     if (differenceInDays > 10) {
       // Only historical
-      for (let i = 0; i < histDates.length; i++) {
-        dataByDate[histDates[i]] = histTemps[i];
+      const histData = await fetchHistoricalData(lat, lon, fetchStartDate, endDate);
+      if (histData && histData.daily) {
+        allDates = histData.daily.time;
+        allTemps = histData.daily.temperature_2m_mean;
       }
     } else {
       // Combine historical + recent
+      const histData = await fetchHistoricalData(lat, lon, fetchStartDate, endDate);
       const recentData = await fetchRecentData(lat, lon, recentStartDate, endDate);
-      const recentDates = recentData.daily.time;
-      const recentTemps = recentData.daily.temperature_2m_mean;
 
-      for (let i = 0; i < histDates.length; i++) {
-        dataByDate[histDates[i]] = histTemps[i];
+      if (histData && histData.daily) {
+        allDates = allDates.concat(histData.daily.time);
+        allTemps = allTemps.concat(histData.daily.temperature_2m_mean);
       }
-      for (let i = 0; i < recentDates.length; i++) {
-        dataByDate[recentDates[i]] = recentTemps[i];
+      if (recentData && recentData.daily) {
+        allDates = allDates.concat(recentData.daily.time);
+        allTemps = allTemps.concat(recentData.daily.temperature_2m_mean);
       }
     }
 
-    const allDates = Object.keys(dataByDate).sort((a, b) => new Date(a) - new Date(b));
-    const allTemps = allDates.map(d => dataByDate[d]);
+    // Remove duplicates and sort
+    const dataByDate = {};
+    for (let i = 0; i < allDates.length; i++) {
+      dataByDate[allDates[i]] = allTemps[i];
+    }
 
-    if (allTemps.length === 0) {
+    const sortedDates = Object.keys(dataByDate).sort((a, b) => new Date(a) - new Date(b));
+    const sortedTemps = sortedDates.map(d => dataByDate[d]);
+
+    if (sortedTemps.length === 0) {
       alert("Keine Daten gefunden. Anderen Ort oder anderes Datum wählen.");
     }
 
-    return { allDates, allTemps };
+    return { allDates: sortedDates, allTemps: sortedTemps };
   }
 
+  /**
+   * Step 8: Calculate GTS based on all dates and temperatures.
+   * @param {Array<string>} allDates - Array of date strings.
+   * @param {Array<number>} allTemps - Array of temperature values.
+   * @returns {Array<Object>} - Array of GTS results.
+   */
   step8CalculateGTS(allDates, allTemps) {
     return calculateGTS(allDates, allTemps);
   }
 
+  /**
+   * Step 9: Filter GTS results to the desired date range.
+   * @param {Array<Object>} gtsResults - Array of GTS results.
+   * @param {Date} plotStartDate - Start date for plotting.
+   * @param {Date} endDate - End date for plotting.
+   * @returns {Array<Object>} - Filtered GTS results.
+   */
   step9FilterGTS(gtsResults, plotStartDate, endDate) {
     return gtsResults.filter(r => {
       const d = new Date(r.date);
@@ -238,9 +296,15 @@ export class PlotUpdater {
     });
   }
 
+  /**
+   * Step 10: Check if filtered results are empty and handle accordingly.
+   * @param {Array<Object>} filteredResults - Filtered GTS results.
+   * @param {Date} endDate - End date for reference in messages.
+   * @returns {boolean} - True if results are not empty, false otherwise.
+   */
   step10CheckIfEmpty(filteredResults, endDate) {
     if (filteredResults.length === 0) {
-      const formattedDate = endDate.toLocaleDateString("de-DE");
+      const formattedDate = formatDateLocal(endDate);
       this.ergebnisTextEl.innerHTML = `
         <span style="color: #700000;">
           Die Grünland-Temperatur-Summe konnte am ${formattedDate} nicht berechnet werden,
@@ -266,6 +330,13 @@ export class PlotUpdater {
     return true;
   }
 
+  /**
+   * Step 11: Filter daily temperatures based on the plot date range.
+   * @param {Array<string>} allDates - Array of all date strings.
+   * @param {Array<number>} allTemps - Array of all temperature values.
+   * @param {Date} plotStartDate - Start date for plotting.
+   * @param {Date} endDate - End date for plotting.
+   */
   step11FilterDailyTemps(allDates, allTemps, plotStartDate, endDate) {
     this.filteredTempsDates = [];
     this.filteredTempsData = [];
@@ -278,9 +349,14 @@ export class PlotUpdater {
     }
   }
 
+  /**
+   * Step 12: Update the result text based on GTS results.
+   * @param {Array<Object>} gtsResults - Array of GTS results.
+   * @param {Date} endDate - End date for reference in messages.
+   */
   step12UpdateErgebnisText(gtsResults, endDate) {
-    const formattedDate = endDate.toLocaleDateString("de-DE");
-    const localTodayStr = new Date().toLocaleDateString("de-DE");
+    const formattedDate = formatDateLocal(endDate);
+    const localTodayStr = formatDateLocal(new Date());
     const lastGTS = gtsResults.length
       ? gtsResults[gtsResults.length - 1].gts
       : 0;
@@ -304,8 +380,11 @@ export class PlotUpdater {
     `;
   }
 
+  /**
+   * Step 13: Destroy old charts to prevent Canvas reuse issues.
+   */
   step13DestroyOldCharts() {
-    // forcibly destroy leftover charts
+    // Forcibly destroy leftover charts
     destroyIfCanvasInUse("plot-canvas");
     destroyIfCanvasInUse("temp-plot");
 
@@ -317,6 +396,14 @@ export class PlotUpdater {
     }
   }
 
+  /**
+   * Step 14: Create the GTS chart based on user preferences.
+   * @param {number} lat - Latitude.
+   * @param {number} lon - Longitude.
+   * @param {Date} plotStartDate - Start date for plotting.
+   * @param {Date} endDate - End date for plotting.
+   * @param {Array<Object>} filteredResults - Filtered GTS results.
+   */
   async step14CreateGTSChart(lat, lon, plotStartDate, endDate, filteredResults) {
     if (this.gtsPlotContainer.style.display === "none") {
       console.log("[PlotUpdater] => GTS container hidden => skipping chart creation.");
@@ -333,6 +420,9 @@ export class PlotUpdater {
     }
   }
 
+  /**
+   * Step 15: Create the Temperature chart.
+   */
   step15CreateTemperatureChart() {
     if (this.tempPlotContainer.style.display === "none") {
       console.log("[PlotUpdater] => tempPlotContainer hidden => skipping temp chart.");
@@ -341,6 +431,11 @@ export class PlotUpdater {
     this.chartTemp = plotDailyTemps(this.filteredTempsDates, this.filteredTempsData, false);
   }
 
+  /**
+   * Step 16: Update the hints section with relevant information.
+   * @param {Array<Object>} gtsResults - Array of GTS results.
+   * @param {Date} endDate - End date for reference in messages.
+   */
   async step16UpdateHinweisSection(gtsResults, endDate) {
     await updateHinweisSection(gtsResults, endDate);
   }

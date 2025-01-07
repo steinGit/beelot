@@ -4,7 +4,6 @@
  */
 
 import {
-  updatePlots,
   ortInput,
   datumInput,
   zeitraumSelect,
@@ -22,47 +21,76 @@ import {
   toggle5yrPlotBtn
 } from './ui.js';
 
+import { PlotUpdater } from './plotUpdater.js'; // <-- new import
+import { VERSION } from './version.js';
 
 /**
  * Helper: get local "today" in YYYY-MM-DD format
  */
 function getLocalTodayString() {
   const now = new Date();
+  // Use local offset to ensure correct date even if user is in e.g. UTC+something
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
   const dateStr = local.toISOString().split('T')[0];
-  console.log("[DEBUG] getLocalTodayString() =>", dateStr);
+  console.log("[DEBUG main.js] getLocalTodayString() =>", dateStr);
   return dateStr;
 }
 
-// On load, set date to local today & load last known location
-document.addEventListener('DOMContentLoaded', () => {
-  console.log("[DEBUG] DOMContentLoaded triggered.");
+// We'll hold a reference to our PlotUpdater instance here
+let plotUpdater = null;
+// Also track the multi-year toggle
+let showFiveYear = false;
 
+document.addEventListener('DOMContentLoaded', () => {
+  console.log("[DEBUG main.js] DOMContentLoaded triggered.");
+
+  // 1) Build a new PlotUpdater with the elements we need
+  plotUpdater = new PlotUpdater({
+    ortInput,
+    datumInput,
+    zeitraumSelect,
+    ergebnisTextEl: document.getElementById('ergebnis-text'),
+    hinweisSection: document.querySelector('.hinweis-section'),
+    gtsPlotContainer,
+    tempPlotContainer,
+    // chartRefs can remain empty initially
+    chartRefs: { chartGTS: null, chartTemp: null }
+  });
+
+  // 2) Set date to local "today" & load last known location
   const todayStr = getLocalTodayString();
-  console.log("[DEBUG] Setting #datum input to:", todayStr);
+  console.log("[DEBUG main.js] Setting #datum input to:", todayStr);
 
   datumInput.value = todayStr;
-  datumInput.max = todayStr;
+  datumInput.max   = todayStr;
 
   const lastLoc = localStorage.getItem("lastLocation");
   if (lastLoc) {
-    console.log("[DEBUG] Found lastLocation in localStorage:", lastLoc);
+    console.log("[DEBUG main.js] Found lastLocation in localStorage:", lastLoc);
     ortInput.value = lastLoc;
-    console.log("[DEBUG] Calling updatePlots() after setting lastLoc...");
-    updatePlots();
+    // Kick off first plotting
+    console.log("[DEBUG main.js] Calling plotUpdater.run() after setting lastLoc...");
+    plotUpdater.run();
   } else {
-    console.log("[DEBUG] No lastLocation found in localStorage.");
+    console.log("[DEBUG main.js] No lastLocation found in localStorage.");
+  }
+
+  // 3) Initialize version text if it exists
+  const versionElement = document.getElementById("version-placeholder");
+  if (versionElement) {
+    versionElement.textContent = `Version ${VERSION}`;
   }
 });
 
-let showFiveYear = false; // starts off
-
+/**
+ * Multi-year toggle logic
+ */
 toggle5yrPlotBtn.addEventListener('click', () => {
-  console.log("[DEBUG] toggle5yrPlotBtn clicked. Current showFiveYear=", showFiveYear);
+  console.log("[DEBUG main.js] toggle5yrPlotBtn clicked. Current showFiveYear=", showFiveYear);
   // Flip the boolean
   showFiveYear = !showFiveYear;
   window.showFiveYear = showFiveYear;
-  console.log("[DEBUG] showFiveYear set to:", showFiveYear);
+  console.log("[DEBUG main.js] showFiveYear set to:", showFiveYear);
 
   if (showFiveYear) {
     // user just turned it on -> show “only selected year”
@@ -72,138 +100,120 @@ toggle5yrPlotBtn.addEventListener('click', () => {
     toggle5yrPlotBtn.textContent = 'die letzten 5 Jahre';
   }
 
-  updatePlots();
+  // Rerun plotting
+  if (plotUpdater) {
+    plotUpdater.run();
+  }
 });
 
-
-// Register listeners
+/**
+ * Register the various event listeners
+ * -> All were previously calling updatePlots(), now call plotUpdater.run()
+ */
 ortInput.addEventListener('change', () => {
-  console.log("[DEBUG] ortInput changed => updatePlots()");
-  updatePlots();
+  console.log("[DEBUG main.js] ortInput changed => plotUpdater.run()");
+  plotUpdater.run();
 });
 
 zeitraumSelect.addEventListener('change', () => {
-  console.log("[DEBUG] zeitraumSelect changed => updatePlots()");
-  updatePlots();
+  console.log("[DEBUG main.js] zeitraumSelect changed => plotUpdater.run()");
+  plotUpdater.run();
 });
 
 datumInput.addEventListener('change', () => {
-  console.log("[DEBUG] datumInput changed => updatePlots()");
-  updatePlots();
+  console.log("[DEBUG main.js] datumInput changed => plotUpdater.run()");
+  plotUpdater.run();
 });
 
 berechnenBtn.addEventListener('click', () => {
-  console.log("[DEBUG] berechnenBtn clicked => updatePlots()");
-  updatePlots();
+  console.log("[DEBUG main.js] berechnenBtn clicked => plotUpdater.run()");
+  plotUpdater.run();
 });
 
 // Datum +1
 datumPlusBtn.addEventListener('click', () => {
-  console.log("[DEBUG] datumPlusBtn clicked => +1 day");
+  console.log("[DEBUG main.js] datumPlusBtn clicked => +1 day");
   const current = new Date(datumInput.value);
-  console.log("[DEBUG] Current date is:", datumInput.value);
+  console.log("[DEBUG main.js] Current date is:", datumInput.value);
 
   current.setDate(current.getDate() + 1);
 
   const now = new Date();
   if (current > now) {
-    console.log("[DEBUG] Tried to set future date. Resetting to today.");
-    current.setDate(current.getDate() - 1);
+    console.log("[DEBUG main.js] Tried to set future date. Resetting to today.");
+    current.setDate(now.getDate());
   }
 
   datumInput.value = current.toISOString().split('T')[0];
-  console.log("[DEBUG] New date is:", datumInput.value, "=> updatePlots()");
-  updatePlots();
+  console.log("[DEBUG main.js] New date is:", datumInput.value, "=> plotUpdater.run()");
+  plotUpdater.run();
 });
-
 
 // Datum -1
 datumMinusBtn.addEventListener('click', () => {
-  console.log("[DEBUG] datumMinusBtn clicked => -1 day");
+  console.log("[DEBUG main.js] datumMinusBtn clicked => -1 day");
   const current = new Date(datumInput.value);
-  console.log("[DEBUG] Current date is:", datumInput.value);
+  console.log("[DEBUG main.js] Current date is:", datumInput.value);
 
   current.setDate(current.getDate() - 1);
 
   datumInput.value = current.toISOString().split('T')[0];
-  console.log("[DEBUG] New date is:", datumInput.value, "=> updatePlots()");
-  updatePlots();
+  console.log("[DEBUG main.js] New date is:", datumInput.value, "=> plotUpdater.run()");
+  plotUpdater.run();
 });
 
 // Keypress Functionality for "+" and "-"
 document.addEventListener('keydown', (event) => {
   if (event.key === "+" || event.code === "NumpadAdd") {
-    console.log("[DEBUG] '+' key pressed => triggering datumPlusBtn functionality");
+    console.log("[DEBUG main.js] '+' key pressed => triggering datumPlusBtn functionality");
     datumPlusBtn.click(); // Trigger the button click programmatically
   } else if (event.key === "-" || event.code === "NumpadSubtract") {
-    console.log("[DEBUG] '-' key pressed => triggering datumMinusBtn functionality");
+    console.log("[DEBUG main.js] '-' key pressed => triggering datumMinusBtn functionality");
     datumMinusBtn.click(); // Trigger the button click programmatically
   }
 });
 
 // Heute button: sets the date to local "today" & updates
 datumHeuteBtn.addEventListener('click', () => {
-  console.log("[DEBUG] datumHeuteBtn clicked! Setting date to local 'today'.");
+  console.log("[DEBUG main.js] datumHeuteBtn clicked! Setting date to local 'today'.");
   const newToday = getLocalTodayString();
   datumInput.value = newToday;
-  console.log("[DEBUG] #datum is now:", newToday, "=> updatePlots()");
-  updatePlots();
+  console.log("[DEBUG main.js] #datum is now:", newToday, "=> plotUpdater.run()");
+  plotUpdater.run();
 });
 
-// GTS plot toggle
-// Make sure the container is hidden on page load (no 'visible' class)
+// GTS plot toggle: make sure the container is hidden on page load (no 'visible' class)
 gtsPlotContainer.classList.remove("visible");
-
-// Then toggle by class
 toggleGtsPlotBtn.addEventListener("click", () => {
-  // Toggle the class
   gtsPlotContainer.classList.toggle("visible");
-
-  // Update the button text
-  if (gtsPlotContainer.classList.contains("visible")) {
-    toggleGtsPlotBtn.textContent = "ausblenden";
-  } else {
-    toggleGtsPlotBtn.textContent = "anzeigen";
-  }
+  toggleGtsPlotBtn.textContent = gtsPlotContainer.classList.contains("visible")
+    ? "ausblenden"
+    : "anzeigen";
 });
-
 
 // Temperature plot toggle
 toggleTempPlotBtn.addEventListener("click", () => {
   tempPlotContainer.classList.toggle("visible");
-  if (tempPlotContainer.classList.contains("visible")) {
-    toggleTempPlotBtn.textContent = "ausblenden";
-  } else {
-    toggleTempPlotBtn.textContent = "anzeigen";
-  }
+  toggleTempPlotBtn.textContent = tempPlotContainer.classList.contains("visible")
+    ? "ausblenden"
+    : "anzeigen";
 });
-
 
 // Map logic
 ortKarteBtn.addEventListener('click', () => {
-  console.log("[DEBUG] ortKarteBtn clicked => showing map popup, initOrUpdateMap()");
+  console.log("[DEBUG main.js] ortKarteBtn clicked => showing map popup, initOrUpdateMap()");
   const mapPopup = document.getElementById('map-popup');
   mapPopup.style.display = 'block';
   window.initOrUpdateMap();
 });
 
 mapCloseBtn.addEventListener('click', () => {
-  console.log("[DEBUG] mapCloseBtn clicked => hiding map popup");
+  console.log("[DEBUG main.js] mapCloseBtn clicked => hiding map popup");
   const mapPopup = document.getElementById('map-popup');
   mapPopup.style.display = 'none';
 });
 
 mapSaveBtn.addEventListener('click', () => {
-  console.log("[DEBUG] mapSaveBtn clicked => saveMapSelection()");
+  console.log("[DEBUG main.js] mapSaveBtn clicked => saveMapSelection()");
   window.saveMapSelection();
-});
-
-
-import { VERSION } from './version.js';
-
-document.addEventListener("DOMContentLoaded", () => {
-    const versionElement = document.getElementById("version-placeholder");
-    if (versionElement) {
-        versionElement.textContent = `Version ${VERSION}`;
-    }
 });
