@@ -85,7 +85,7 @@ export async function fetchHistoricalData(lat, lon, start, end) {
     const roundedLat = Math.round(lat * 100) / 100;
     const roundedLon = Math.round(lon * 100) / 100;
     const url = `https://archive-api.open-meteo.com/v1/era5?latitude=${roundedLat}&longitude=${roundedLon}&start_date=${startStr}&end_date=${endStr}&daily=temperature_2m_mean&timezone=Europe%2FBerlin`;
-    
+
     try {
         const response = await fetch(url);
         if (!response.ok) {
@@ -133,7 +133,7 @@ export async function fetchRecentData(lat, lon, start, end) {
     const roundedLat = Math.round(lat * 100) / 100;
     const roundedLon = Math.round(lon * 100) / 100;
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${roundedLat}&longitude=${roundedLon}&start_date=${startStr}&end_date=${endStr}&daily=temperature_2m_mean&timezone=Europe%2FBerlin`;
-    
+
     try {
         const response = await fetch(url);
         if (!response.ok) {

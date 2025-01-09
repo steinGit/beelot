@@ -180,9 +180,12 @@ export async function fetchGTSForYear(lat, lon, year, baseStartDate, baseEndDate
                 " yearPlotEnd=", formatDateLocal(yearPlotEnd));
 
     // E) Filter GTS results to the display window
+    const endOfDay = new Date(yearPlotEnd);
+    endOfDay.setHours(23, 59, 59, 999); // Set to end of the day
+
     const displayedResults = gtsResults.filter(r => {
         const d = new Date(r.date);
-        return (d >= yearPlotStart && d <= yearPlotEnd);
+        return (d >= yearPlotStart && d <= endOfDay);
     });
     console.log("[DEBUG logic.js] => final displayed results for year=", year,
         " =>", displayedResults.length, " points");
@@ -233,10 +236,17 @@ export async function build5YearData(lat, lon, baseStartDate, baseEndDate, data_
             // 1) Use data_current_year (already has { date, gts })
             // 2) Filter for the chosen time window
             //
+
+            const endOfDay = new Date(yearPlotEnd);
+            endOfDay.setHours(23, 59, 59, 999); // Set to end of the day
+
             const displayedResults = data_current_year.filter(item => {
                 const d = new Date(item.date);
-                return (d >= yearPlotStart && d <= yearPlotEnd);
+                return (d >= yearPlotStart && d <= endOfDay);
             });
+
+            console.log(`[DEBUG build5YearData] Year ${y} - plotStartDate: ${yearPlotStart}, endOfDay: ${endOfDay}`);
+            console.log(`[DEBUG build5YearData] Year ${y} - Displayed Results:`, displayedResults);
 
             // Convert to Chart.js data format
             const labels = displayedResults.map(item => {

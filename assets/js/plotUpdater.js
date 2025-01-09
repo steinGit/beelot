@@ -40,6 +40,7 @@ export class PlotUpdater {
     tempPlotContainer,
     chartRefs = {}
   }) {
+    this.verbose = true;
     this.ortInput = ortInput;
     this.datumInput = datumInput;
     this.zeitraumSelect = zeitraumSelect;
@@ -89,9 +90,16 @@ export class PlotUpdater {
 
       // Step 8) GTS calculations
       const gtsResults = this.step8CalculateGTS(allDates, allTemps);
-
       // Step 9) Filter GTS to [plotStartDate..endDate]
       const filteredResults = this.step9FilterGTS(gtsResults, plotStartDate, endDate);
+
+      if (this.verbose)
+      {
+        console.log(">> plotUpdater: GTS Results", gtsResults);
+        console.log(">> plotUpdater: plotStartDate=", plotStartDate);
+        console.log(">> plotUpdater: endDate      =", endDate);
+        console.log(">> plotUpdater: Filtered GTS Results:", filteredResults);
+      }
 
       // Step 10) If empty, bail
       if (!this.step10CheckIfEmpty(filteredResults, endDate)) return;
@@ -290,9 +298,13 @@ export class PlotUpdater {
    * @returns {Array<Object>} - Filtered GTS results.
    */
   step9FilterGTS(gtsResults, plotStartDate, endDate) {
+    // Create a new Date object set to the end of the endDate day
+    const endOfDay = new Date(endDate);
+    endOfDay.setHours(23, 59, 59, 999); // Set to 23:59:59.999
+
     return gtsResults.filter(r => {
       const d = new Date(r.date);
-      return d >= plotStartDate && d <= endDate;
+      return d >= plotStartDate && d <= endOfDay;
     });
   }
 
