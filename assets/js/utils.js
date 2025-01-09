@@ -25,3 +25,26 @@ export function formatDateLocal(date) {
 export function isValidDate(d) {
   return d instanceof Date && !isNaN(d);
 }
+
+/**
+ * Extends a given Date object to the end of the day (23:59:59.999).
+ * @param {Date} date - The Date object to extend.
+ * @returns {Date} - The extended Date object.
+ */
+export function extendToEndOfDay(date) {
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    return endOfDay;
+}
+
+/**
+ * Calculates the start date for a given timeframe.
+ * @param {Date} endDate - The end date.
+ * @param {number} days - Number of days for the timeframe.
+ * @returns {Date} - The calculated start date.
+ */
+export function calculateStartDate(endDate, days) {
+    const startDate = new Date(endDate);
+    startDate.setDate(endDate.getDate() - (days - 1));
+    return startDate;
+}

@@ -5,7 +5,7 @@
  * Handles calculations and helper functions related to data processing.
  */
 
-import { formatDateLocal, isValidDate } from './utils.js';
+import { formatDateLocal, isValidDate, extendToEndOfDay, calculateStartDate } from './utils.js';
 import { fetchHistoricalData } from './dataService.js';
 
 /**
@@ -68,11 +68,11 @@ export function computeStartDate(endDate) {
         "endDate=", formatDateLocal(endDate));
 
     if (selection === "7") {
-        startDate.setDate(endDate.getDate() - 7);
+        startDate.setDate(endDate.getDate() - 7 + 1);
     } else if (selection === "14") {
-        startDate.setDate(endDate.getDate() - 14);
+        startDate.setDate(endDate.getDate() - 14 + 1);
     } else if (selection === "28") {
-        startDate.setDate(endDate.getDate() - 28);
+        startDate.setDate(endDate.getDate() - 28 + 1);
     } else if (selection === "ytd") {
         // Go to January 1st of the endDate's year
         startDate.setMonth(0); // January
@@ -182,7 +182,6 @@ export async function fetchGTSForYear(lat, lon, year, baseStartDate, baseEndDate
     // E) Filter GTS results to the display window
     const endOfDay = new Date(yearPlotEnd);
     endOfDay.setHours(23, 59, 59, 999); // Set to end of the day
-
     const displayedResults = gtsResults.filter(r => {
         const d = new Date(r.date);
         return (d >= yearPlotStart && d <= endOfDay);
