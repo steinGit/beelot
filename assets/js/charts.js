@@ -238,7 +238,7 @@ export function plotMultipleYearData(multiYearData) {
     // Assuming all years have the same number of days and labels
     const masterLabels = multiYearData[0].labels;
 
-    console.log("[charts.js] plotMultipleYearData() masterLabels = ", masterLabels);
+    // console.log("[charts.js] plotMultipleYearData() masterLabels = ", masterLabels);
 
     const chartGTS = new Chart(ctx, {
         type: 'line',

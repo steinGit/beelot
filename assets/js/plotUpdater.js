@@ -40,7 +40,7 @@ export class PlotUpdater {
     tempPlotContainer,
     chartRefs = {}
   }) {
-    this.verbose = true;
+    this.verbose = false;
     this.ortInput = ortInput;
     this.datumInput = datumInput;
     this.zeitraumSelect = zeitraumSelect;
@@ -238,7 +238,10 @@ export class PlotUpdater {
    * @returns {Promise<Object>} - An object containing allDates and allTemps arrays.
    */
   async step7FetchAllData(lat, lon, fetchStartDate, endDate, recentStartDate, differenceInDays) {
-    console.log("[PlotUpdater] step7FetchAllData() =>", formatDateLocal(fetchStartDate), "->", formatDateLocal(endDate));
+    if (this.verbose)
+    {
+        console.log("[PlotUpdater] step7FetchAllData() =>", formatDateLocal(fetchStartDate), "->", formatDateLocal(endDate));
+    }
     let allDates = [];
     let allTemps = [];
 
@@ -323,7 +326,11 @@ export class PlotUpdater {
           da für eine "Summe" noch keine Daten zur Verfügung stehen 😉.
         </span>
       `;
-      console.log("[PlotUpdater] => No data to sum. Returning early.");
+
+      if (this.verbose)
+      {
+        console.log("[PlotUpdater] => No data to sum. Returning early.");
+      }
 
       if (this.chartGTS) {
         this.chartGTS.destroy();
@@ -428,11 +435,9 @@ export class PlotUpdater {
     }
 
     if (window.showFiveYear) {
-      console.log("[PlotUpdater] => multi-year overlay chart...");
       const multiYearData = await build5YearData(lat, lon, plotStartDate, endDate, filteredResults);
       this.chartGTS = plotMultipleYearData(multiYearData);
     } else {
-      console.log("[PlotUpdater] => single-year chart...");
       this.chartGTS = plotData(filteredResults);
     }
   }

@@ -32,7 +32,7 @@ function getLocalTodayString() {
   // Use local offset to ensure correct date even if user is in e.g. UTC+something
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
   const dateStr = local.toISOString().split('T')[0];
-  console.log("[DEBUG main.js] getLocalTodayString() =>", dateStr);
+  // console.log("[DEBUG main.js] getLocalTodayString() =>", dateStr);
   return dateStr;
 }
 
@@ -91,7 +91,7 @@ let plotUpdater = null;
 let showFiveYear = false;
 
 document.addEventListener('DOMContentLoaded', () => {
-  console.log("[DEBUG main.js] DOMContentLoaded triggered.");
+  // console.log("[DEBUG main.js] DOMContentLoaded triggered.");
 
   // 1) Build a new PlotUpdater with the elements we need
   plotUpdater = new PlotUpdater({
@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 2) Set date to local "today" & load last known location
   const todayStr = getLocalTodayString();
-  console.log("[DEBUG main.js] Setting #datum input to:", todayStr);
+  // console.log("[DEBUG main.js] Setting #datum input to:", todayStr);
 
   datumInput.value = todayStr;
   datumInput.max   = todayStr;
@@ -118,13 +118,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const lastLoc = localStorage.getItem("lastLocation");
   if (lastLoc) {
-    console.log("[DEBUG main.js] Found lastLocation in localStorage:", lastLoc);
+    // console.log("[DEBUG main.js] Found lastLocation in localStorage:", lastLoc);
     ortInput.value = lastLoc;
     // Kick off first plotting
-    console.log("[DEBUG main.js] Calling plotUpdater.run() after setting lastLoc...");
+    // console.log("[DEBUG main.js] Calling plotUpdater.run() after setting lastLoc...");
     plotUpdater.run();
   } else {
-    console.log("[DEBUG main.js] No lastLocation found in localStorage.");
+    // console.log("[DEBUG main.js] No lastLocation found in localStorage.");
   }
 
   // 3) Initialize version text if it exists
@@ -140,11 +140,11 @@ document.addEventListener('DOMContentLoaded', () => {
  * Multi-year toggle logic
  */
 toggle5yrPlotBtn.addEventListener('click', () => {
-  console.log("[DEBUG main.js] toggle5yrPlotBtn clicked. Current showFiveYear=", showFiveYear);
+  // console.log("[DEBUG main.js] toggle5yrPlotBtn clicked. Current showFiveYear=", showFiveYear);
   // Flip the boolean
   showFiveYear = !showFiveYear;
   window.showFiveYear = showFiveYear;
-  console.log("[DEBUG main.js] showFiveYear set to:", showFiveYear);
+  // console.log("[DEBUG main.js] showFiveYear set to:", showFiveYear);
 
   if (showFiveYear) {
     // user just turned it on -> show “only selected year”
@@ -166,42 +166,42 @@ toggle5yrPlotBtn.addEventListener('click', () => {
  * -> We now also call updateZeitraumSelect() when date changes to restrict the user selection
  */
 ortInput.addEventListener('change', () => {
-  console.log("[DEBUG main.js] ortInput changed => plotUpdater.run()");
+  // console.log("[DEBUG main.js] ortInput changed => plotUpdater.run()");
   plotUpdater.run();
 });
 
 zeitraumSelect.addEventListener('change', () => {
-  console.log("[DEBUG main.js] zeitraumSelect changed => plotUpdater.run()");
+  // console.log("[DEBUG main.js] zeitraumSelect changed => plotUpdater.run()");
   plotUpdater.run();
 });
 
 datumInput.addEventListener('change', () => {
-  console.log("[DEBUG main.js] datumInput changed => re-check #zeitraum, then plotUpdater.run()");
+  // console.log("[DEBUG main.js] datumInput changed => re-check #zeitraum, then plotUpdater.run()");
   updateZeitraumSelect();
   plotUpdater.run();
 });
 
 berechnenBtn.addEventListener('click', () => {
-  console.log("[DEBUG main.js] berechnenBtn clicked => plotUpdater.run()");
+  // console.log("[DEBUG main.js] berechnenBtn clicked => plotUpdater.run()");
   plotUpdater.run();
 });
 
 // Datum +1
 datumPlusBtn.addEventListener('click', () => {
-  console.log("[DEBUG main.js] datumPlusBtn clicked => +1 day");
+  // console.log("[DEBUG main.js] datumPlusBtn clicked => +1 day");
   const current = new Date(datumInput.value);
-  console.log("[DEBUG main.js] Current date is:", datumInput.value);
+  // console.log("[DEBUG main.js] Current date is:", datumInput.value);
 
   current.setDate(current.getDate() + 1);
 
   const now = new Date();
   if (current > now) {
-    console.log("[DEBUG main.js] Tried to set future date. Resetting to today.");
+    // console.log("[DEBUG main.js] Tried to set future date. Resetting to today.");
     current.setDate(now.getDate());
   }
 
   datumInput.value = current.toISOString().split('T')[0];
-  console.log("[DEBUG main.js] New date is:", datumInput.value);
+  // console.log("[DEBUG main.js] New date is:", datumInput.value);
   // Re-check #zeitraum and run
   updateZeitraumSelect();
   plotUpdater.run();
@@ -209,14 +209,14 @@ datumPlusBtn.addEventListener('click', () => {
 
 // Datum -1
 datumMinusBtn.addEventListener('click', () => {
-  console.log("[DEBUG main.js] datumMinusBtn clicked => -1 day");
+  // console.log("[DEBUG main.js] datumMinusBtn clicked => -1 day");
   const current = new Date(datumInput.value);
-  console.log("[DEBUG main.js] Current date is:", datumInput.value);
+  // console.log("[DEBUG main.js] Current date is:", datumInput.value);
 
   current.setDate(current.getDate() - 1);
 
   datumInput.value = current.toISOString().split('T')[0];
-  console.log("[DEBUG main.js] New date is:", datumInput.value);
+  // console.log("[DEBUG main.js] New date is:", datumInput.value);
   // Re-check #zeitraum and run
   updateZeitraumSelect();
   plotUpdater.run();
@@ -225,20 +225,20 @@ datumMinusBtn.addEventListener('click', () => {
 // Keypress Functionality for "+" and "-"
 document.addEventListener('keydown', (event) => {
   if (event.key === "+" || event.code === "NumpadAdd") {
-    console.log("[DEBUG main.js] '+' key pressed => triggering datumPlusBtn functionality");
+    // console.log("[DEBUG main.js] '+' key pressed => triggering datumPlusBtn functionality");
     datumPlusBtn.click(); // Trigger the button click programmatically
   } else if (event.key === "-" || event.code === "NumpadSubtract") {
-    console.log("[DEBUG main.js] '-' key pressed => triggering datumMinusBtn functionality");
+    // console.log("[DEBUG main.js] '-' key pressed => triggering datumMinusBtn functionality");
     datumMinusBtn.click(); // Trigger the button click programmatically
   }
 });
 
 // Heute button: sets the date to local "today" & updates
 datumHeuteBtn.addEventListener('click', () => {
-  console.log("[DEBUG main.js] datumHeuteBtn clicked! Setting date to local 'today'.");
+  // console.log("[DEBUG main.js] datumHeuteBtn clicked! Setting date to local 'today'.");
   const newToday = getLocalTodayString();
   datumInput.value = newToday;
-  console.log("[DEBUG main.js] #datum is now:", newToday);
+  // console.log("[DEBUG main.js] #datum is now:", newToday);
   updateZeitraumSelect();
   plotUpdater.run();
 });
@@ -262,20 +262,20 @@ toggleTempPlotBtn.addEventListener("click", () => {
 
 // Map logic
 ortKarteBtn.addEventListener('click', () => {
-  console.log("[DEBUG main.js] ortKarteBtn clicked => showing map popup, initOrUpdateMap()");
+  // console.log("[DEBUG main.js] ortKarteBtn clicked => showing map popup, initOrUpdateMap()");
   const mapPopup = document.getElementById('map-popup');
   mapPopup.style.display = 'block';
   window.initOrUpdateMap();
 });
 
 mapCloseBtn.addEventListener('click', () => {
-  console.log("[DEBUG main.js] mapCloseBtn clicked => hiding map popup");
+  // console.log("[DEBUG main.js] mapCloseBtn clicked => hiding map popup");
   const mapPopup = document.getElementById('map-popup');
   mapPopup.style.display = 'none';
 });
 
 mapSaveBtn.addEventListener('click', () => {
-  console.log("[DEBUG main.js] mapSaveBtn clicked => saveMapSelection()");
+  // console.log("[DEBUG main.js] mapSaveBtn clicked => saveMapSelection()");
   window.saveMapSelection();
 
   // Programmatically click the hidden "berechnenBtn"

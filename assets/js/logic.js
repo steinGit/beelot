@@ -37,7 +37,7 @@ export function getSelectedEndDate() {
     const m = parseInt(parts[1], 10) - 1; // zero-based
     const d = parseInt(parts[2], 10);
     const localStartOfDay = createLocalStartOfDay(y, m, d);
-    console.log("[DEBUG logic.js] getSelectedEndDate() =>", localStartOfDay.toString());
+    // console.log("[DEBUG logic.js] getSelectedEndDate() =>", localStartOfDay.toString());
     return localStartOfDay;
 }
 
@@ -64,8 +64,8 @@ export function computeStartDate(endDate) {
     const selection = zeitraumSelect.value;
     const startDate = new Date(endDate); // Clone the endDate
 
-    console.log("[DEBUG logic.js] computeStartDate() => selection=", selection,
-        "endDate=", formatDateLocal(endDate));
+    // console.log("[DEBUG logic.js] computeStartDate() => selection=", selection,
+    // "endDate=", formatDateLocal(endDate));
 
     if (selection === "7") {
         startDate.setDate(endDate.getDate() - 7 + 1);
@@ -79,8 +79,8 @@ export function computeStartDate(endDate) {
         startDate.setDate(1);
     }
 
-    console.log("[DEBUG logic.js] computeStartDate() => startDate=",
-        formatDateLocal(startDate));
+    // console.log("[DEBUG logic.js] computeStartDate() => startDate=",
+    // formatDateLocal(startDate));
     return startDate;
 }
 
@@ -94,7 +94,7 @@ export function computeStartDate(endDate) {
  */
 export function calculateGTS(dates, values, verbose = false) {
     if (verbose) {
-        console.log(`
+      console.log(`
         const dates = ${JSON.stringify(dates, null, 2)};
         const values = ${JSON.stringify(values, null, 2)};
     `);
@@ -137,7 +137,7 @@ export function calculateGTS(dates, values, verbose = false) {
  * @param {boolean} verbose - If true, logs additional debug information.
  * @returns {Promise<Object>} - An object containing 'year', 'labels', and 'gtsValues'.
  */
-export async function fetchGTSForYear(lat, lon, year, baseStartDate, baseEndDate, verbose = true) {
+export async function fetchGTSForYear(lat, lon, year, baseStartDate, baseEndDate, verbose = false) {
     if (verbose) {
         console.log("[DEBUG logic.js] fetchGTSForYear() => year=", year,
                     " baseStartDate=", formatDateLocal(baseStartDate),
@@ -149,8 +149,8 @@ export async function fetchGTSForYear(lat, lon, year, baseStartDate, baseEndDate
     const yearEnd = new Date(year, baseEndDate.getMonth(), baseEndDate.getDate(), 0, 0, 0, 0);
     yearEnd.setDate(yearEnd.getDate() + 1);
 
-    console.log("[DEBUG logic.js] => yearStart=", formatDateLocal(yearStart),
-                " yearEnd=", formatDateLocal(yearEnd));
+    // console.log("[DEBUG logic.js] => yearStart=", formatDateLocal(yearStart),
+    // " yearEnd=", formatDateLocal(yearEnd));
 
     // B) Fetch historical data from yearStart to yearEnd
     const histData = await fetchHistoricalData(lat, lon, yearStart, yearEnd);
@@ -176,8 +176,8 @@ export async function fetchGTSForYear(lat, lon, year, baseStartDate, baseEndDate
         baseEndDate.getDate()
     );
 
-    console.log("[DEBUG logic.js] => yearPlotStart=", formatDateLocal(yearPlotStart),
-                " yearPlotEnd=", formatDateLocal(yearPlotEnd));
+    // console.log("[DEBUG logic.js] => yearPlotStart=", formatDateLocal(yearPlotStart),
+    // " yearPlotEnd=", formatDateLocal(yearPlotEnd));
 
     // E) Filter GTS results to the display window
     const endOfDay = new Date(yearPlotEnd);
@@ -186,8 +186,8 @@ export async function fetchGTSForYear(lat, lon, year, baseStartDate, baseEndDate
         const d = new Date(r.date);
         return (d >= yearPlotStart && d <= endOfDay);
     });
-    console.log("[DEBUG logic.js] => final displayed results for year=", year,
-        " =>", displayedResults.length, " points");
+    // console.log("[DEBUG logic.js] => final displayed results for year=", year,
+    // " =>", displayedResults.length, " points");
 
     // F) Convert to Chart.js-compatible arrays
     const labels = displayedResults.map(item => {
@@ -216,7 +216,7 @@ export async function build5YearData(lat, lon, baseStartDate, baseEndDate, data_
     const mainYear = baseEndDate.getFullYear();
     const allResults = [];
 
-    console.log("[DEBUG logic.js] build5YearData() => mainYear=", mainYear);
+    // console.log("[DEBUG logic.js] build5YearData() => mainYear=", mainYear);
 
     for (let y = mainYear; y > mainYear - 5; y--) {
         const yearPlotStart = createLocalStartOfDay(
@@ -244,8 +244,8 @@ export async function build5YearData(lat, lon, baseStartDate, baseEndDate, data_
                 return (d >= yearPlotStart && d <= endOfDay);
             });
 
-            console.log(`[DEBUG build5YearData] Year ${y} - plotStartDate: ${yearPlotStart}, endOfDay: ${endOfDay}`);
-            console.log(`[DEBUG build5YearData] Year ${y} - Displayed Results:`, displayedResults);
+            // console.log(`[DEBUG build5YearData] Year ${y} - plotStartDate: ${yearPlotStart}, endOfDay: ${endOfDay}`);
+            // console.log(`[DEBUG build5YearData] Year ${y} - Displayed Results:`, displayedResults);
 
             // Convert to Chart.js data format
             const labels = displayedResults.map(item => {
@@ -264,10 +264,10 @@ export async function build5YearData(lat, lon, baseStartDate, baseEndDate, data_
             // For past years, fetch from the server
             //
             try {
-                console.log("[DEBUG logic.js] build5YearData() y=", y, " yearPlotStart= ", formatDateLocal(yearPlotStart), " yearPlotEnd= ", formatDateLocal(yearPlotEnd));
+                // console.log("[DEBUG logic.js] build5YearData() y=", y, " yearPlotStart= ", formatDateLocal(yearPlotStart), " yearPlotEnd= ", formatDateLocal(yearPlotEnd));
                 const yearly = await fetchGTSForYear(lat, lon, y, yearPlotStart, yearPlotEnd);
-                console.log("[DEBUG logic.js] build5YearData() => year=", y,
-                    " => #points=", yearly.gtsValues.length);
+                // console.log("[DEBUG logic.js] build5YearData() => year=", y,
+                //    " => #points=", yearly.gtsValues.length);
                 allResults.push(yearly);
             } catch (err) {
                 console.warn(`[build5YearData] Error year=${y}`, err);
@@ -275,7 +275,7 @@ export async function build5YearData(lat, lon, baseStartDate, baseEndDate, data_
         }
     }
 
-    console.log("[DEBUG logic.js] build5YearData() => total sets=", allResults.length);
+    // console.log("[DEBUG logic.js] build5YearData() => total sets=", allResults.length);
     return allResults;
 }
 
