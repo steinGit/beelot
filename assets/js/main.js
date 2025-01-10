@@ -21,7 +21,7 @@ import {
   toggle5yrPlotBtn
 } from './ui.js';
 
-import { PlotUpdater } from './plotUpdater.js'; // <-- new import
+import { PlotUpdater } from './plotUpdater.js';
 import { VERSION } from './version.js';
 
 /**
@@ -34,6 +34,55 @@ function getLocalTodayString() {
   const dateStr = local.toISOString().split('T')[0];
   console.log("[DEBUG main.js] getLocalTodayString() =>", dateStr);
   return dateStr;
+}
+
+/**
+ * NEW FUNCTION:
+ * Dynamically updates the #zeitraum select options so that we never select beyond the year change.
+ * If the selected date is within the first n days of January, restrict the available options.
+ */
+function updateZeitraumSelect() {
+  const datumVal = datumInput.value;
+  if (!datumVal) return; // if there's no date yet, do nothing
+
+  // Parse date from input
+  const [yyyy, mm, dd] = datumVal.split('-').map(x => parseInt(x, 10));
+  const selectedDate = new Date(yyyy, mm - 1, dd, 0, 0, 0, 0);
+
+  // We only do logic for the same year, if user picks e.g. next year, adjust as you like.
+  // For now, let's assume user only picks a date in the current year.
+  const startOfYear = new Date(yyyy, 0, 1); // January 1st of that year
+  // How many days have passed since Jan 1
+  const diffMs = selectedDate.getTime() - startOfYear.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 3600 * 24));
+
+  // Clear out existing options
+  while (zeitraumSelect.firstChild) {
+    zeitraumSelect.removeChild(zeitraumSelect.firstChild);
+  }
+
+  // We'll always allow "seit Jahresanfang"
+  const optYTD = new Option("Seit Jahresanfang", "ytd", false, false);
+  zeitraumSelect.add(optYTD);
+
+  // If we are >= 7 days into January
+  if (diffDays >= 7) {
+    const opt7 = new Option("1 Woche", "7", false, false);
+    zeitraumSelect.add(opt7);
+  }
+  // If we are >= 14 days into January
+  if (diffDays >= 14) {
+    const opt14 = new Option("2 Wochen", "14", false, false);
+    zeitraumSelect.add(opt14);
+  }
+  // If we are >= 28 days into January
+  if (diffDays >= 28) {
+    const opt28 = new Option("4 Wochen", "28", false, false);
+    zeitraumSelect.add(opt28);
+  }
+
+  // For simplicity, default to "seit Jahresanfang"
+  zeitraumSelect.value = "ytd";
 }
 
 // We'll hold a reference to our PlotUpdater instance here
@@ -63,6 +112,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   datumInput.value = todayStr;
   datumInput.max   = todayStr;
+
+  // Make sure to update #zeitraum select options the first time
+  updateZeitraumSelect();
 
   const lastLoc = localStorage.getItem("lastLocation");
   if (lastLoc) {
@@ -109,6 +161,7 @@ toggle5yrPlotBtn.addEventListener('click', () => {
 /**
  * Register the various event listeners
  * -> All were previously calling updatePlots(), now call plotUpdater.run()
+ * -> We now also call updateZeitraumSelect() when date changes to restrict the user selection
  */
 ortInput.addEventListener('change', () => {
   console.log("[DEBUG main.js] ortInput changed => plotUpdater.run()");
@@ -121,7 +174,8 @@ zeitraumSelect.addEventListener('change', () => {
 });
 
 datumInput.addEventListener('change', () => {
-  console.log("[DEBUG main.js] datumInput changed => plotUpdater.run()");
+  console.log("[DEBUG main.js] datumInput changed => re-check #zeitraum, then plotUpdater.run()");
+  updateZeitraumSelect();
   plotUpdater.run();
 });
 
@@ -145,7 +199,9 @@ datumPlusBtn.addEventListener('click', () => {
   }
 
   datumInput.value = current.toISOString().split('T')[0];
-  console.log("[DEBUG main.js] New date is:", datumInput.value, "=> plotUpdater.run()");
+  console.log("[DEBUG main.js] New date is:", datumInput.value);
+  // Re-check #zeitraum and run
+  updateZeitraumSelect();
   plotUpdater.run();
 });
 
@@ -158,7 +214,9 @@ datumMinusBtn.addEventListener('click', () => {
   current.setDate(current.getDate() - 1);
 
   datumInput.value = current.toISOString().split('T')[0];
-  console.log("[DEBUG main.js] New date is:", datumInput.value, "=> plotUpdater.run()");
+  console.log("[DEBUG main.js] New date is:", datumInput.value);
+  // Re-check #zeitraum and run
+  updateZeitraumSelect();
   plotUpdater.run();
 });
 
@@ -178,7 +236,8 @@ datumHeuteBtn.addEventListener('click', () => {
   console.log("[DEBUG main.js] datumHeuteBtn clicked! Setting date to local 'today'.");
   const newToday = getLocalTodayString();
   datumInput.value = newToday;
-  console.log("[DEBUG main.js] #datum is now:", newToday, "=> plotUpdater.run()");
+  console.log("[DEBUG main.js] #datum is now:", newToday);
+  updateZeitraumSelect();
   plotUpdater.run();
 });
 
