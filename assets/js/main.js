@@ -131,6 +131,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const versionElement = document.getElementById("version-placeholder");
   if (versionElement) {
     versionElement.textContent = `Version ${VERSION}`;
+  } else {
+    console.warn("No element with ID 'version-placeholder' found in DOM.");
   }
 });
 
@@ -275,4 +277,8 @@ mapCloseBtn.addEventListener('click', () => {
 mapSaveBtn.addEventListener('click', () => {
   console.log("[DEBUG main.js] mapSaveBtn clicked => saveMapSelection()");
   window.saveMapSelection();
+
+  // Programmatically click the hidden "berechnenBtn"
+  // so it triggers its existing event listener => calls plotUpdater.run()
+  berechnenBtn.click();
 });
