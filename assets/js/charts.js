@@ -1,3 +1,7 @@
+// --- FILE: /home/fridtjofstein/privat/beelot/assets/js/charts.js ---
+
+import { formatDayMonth } from './utils.js';
+
 /**
  * @module charts
  * Funktionen zum Plotten von Daten (GTS- und Temperatur-Plot)
@@ -31,10 +35,7 @@ export function plotData(results, verbose = false) {
         return null;
     }
 
-    const labels = results.map(r => {
-        const d = new Date(r.date);
-        return `${d.getDate()}.${d.getMonth() + 1}`;
-    });
+    const labels = results.map(r => formatDayMonth(r.date));
 
     const data = results.map(r => r.gts);
 
@@ -42,18 +43,18 @@ export function plotData(results, verbose = false) {
     const endDate = new Date(results[results.length - 1].date);
     const yearColor = beekeeperColor(endDate.getFullYear());
 
-    // Determine background color from that queen marking
+    // Determine background color based on the year color
     let bgColor = 'rgba(0,0,255,0.2)';
     if (yearColor === 'grey') {
-      bgColor = 'rgba(128,128,128,0.2)';
+        bgColor = 'rgba(128,128,128,0.2)';
     } else if (yearColor === '#ddaa00') {
-      bgColor = 'rgba(221,170,0,0.2)';
+        bgColor = 'rgba(221,170,0,0.2)';
     } else if (yearColor === 'red') {
-      bgColor = 'rgba(255,0,0,0.2)';
+        bgColor = 'rgba(255,0,0,0.2)';
     } else if (yearColor === 'green') {
-      bgColor = 'rgba(0,128,0,0.2)';
+        bgColor = 'rgba(0,128,0,0.2)';
     } else if (yearColor === 'blue') {
-      bgColor = 'rgba(0,0,255,0.2)';
+        bgColor = 'rgba(0,0,255,0.2)';
     }
 
     const ctx = document.getElementById('plot-canvas').getContext('2d');
@@ -77,7 +78,21 @@ export function plotData(results, verbose = false) {
             maintainAspectRatio: false,
             scales: {
                 y: {
-                    beginAtZero: false
+                    beginAtZero: false,
+                    title: {
+                        display: true,
+                        text: 'Grünland-Temperatur-Summe (°C)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Datum (Tag.Monat)'
+                    },
+                    ticks: {
+                        maxRotation: 0,
+                        minRotation: 0
+                    }
                 }
             },
             plugins: {
@@ -85,6 +100,10 @@ export function plotData(results, verbose = false) {
                     enabled: true,
                     mode: 'index',
                     intersect: false
+                },
+                legend: {
+                    display: true,
+                    position: 'top'
                 }
             },
             interaction: {
@@ -106,10 +125,7 @@ export function plotDailyTemps(dates, temps, verbose = false) {
         console.log("[charts.js] plotDailyTemps() called with temps:", temps);
     }
 
-    const labels = dates.map(dStr => {
-        const d = new Date(dStr);
-        return `${d.getDate()}.${d.getMonth() + 1}`;
-    });
+    const labels = dates.map(dStr => formatDayMonth(dStr));
 
     let yearLabel = '';
     if (dates.length > 0) {
@@ -138,7 +154,21 @@ export function plotDailyTemps(dates, temps, verbose = false) {
             maintainAspectRatio: false,
             scales: {
                 y: {
-                    beginAtZero: false
+                    beginAtZero: false,
+                    title: {
+                        display: true,
+                        text: 'Tagesmitteltemperatur (°C)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Datum (Tag.Monat)'
+                    },
+                    ticks: {
+                        maxRotation: 0,
+                        minRotation: 0
+                    }
                 }
             },
             plugins: {
@@ -146,6 +176,10 @@ export function plotDailyTemps(dates, temps, verbose = false) {
                     enabled: true,
                     mode: 'index',
                     intersect: false
+                },
+                legend: {
+                    display: true,
+                    position: 'top'
                 }
             },
             interaction: {
@@ -185,11 +219,8 @@ export function plotMultipleYearData(multiYearData) {
             bgColor = 'rgba(0,0,255,0.0)';
         }
 
-        // Convert the full date string to day.month
-        const shortLabels = item.labels.map(dStr => {
-            const d = new Date(dStr);
-            return `${d.getDate()}.${d.getMonth() + 1}`;
-        });
+        // Ensure labels are formatted as "day.month" without leading zeros
+        const formattedLabels = item.labels.map(dStr => formatDayMonth(dStr));
 
         return {
             label: `${item.year}`,
@@ -203,14 +234,11 @@ export function plotMultipleYearData(multiYearData) {
         };
     });
 
-    // We'll use the first dataset's labels as the "master"
-    const masterLabels = [];
-    if (multiYearData.length > 0) {
-        masterLabels.push(...multiYearData[0].labels.map(dStr => {
-            const d = new Date(dStr);
-            return `${d.getDate()}.${d.getMonth() + 1}`;
-        }));
-    }
+    // Use a unified set of labels for the x-axis
+    // Assuming all years have the same number of days and labels
+    const masterLabels = multiYearData[0].labels;
+
+    console.log("[charts.js] plotMultipleYearData() masterLabels = ", masterLabels);
 
     const chartGTS = new Chart(ctx, {
         type: 'line',
@@ -222,8 +250,22 @@ export function plotMultipleYearData(multiYearData) {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Datum (Tag.Monat)'
+                    },
+                    ticks: {
+                        maxRotation: 0,
+                        minRotation: 0
+                    }
+                },
                 y: {
-                    beginAtZero: false
+                    beginAtZero: false,
+                    title: {
+                        display: true,
+                        text: 'Grünland-Temperatur-Summe (°C)'
+                    }
                 }
             },
             plugins: {
@@ -231,6 +273,10 @@ export function plotMultipleYearData(multiYearData) {
                     enabled: true,
                     mode: 'index',
                     intersect: false
+                },
+                legend: {
+                    display: true,
+                    position: 'top'
                 }
             },
             interaction: {

@@ -18,6 +18,18 @@ export function formatDateLocal(date) {
 }
 
 /**
+ * Formats a date string to "day.month" without leading zeros.
+ * @param {string} dateStr - Date string in "YYYY-MM-DD" format.
+ * @returns {string} - Formatted date as "day.month"
+ */
+export function formatDayMonth(dateStr) {
+    const d = new Date(dateStr);
+    const day = d.getDate();
+    const month = d.getMonth() + 1;
+    return `${day}.${month}`;
+}
+
+/**
  * Validates if a Date object is valid.
  * @param {Date} d - The Date object to validate.
  * @returns {boolean} - True if valid, false otherwise.
