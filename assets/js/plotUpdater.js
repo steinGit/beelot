@@ -1,4 +1,4 @@
-// plotUpdater.js
+// FILE: /home/fridtjofstein/privat/beelot/assets/js/plotUpdater.js
 
 /**
  * @module plotUpdater
@@ -16,6 +16,7 @@ import {
 } from './logic.js';
 import { updateHinweisSection } from './information.js';
 import { formatDateLocal, isValidDate } from './utils.js';
+import { LocationNameFromGPS } from './location_name_from_gps.js'; // Import the new class
 
 /**
  * Helper to forcibly destroy any leftover chart using a given canvas ID.
@@ -38,7 +39,8 @@ export class PlotUpdater {
     hinweisSection,
     gtsPlotContainer,
     tempPlotContainer,
-    chartRefs = {}
+    chartRefs = {},
+    locationNameOutput // Add locationNameOutput to constructor
   }) {
     this.verbose = false;
     this.ortInput = ortInput;
@@ -48,6 +50,7 @@ export class PlotUpdater {
     this.hinweisSection = hinweisSection;
     this.gtsPlotContainer = gtsPlotContainer;
     this.tempPlotContainer = tempPlotContainer;
+    this.locationNameOutput = locationNameOutput; // Assign the new output element
 
     // Chart.js object references
     this.chartGTS = chartRefs.chartGTS || null;
@@ -56,6 +59,11 @@ export class PlotUpdater {
     // Arrays used to store daily temps in the [plotStart..endDate] window
     this.filteredTempsDates = [];
     this.filteredTempsData = [];
+
+    // Instantiate the LocationNameFromGPS class
+    this.locationFetcher = new LocationNameFromGPS({
+      email: 'info.beelot@gmail.com'
+    });
   }
 
   /**
@@ -75,6 +83,9 @@ export class PlotUpdater {
 
       // Step 4) Parse lat/lon
       const { lat, lon } = this.step4ParseLatLon();
+
+      // Fetch and display location name
+      this.step4aFetchAndDisplayLocationName(lat, lon);
 
       // Step 5) Date range logic
       const { differenceInDays, plotStartDate } = this.step5ComputeDateRange(endDate);
@@ -124,6 +135,11 @@ export class PlotUpdater {
 
     } catch (err) {
       console.log("[PlotUpdater] => Caught error:", err);
+      this.ergebnisTextEl.textContent = "Ein Fehler ist aufgetreten. Bitte versuche es später erneut.";
+      if (this.hinweisSection) {
+        this.hinweisSection.innerHTML = `<h2>Imkerliche Information</h2>
+          <p style="color: red;">Es ist ein Fehler aufgetreten: ${err.message}</p>`;
+      }
     }
   }
 
@@ -202,6 +218,19 @@ export class PlotUpdater {
   }
 
   /**
+   * Step 4a: Fetch and display the location name based on latitude and longitude.
+   * @param {number} lat - Latitude.
+   * @param {number} lon - Longitude.
+   */
+  async step4aFetchAndDisplayLocationName(lat, lon) {
+    if (this.locationNameOutput) {
+      this.locationNameOutput.textContent = "Standortname wird ermittelt...";
+      const locationName = await this.locationFetcher.getLocationName(lat, lon);
+      this.locationNameOutput.textContent = locationName;
+    }
+  }
+
+  /**
    * Step 5: Compute the date range based on the selected end date.
    * @param {Date} endDate - The selected end date.
    * @returns {Object} - An object containing differenceInDays and plotStartDate.
@@ -262,8 +291,12 @@ export class PlotUpdater {
         allTemps = allTemps.concat(histData.daily.temperature_2m_mean);
       }
       if (recentData && recentData.daily) {
-        allDates = allDates.concat(recentData.daily.time);
-        allTemps = allTemps.concat(recentData.daily.temperature_2m_mean);
+        // Avoid overlapping dates
+        const existingDates = new Set(allDates);
+        const filteredRecentDates = recentData.daily.time.filter(date => !existingDates.has(date));
+        const filteredRecentTemps = recentData.daily.temperature_2m_mean.filter((_, idx) => !existingDates.has(recentData.daily.time[idx]));
+        allDates = allDates.concat(filteredRecentDates);
+        allTemps = allTemps.concat(filteredRecentTemps);
       }
     }
 
@@ -357,20 +390,20 @@ export class PlotUpdater {
    * @param {Date} endDate - End date for plotting.
    */
   step11FilterDailyTemps(allDates, allTemps, plotStartDate, endDate) {
-  // 1) Define an endOfDay that matches your GTS logic
-  const endOfDay = new Date(endDate);
-  endOfDay.setHours(23, 59, 59, 999);
+    // 1) Define an endOfDay that matches your GTS logic
+    const endOfDay = new Date(endDate);
+    endOfDay.setHours(23, 59, 59, 999);
 
-  // 2) Filter using endOfDay
-  this.filteredTempsDates = [];
-  this.filteredTempsData = [];
-  for (let i = 0; i < allDates.length; i++) {
-    const d = new Date(allDates[i]);
-    if (d >= plotStartDate && d <= endOfDay) {
-      this.filteredTempsDates.push(allDates[i]);
-      this.filteredTempsData.push(allTemps[i]);
-    }
-   }
+    // 2) Filter using endOfDay
+    this.filteredTempsDates = [];
+    this.filteredTempsData = [];
+    for (let i = 0; i < allDates.length; i++) {
+      const d = new Date(allDates[i]);
+      if (d >= plotStartDate && d <= endOfDay) {
+        this.filteredTempsDates.push(allDates[i]);
+        this.filteredTempsData.push(allTemps[i]);
+      }
+     }
   }
 
   /**

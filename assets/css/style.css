@@ -158,3 +158,10 @@ footer nav a:hover {
 .red-button:hover {
   background-color: darkred;
 }
+
+#location-name {
+  display: block;
+  margin-top: 5px;
+  font-weight: bold;
+  color: #333333;
+}

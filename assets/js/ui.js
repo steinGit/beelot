@@ -27,6 +27,8 @@ export const toggle5yrPlotBtn  = document.getElementById('toggle-5yr-plot');
 export const toggleTempPlotBtn = document.getElementById('toggle-temp-plot');
 export const tempPlotContainer = document.getElementById('temp-plot-container');
 
+export const locationNameOutput = document.getElementById('location-name');
+
 // The main "Ergebnis" paragraph
 const ergebnisTextEl = document.getElementById('ergebnis-text');
 

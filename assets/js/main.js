@@ -20,7 +20,8 @@ import {
   gtsPlotContainer,
   toggleTempPlotBtn,
   tempPlotContainer,
-  toggle5yrPlotBtn
+  toggle5yrPlotBtn,
+  locationNameOutput // Import the new exported element
 } from './ui.js';
 
 import { PlotUpdater } from './plotUpdater.js';
@@ -114,7 +115,8 @@ document.addEventListener('DOMContentLoaded', () => {
     !gtsPlotContainer ||
     !toggleTempPlotBtn ||
     !tempPlotContainer ||
-    !toggle5yrPlotBtn
+    !toggle5yrPlotBtn ||
+    !locationNameOutput // Ensure the new element exists
   ) {
     console.log("[main.js] Not all index elements exist => skipping main logic on this page.");
     return;
@@ -129,7 +131,8 @@ document.addEventListener('DOMContentLoaded', () => {
     hinweisSection: document.querySelector('.hinweis-section'),
     gtsPlotContainer,
     tempPlotContainer,
-    chartRefs: { chartGTS: null, chartTemp: null }
+    chartRefs: { chartGTS: null, chartTemp: null },
+    locationNameOutput // Pass the new output element
   });
 
   // 2) Set date to local "today" & load last known location
