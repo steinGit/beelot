@@ -1,3 +1,5 @@
+// FILE: /home/fridtjofstein/privat/beelot/assets/js/main.js
+
 /**
  * @module main
  * Handles event listeners and initial setup
@@ -37,6 +39,7 @@ function getLocalTodayString() {
 
 /**
  * Dynamically updates the #zeitraum select options so that we never select beyond the year change.
+ * Preserves the user's previous selection if it's still available.
  */
 function updateZeitraumSelect() {
   if (!datumInput) return; // if there's no date input, skip
@@ -50,12 +53,15 @@ function updateZeitraumSelect() {
   const diffMs = selectedDate.getTime() - startOfYear.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 3600 * 24));
 
+  // Store current selection before clearing
+  const previousSelection = zeitraumSelect.value;
+
   // Clear out existing options
   while (zeitraumSelect.firstChild) {
     zeitraumSelect.removeChild(zeitraumSelect.firstChild);
   }
 
-  // We'll always allow "seit Jahresanfang"
+  // We'll always allow "Seit Jahresanfang"
   const optYTD = new Option("Seit Jahresanfang", "ytd", false, false);
   zeitraumSelect.add(optYTD);
 
@@ -75,8 +81,13 @@ function updateZeitraumSelect() {
     zeitraumSelect.add(opt28);
   }
 
-  // For simplicity, default to "seit Jahresanfang"
-  zeitraumSelect.value = "ytd";
+  // Determine if previous selection is still available
+  const optionsValues = Array.from(zeitraumSelect.options).map(opt => opt.value);
+  if (optionsValues.includes(previousSelection)) {
+    zeitraumSelect.value = previousSelection;
+  } else {
+    zeitraumSelect.value = "ytd";
+  }
 }
 
 // We'll hold a reference to our PlotUpdater instance here

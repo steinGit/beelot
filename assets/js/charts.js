@@ -74,6 +74,7 @@ export function plotData(results, verbose = false) {
             }]
         },
         options: {
+            animation: false,
             responsive: true,
             maintainAspectRatio: false,
             scales: {
@@ -150,6 +151,7 @@ export function plotDailyTemps(dates, temps, verbose = false) {
             }]
         },
         options: {
+            animation: false,
             responsive: true,
             maintainAspectRatio: false,
             scales: {
@@ -247,6 +249,7 @@ export function plotMultipleYearData(multiYearData) {
             datasets: datasets
         },
         options: {
+            animation: false,
             responsive: true,
             maintainAspectRatio: false,
             scales: {
