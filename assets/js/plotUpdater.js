@@ -350,15 +350,20 @@ export class PlotUpdater {
    * @param {Date} endDate - End date for plotting.
    */
   step11FilterDailyTemps(allDates, allTemps, plotStartDate, endDate) {
-    this.filteredTempsDates = [];
-    this.filteredTempsData = [];
-    for (let i = 0; i < allDates.length; i++) {
-      const d = new Date(allDates[i]);
-      if (d >= plotStartDate && d <= endDate) {
-        this.filteredTempsDates.push(allDates[i]);
-        this.filteredTempsData.push(allTemps[i]);
-      }
+  // 1) Define an endOfDay that matches your GTS logic
+  const endOfDay = new Date(endDate);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  // 2) Filter using endOfDay
+  this.filteredTempsDates = [];
+  this.filteredTempsData = [];
+  for (let i = 0; i < allDates.length; i++) {
+    const d = new Date(allDates[i]);
+    if (d >= plotStartDate && d <= endOfDay) {
+      this.filteredTempsDates.push(allDates[i]);
+      this.filteredTempsData.push(allTemps[i]);
     }
+   }
   }
 
   /**
