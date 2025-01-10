@@ -9,14 +9,25 @@
   </head>
 
   <body>
-    <!-- Header -->
+    <!-- Header placeholder -->
     <div id="header-placeholder"></div>
-    <script>
+
+    <script type="module">
+      import { VERSION } from "./assets/js/version.js";
+
       fetch("components/header.html")
-    .then(response => response.text())
-    .then(html => {
-        document.getElementById("header-placeholder").innerHTML = html;
-    });
+        .then(response => response.text())
+        .then(html => {
+          document.getElementById("header-placeholder").innerHTML = html;
+
+          const versionElement = document.getElementById("version-placeholder");
+          if (versionElement) {
+            versionElement.textContent = `Version ${VERSION}`;
+          }
+
+          // If you need main.js logic here, import it:
+          import("./assets/js/main.js");
+        });
     </script>
 
     <main>

@@ -22,13 +22,31 @@
     </script>
   </head>
   <body>
-
+    <!-- 1) The header placeholder -->
     <div id="header-placeholder"></div>
-    <script>
+
+    <!-- 2) Load the header, THEN set the version, THEN load main.js -->
+    <script type="module">
+      import { VERSION } from "./assets/js/version.js";
+
       fetch("components/header.html")
         .then(response => response.text())
         .then(html => {
           document.getElementById("header-placeholder").innerHTML = html;
+
+          // Now the #version-placeholder exists in the DOM
+          const versionElement = document.getElementById("version-placeholder");
+          if (versionElement) {
+            versionElement.textContent = `Version ${VERSION}`;
+          }
+
+          // Now that the header is in place, load main.js
+          // main.js will attach event listeners etc.
+          import("./assets/js/main.js")
+            .then(() => {
+              console.log("[index.html] main.js loaded after header injection.");
+            })
+            .catch(err => console.error("Error loading main.js:", err));
         });
     </script>
 
