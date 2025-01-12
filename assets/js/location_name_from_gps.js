@@ -1,5 +1,3 @@
-// FILE: /home/fridtjofstein/privat/beelot/assets/js/location_name_from_gps.js
-
 /**
  * @module LocationNameFromGPS
  * Handles reverse geocoding to convert GPS coordinates into human-readable location names with caching and verbose logging.
@@ -64,7 +62,7 @@ export class LocationNameFromGPS {
       lat: lat.toString(),
       lon: lon.toString(),
       addressdetails: '1',
-      zoom: '10', // Adjust zoom level as needed
+      zoom: '18', // Adjust zoom level as needed for precision
       email: this.email
     });
 
@@ -87,16 +85,19 @@ export class LocationNameFromGPS {
         throw new Error('No address found for the given coordinates.');
       }
 
-      // Construct a readable location name
+      // Extract address components
       const { city, town, village, road, house_number, state, country } = data.address;
+
+      // Determine the nearest city or town
+      const nearestPlace = city || town || village;
+
+      // Construct a readable location name
       let locationName = '';
 
       if (house_number && road) {
         locationName = `${road} ${house_number}, `;
-      }
-
-      if (city || town || village) {
-        locationName += `${city || town || village}, `;
+      } else if (nearestPlace) {
+        locationName = `In der Nähe von ${nearestPlace}, `;
       }
 
       if (state) {
