@@ -291,12 +291,8 @@ export class PlotUpdater {
         allTemps = allTemps.concat(histData.daily.temperature_2m_mean);
       }
       if (recentData && recentData.daily) {
-        // Avoid overlapping dates
-        const existingDates = new Set(allDates);
-        const filteredRecentDates = recentData.daily.time.filter(date => !existingDates.has(date));
-        const filteredRecentTemps = recentData.daily.temperature_2m_mean.filter((_, idx) => !existingDates.has(recentData.daily.time[idx]));
-        allDates = allDates.concat(filteredRecentDates);
-        allTemps = allTemps.concat(filteredRecentTemps);
+        allDates = allDates.concat(recentData.daily.time);
+        allTemps = allTemps.concat(recentData.daily.temperature_2m_mean);
       }
     }
 
