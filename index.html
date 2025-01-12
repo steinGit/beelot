@@ -3,22 +3,38 @@
   <head>
     <base href="/">
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <meta name="description" content="BeeLot - Kostenlose und werbefreie Informationen für Imker über Grünlandtemperatursumme, Blühphasen, Trachtvorhersagen und mehr.">
-    <meta name="keywords" content="Imker, Grünlandtemperatursumme, Bienen, Temperatursumme, Tracht, Blühphase">
-    <link rel="icon" type="image/ico" href="assets/img/bee_logo02.ico">
-    <title>BeeLot Version 0.1.1</title>
-    <link rel="stylesheet" href="assets/css/style.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="assets/css/index.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="BeeLot - Kostenlose und werbefreie Informationen für Imker über Grünlandtemperatursumme, Blühphasen, Trachtvorhersagen und mehr."
+    />
+    <meta
+      name="keywords"
+      content="Imker, Grünlandtemperatursumme, Bienen, Temperatursumme, Tracht, Blühphase"
+    />
+    <link rel="icon" type="image/ico" href="assets/img/bee_logo02.ico" />
+    <title id="title-placeholder"></title>
+    <link rel="stylesheet" href="assets/css/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link rel="stylesheet" href="assets/css/index.css" />
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebPage",
-      "name": "BeeLot - Informationen für Imker",
-      "description": "BeeLot bietet Imkern kostenlos und werbefrei Daten und Vorhersagen zur Grünlandtemperatursumme, Blühphasen und Trachtentwicklung.",
-      "keywords": ["Imker", "Grünlandtemperatursumme", "Bienen", "Temperatursumme", "Tracht", "Blühphase"]
-    }
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "BeeLot - Informationen für Imker",
+        "description": "BeeLot bietet Imkern kostenlos und werbefrei Daten und Vorhersagen zur Grünlandtemperatursumme, Blühphasen und Trachtentwicklung.",
+        "keywords": [
+          "Imker",
+          "Grünlandtemperatursumme",
+          "Bienen",
+          "Temperatursumme",
+          "Tracht",
+          "Blühphase"
+        ]
+      }
     </script>
   </head>
   <body>
@@ -29,9 +45,16 @@
     <script type="module">
       import { VERSION } from "./assets/js/version.js";
 
+      // Dynamically set the page title
+      const titleElement = document.getElementById("title-placeholder");
+      if (titleElement) {
+        titleElement.textContent = `BeeLot Version ${VERSION}`;
+      }
+
+      // Fetch and inject the header
       fetch("components/header.html")
-        .then(response => response.text())
-        .then(html => {
+        .then((response) => response.text())
+        .then((html) => {
           document.getElementById("header-placeholder").innerHTML = html;
 
           // Now the #version-placeholder exists in the DOM
@@ -46,32 +69,49 @@
             .then(() => {
               console.log("[index.html] main.js loaded after header injection.");
             })
-            .catch(err => console.error("Error loading main.js:", err));
+            .catch((err) => console.error("Error loading main.js:", err));
         });
     </script>
 
     <main>
       <section class="eingabe-section">
         <div class="input-group">
-          <button id="ort-karte-btn">Ort auf Karte wählen</button><br>
+          <button id="ort-karte-btn">Ort auf Karte wählen</button><br />
           <label for="ort">Koordinaten:</label>
-          <output type="text" id="ort" name="ort" placeholder="Aktuelle Position oder Ort wählen..."></output><br>
-          <output type="text" id="location-name" name="location-name" placeholder="Standortname wird angezeigt..."></output>
+          <output
+            type="text"
+            id="ort"
+            name="ort"
+            placeholder="Aktuelle Position oder Ort wählen..."
+          ></output
+          ><br />
+          <output
+            type="text"
+            id="location-name"
+            name="location-name"
+            placeholder="Standortname wird angezeigt..."
+          ></output>
         </div>
       </section>
 
       <section class="ergebnis-section">
-        <p id="ergebnis-text">Die Grünland-Temperatur-Summe wird berechnet wenn ein Ort ausgewählt ist.</p>
+        <p id="ergebnis-text">
+          Die Grünland-Temperatur-Summe wird berechnet wenn ein Ort ausgewählt
+          ist.
+        </p>
       </section>
 
       <!-- This section will get populated by information.js -->
       <section class="hinweis-section">
         <h2>Imkerliche Information</h2>
         <p>
-          Die Tracht Einstellungen können <a href="components/einstellungen.html">hier</a> ergänzt oder modifiziert werden.
+          Die Tracht Einstellungen können
+          <a href="components/einstellungen.html">hier</a> ergänzt oder
+          modifiziert werden.
         </p>
         <p>
-          Empfehlungen und Blühphasen Voraussagen werden berechnet wenn ein Ort ausgewählt wurde.
+          Empfehlungen und Blühphasen Voraussagen werden berechnet wenn ein Ort
+          ausgewählt wurde.
         </p>
       </section>
 
@@ -79,13 +119,13 @@
         <h2>Simulation</h2>
         <div class="input-group">
           <label for="datum">Datum:</label>
-          <input type="date" id="datum" name="datum">
+          <input type="date" id="datum" name="datum" />
           <button id="datum-plus">+</button>
           <button id="datum-minus">-</button>
           <!-- Always visible -->
-          <button id="datum-heute">heute</button><br>
+          <button id="datum-heute">heute</button><br />
           <span class="small-gray-text">
-              Hinweis: benutze die "+" und "-" Taste auf der Tastatur oder Numpad
+            Hinweis: benutze die "+" und "-" Taste auf der Tastatur oder Numpad
           </span>
 
           <!-- Keep hidden if your code references it -->
@@ -94,7 +134,8 @@
       </section>
 
       <section class="plot-section">
-        <h2>Diagramm (GTS) in °C
+        <h2>
+          Diagramm (GTS) in °C
           <button id="toggle-gts-plot">anzeigen</button>
         </h2>
         <div class="plot-container" id="gts-plot-container">
@@ -106,8 +147,13 @@
               <option value="28">4 Wochen</option>
               <option value="ytd" selected>Seit Jahresanfang</option>
             </select>
-            <br>
-            <button id="toggle-5yr-plot" style="display: inline-block;">die letzten 5 Jahre</button>
+            <br />
+            <button
+              id="toggle-5yr-plot"
+              style="display: inline-block;"
+            >
+              die letzten 5 Jahre
+            </button>
           </div>
           <!-- Added a wrapper for the canvas -->
           <div class="plot-wrapper">
@@ -115,7 +161,8 @@
           </div>
         </div>
 
-        <h2>Diagramm (Tagesmitteltemperaturen) in °C
+        <h2>
+          Diagramm (Tagesmitteltemperaturen) in °C
           <button id="toggle-temp-plot">anzeigen</button>
         </h2>
         <div class="plot-container" id="temp-plot-container">
@@ -145,8 +192,8 @@
     <div id="footer-placeholder"></div>
     <script>
       fetch("components/footer.html")
-        .then(response => response.text())
-        .then(html => {
+        .then((response) => response.text())
+        .then((html) => {
           document.getElementById("footer-placeholder").innerHTML = html;
         });
     </script>
