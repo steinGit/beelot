@@ -221,9 +221,6 @@ export function plotMultipleYearData(multiYearData) {
             bgColor = 'rgba(0,0,255,0.0)';
         }
 
-        // Ensure labels are formatted as "day.month" without leading zeros
-        const formattedLabels = item.labels.map(dStr => formatDayMonth(dStr));
-
         return {
             label: `${item.year}`,
             data: item.gtsValues,
