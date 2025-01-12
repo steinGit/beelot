@@ -20,8 +20,6 @@ export async function updateHinweisSection(gtsResults, endDate) {
     const R = 7;   // Rearview window
     const F = 14;  // Forecast window
 
-    //console.log("[DEBUG] gtsResults:", JSON.stringify(gtsResults, null, 2));
-
     // 0) Grab the <section> element
     const hinweisSection = document.querySelector(".hinweis-section");
     if (!hinweisSection) {
@@ -30,74 +28,55 @@ export async function updateHinweisSection(gtsResults, endDate) {
     }
 
     // 1) Convert gtsResults => C(day)
-    //    We interpret "Jan 1" as day=1, "Jan 2" as day=2, etc.
-    //    We'll find the difference in days from Jan 1 to each date.
-    //    For example:
-    //      if endDate is 2024-03-20, that is day=80 (if leap year 2024).
-    //    We'll store them in an array D_C such that D_C[day] = GTS value
-    //    (some days might be missing if data was incomplete, we do our best).
     const year = endDate.getFullYear();
     const isLeap = isLeapYear(year);
     // dayOfYear for endDate:
     const n = dayOfYear(endDate); // This is the "today index" in the curve
 
-    // Create an array big enough for day=1..n (and maybe a bit more).
-    const D_C = []; // D_C[i] = GTS at day i
+    // Create an array D_C for days [1..n]
+    const D_C = [];
     for (let i = 0; i <= n; i++) {
         D_C.push(null);
     }
 
-    // Fill D_C from gtsResults:
-    //   Each item has date='YYYY-MM-DD', find dayOfYear(date), store gts
+    // Fill D_C from gtsResults
     gtsResults.forEach(item => {
         const dObj = new Date(item.date);
         const dIndex = dayOfYear(dObj);
         if (dIndex >= 1 && dIndex < D_C.length) {
-            //console.log(`[DEBUG] Filling D_C[${dIndex}] with value:`, item.gts);
             D_C[dIndex] = item.gts;
         }
     });
 
-    // Because of possible daily missing data, fill forward any null spots
+    // Fill forward any null spots
     let lastKnown = 0;
     for (let i = 1; i < D_C.length; i++) {
         if (D_C[i] === null) {
-            //console.log(`[DEBUG] Filling D_C[${i}] with lastKnown:`, lastKnown);
             D_C[i] = lastKnown;
         } else {
             lastKnown = D_C[i];
-            //console.log(`[DEBUG] Updating lastKnown to:`, lastKnown);
         }
     }
-
     // Now D_C[1..n] is the GTS curve up to endDate
 
-    // Log D_C after it is filled
-    //console.log("[INFO] D_C after being filled:", JSON.stringify(D_C, null, 2));
-
-    // 2) Extend curve D by F=14 days linearly:
-    //    We'll call the extended array => D_E. It has length m = n + F or up to 365/366.
-    //    We do a simple approach: slope = average slope over the last F days of actual data.
-    //    If n < 2 => no slope => remain constant.
+    // 2) Extend curve by F=14 days linearly => D_E
     const maxDays = isLeap ? 366 : 365;
     const m = Math.min(n + F, maxDays);
 
-    // We'll find slope from the last F days in D_C. If we have fewer than F days, use what we can
+    // Slope from last F days in D_C
     let slope = 0;
-    const windowSize = Math.min(F, n - 1); // we need at least 2 days to find a slope
+    const windowSize = Math.min(F, n - 1);
     if (windowSize > 0) {
         let sum = 0;
-        // We'll sum the daily increments from day (n - windowSize) .. (n-1)
         const startSlopeDay = n - windowSize;
         for (let i = startSlopeDay; i < n; i++) {
             if (D_C[i + 1] != null && D_C[i] != null) {
                 sum += (D_C[i + 1] - D_C[i]);
             }
         }
-        slope = sum / windowSize; // average daily increment
+        slope = sum / windowSize;
     }
 
-    // Build D_E (size m)
     const D_E = [];
     for (let i = 1; i <= n; i++) {
         D_E[i] = D_C[i];
@@ -106,63 +85,45 @@ export async function updateHinweisSection(gtsResults, endDate) {
         D_E[i] = D_E[i - 1] + slope;
     }
 
-    // Log D_C after extrapolation
-    //console.log("[INFO] D_C after extrapolation:", JSON.stringify(D_C, null, 2));
-
-    // TSUM_current = D_E[n]
-    // TSUM_max = D_E[m]
     const TSUM_current = D_E[n] || 0;
     const TSUM_max = D_E[m] || TSUM_current;
 
-    // 3) Load Tracht data from localStorage => relevant_list
-    //    relevant_list => all active rows where TS_start <= TSUM_max
+    // 3) Load Tracht data => relevant_list
     const TRACT_DATA_KEY = "trachtData";
     let trachtData = loadTrachtData(TRACT_DATA_KEY);
-    // Filter only those that are .active == true
     trachtData = trachtData.filter(row => row.active);
 
     const relevant_list = trachtData
-          .filter(row => row.TS_start <= TSUM_max)
-          .map(row => {
-              return {
-                  TSUM_start: row.TS_start,
-                  string: row.plant
-              };
-          })
-    // sort by TS_start ascending
-          .sort((a, b) => a.TSUM_start - b.TSUM_start);
+        .filter(row => row.TS_start <= TSUM_max)
+        .map(row => ({
+            TSUM_start: row.TS_start,
+            string: row.plant
+        }))
+        .sort((a, b) => a.TSUM_start - b.TSUM_start);
 
-    // 4) A) forecast_list => TSUM_start > TSUM_current
+    // 4) forecast_list => items with TSUM_start > TSUM_current
+    //    but <= TSUM_max
     let forecast_list = [];
     if (n > 5) {
         forecast_list = relevant_list.filter(
             row => row.TSUM_start > TSUM_current
         );
-
-        // For each item in the forecast_list, find the earliest day in D_E for which D_E[i] >= row.TSUM_start
         computeDatesForList(forecast_list, D_E, n);
     } else {
         console.log("[INFO] No forecast generated: within the first 5 days of the year.");
     }
 
-    // 4) B) rearview_list => TSUM_start <= TSUM_current
-    //        but also TSUM_start >= TSUM_start_rearview_list
-    //        TSUM_start_rearview_list = D_E[n-R]
+    // 5) rearview_list => items in the last R days
+    //    that is TSUM_start > D_E[n-R], TSUM_start <= TSUM_current
     const TSUM_rearviewLimit = (n - R) < 1 ? 0 : (D_E[n - R] || 0);
     const rearview_list = relevant_list.filter(row => {
         return row.TSUM_start > TSUM_rearviewLimit && row.TSUM_start <= TSUM_current;
     });
-
-    // 5) For each item in forecast_list / rearview_list, find the earliest i in [1..m]
-    //    for which D_E[i] > TSUM_start. We'll store => row.date, row.days (i - n)
-    //    row['days'] = how many days from n. If negative => in the past.
     computeDatesForList(forecast_list, D_E, n);
     computeDatesForList(rearview_list, D_E, n);
 
-    // 6) Render result lines into the <section class="hinweis-section">
-    //    We'll replace the 5 lines with new HTML
+    // 6) Render result lines
     let html = "<h2>Imkerliche Information</h2>\n";
-
     html += `<p>
           <span class="small-gray-text">
               Die Tracht Einstellungen können <a href="components/einstellungen.html">hier</a> ergänzt oder modifiziert werden.
@@ -176,61 +137,70 @@ export async function updateHinweisSection(gtsResults, endDate) {
       </p>`;
     } else {
         rearview_list.forEach(row => {
-
-            // row.days is negative or zero if in the past
             const absDays = Math.abs(row.days);
             if (absDays === 0) {
-                html += `<p style="font-weight: bold; color: #ff8020;">`   // same day
-                html += `Heute am ${row.date}: ${row.string}  (GTS = ${row.TSUM_start})
-      </p>`;
+                html += `<p style="font-weight: bold; color: #ff8020;">
+                Heute am ${row.date}: ${row.string}  (GTS = ${row.TSUM_start})
+                </p>`;
             } else {
-                html += `<p style="color: #802020;">`   // past
-                html += `vor ${absDays} Tagen am ${row.date}: ${row.string}  (GTS = ${row.TSUM_start})
-      </p>`;
+                html += `<p style="color: #802020;">
+                vor ${absDays} Tagen am ${row.date}: ${row.string}  (GTS = ${row.TSUM_start})
+                </p>`;
             }
         });
     }
 
     // 6B) Forecast info
     if (forecast_list.length === 0) {
+        // No forecast => show message
         html += `<p style="color: grey;">
         Keine Information zu den nächsten ${F} Tagen
       </p>`;
+
+        // NEW CODE BELOW: Show the next 3 upcoming events (beyond TSUM_current)
+        const upcomingAll = trachtData
+          .filter(row => row.TS_start > TSUM_current)
+          .sort((a, b) => {
+            // First sort by TS_start ascending
+            if (a.TS_start !== b.TS_start) {
+                return a.TS_start - b.TS_start;
+            }
+            // If tie, sort alphabetically by plant
+            return a.plant.localeCompare(b.plant);
+          });
+        const upcomingTop3 = upcomingAll.slice(0, 3);
+        if (upcomingTop3.length > 0) {
+            html += `<p style="font-style: italic;">Danach:</p>`;
+            upcomingTop3.forEach(item => {
+              html += `<p style="color: #608000;">
+                bei GTS=${item.TS_start} ${item.plant}
+              </p>`;
+            });
+        }
     } else {
+        // We have some forecast items
         forecast_list.forEach(row => {
-            // row.days is positive
             html += `<p style="font-weight: bold; color: #206020;">
-        in ${row.days} Tagen am ${row.date}: ${row.string}   (GTS = ${row.TSUM_start})
-      </p>`;
+            in ${row.days} Tagen am ${row.date}: ${row.string}   (GTS = ${row.TSUM_start})
+            </p>`;
         });
     }
 
     // Replace the entire hinweisSection content
     hinweisSection.innerHTML = html;
-
-    // Done
 }
 
 // ----------------------
 // Helper functions
 // ----------------------
 function isLeapYear(y) {
-    if ((y % 400 === 0) || (y % 4 === 0 && y % 100 !== 0)) {
-        return true;
-    }
-    return false;
+    return ((y % 400 === 0) || (y % 4 === 0 && y % 100 !== 0));
 }
 
-/**
- * Returns the day of year for a date, e.g. Jan 1 => 1, Jan 31 => 31, Feb 1 => 32, ...
- * Accounts for leap years automatically by using the local time in JS.
- */
 function dayOfYear(d) {
-    // Copy date
-    const start = new Date(d.getFullYear(), 0, 1); // Jan 1 local noon
-    const diff = d - start; // in ms
+    const start = new Date(d.getFullYear(), 0, 1);
+    const diff = d - start;
     const oneDay = 24 * 60 * 60 * 1000;
-    // floor # of days + 1
     return Math.floor(diff / oneDay) + 1;
 }
 
@@ -243,10 +213,6 @@ function loadTrachtData(key) {
 }
 
 function computeDatesForList(list, curve, dayNow) {
-    // For each item, we want the earliest i in [1..curve.length-1]
-    // such that curve[i] >= row.TSUM_start
-    // Then row.date = transform_to_month_day(i),
-    // row.days = i - dayNow
     for (const row of list) {
         const needed = row.TSUM_start;
         let foundDayIndex = null;
@@ -260,23 +226,15 @@ function computeDatesForList(list, curve, dayNow) {
             row.date = transform_to_month_day(foundDayIndex, dayNow, new Date().getFullYear());
             row.days = foundDayIndex - dayNow;
         } else {
-            // if never found (?), fallback
             row.date = "??";
             row.days = 999;
         }
     }
 }
 
-/**
- * Utility: transform dayIndex => "DD.MM."
- *
- * We do dayIndex in the current year (which might be yearNow).
- * If dayNow is in a different year edge case, you might want a smarter approach.
- */
 function transform_to_month_day(dayIndex, dayNow, year) {
-    // Build a date => year, january 1 => dayIndex
     const d = new Date(year, 0, 1, 12, 0, 0, 0);
-    d.setDate(d.getDate() + (dayIndex - 1)); // dayIndex=1 => same day
+    d.setDate(d.getDate() + (dayIndex - 1));
     const dd = d.getDate();
     const mm = d.getMonth() + 1;
     return `${dd}.${mm}.`;
