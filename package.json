@@ -5,14 +5,16 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test1": "jest --testPathPattern='(logic|location_name_from_gps)\\.test\\.js'",
+    "test1": "jest --testPathPattern='(logic|location_name_from_gps|data_cache)\\.test\\.js'",
     "test2": "jest --testPathPattern='(logic|charts)\\.test\\.js'",
+    "test3": "jest --testPathPattern='(data_cache)\\.test\\.js'",
     "test": "jest",
     "lint": "eslint ."
   },
   "dependencies": {
     "chart.js": "^4.3.0",
-    "leaflet": "^1.9.4"
+    "leaflet": "^1.9.4",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
