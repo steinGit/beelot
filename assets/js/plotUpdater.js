@@ -149,11 +149,13 @@ export class PlotUpdater {
    * Step 1: Validate latitude and longitude input.
    * @returns {boolean} - True if valid, false otherwise.
    */
+  // plotUpdater.js, inside step1CheckLatLon():
   step1CheckLatLon() {
     const ortVal = this.ortInput.value || "";
     if (!ortVal.includes("Lat") || !ortVal.includes("Lon")) {
-      this.ergebnisTextEl.textContent =
-        "Die Grünland-Temperatur-Summe wird berechnet wenn ein Ort ausgewählt ist.";
+      // Replace textContent => innerHTML:
+    this.ergebnisTextEl.innerHTML = `
+      <span style="font-weight: normal; color: #202020;">Die <a href="components/faq.html" class="unstyled-link">Grünland-Temperatur-Summe</a> wird berechnet wenn ein Ort ausgewählt ist.</span>`;
 
       if (this.chartGTS) {
         this.chartGTS.destroy();
@@ -426,10 +428,10 @@ export class PlotUpdater {
     }
 
     this.ergebnisTextEl.innerHTML = `
-      <span style="font-weight: normal; color: #202020;">Die Grünland-Temperatur-Summe am </span>
+      <span style="font-weight: normal; color: #202020;">Die <a href="components/faq.html" class="unstyled-link">Grünland-Temperatur-Summe</a> am </span>
       <span style="font-weight: ${dateWeight}; color: ${dateColor};">${formattedDate}</span>
       <span style="font-weight: normal; color: #202020;"> ${betragenStr} </span>
-      <span style="font-weight: bold; color: darkgreen;">${lastGTS.toFixed(1)}</span>° C
+      <span style="font-weight: bold; color: darkgreen;">${lastGTS.toFixed(1)}</span> °C
     `;
   }
 
