@@ -204,3 +204,10 @@ function resetTrachtData() {
   saveTrachtData(defaultTrachtData);
   populateTrachtTable(defaultTrachtData);
 }
+
+/**
+ * If you’re using <button onclick="addTrachtRow()"> in einstellungen.html,
+ * we must expose them globally:
+ */
+window.addTrachtRow = addTrachtRow;
+window.resetTrachtData = resetTrachtData;
