@@ -4,23 +4,13 @@
  * des aktuellen Datums, der GTS-Kurve und der Tracht-Daten.
  */
 
+import { defaultTrachtData } from './tracht_data.js';
+
 export async function updateHinweisSection(gtsResults, endDate) {
-    /**
-     * gtsResults: Array of { date: "YYYY-MM-DD", gts: number } from calculateGTS()
-     * endDate:    JavaScript Date object for the selected date (local noon)
-     *
-     * We will:
-     * 1) Convert gtsResults into a day-based curve C(day).
-     * 2) Extend it by F=14 days linearly => new curve D(day).
-     * 3) Use TSUM_current = D(n), TSUM_max = D(m).
-     * 4) Load the Tracht data from localStorage => relevant_list.
-     * 5) Build forecast_list & rearview_list => compute approximate dates => fill HTML.
-     */
+    // STEP 0A) If localStorage has no "trachtData", set it to default.
+    ensureTrachtDataInLocalStorage();
 
-    const R = 7;   // Rearview window
-    const F = 14;  // Forecast window
-
-    // 0) Grab the <section> element
+    // 0B) Grab the <section> element
     const hinweisSection = document.querySelector(".hinweis-section");
     if (!hinweisSection) {
         console.log("[information.js] .hinweis-section not found in DOM => cannot update.");
@@ -30,16 +20,14 @@ export async function updateHinweisSection(gtsResults, endDate) {
     // 1) Convert gtsResults => C(day)
     const year = endDate.getFullYear();
     const isLeap = isLeapYear(year);
-    // dayOfYear for endDate:
-    const n = dayOfYear(endDate); // This is the "today index" in the curve
+    const n = dayOfYear(endDate); // The “today index” in the curve
 
-    // Create an array D_C for days [1..n]
+    // Build array D_C for days [1..n]
     const D_C = [];
     for (let i = 0; i <= n; i++) {
         D_C.push(null);
     }
 
-    // Fill D_C from gtsResults
     gtsResults.forEach(item => {
         const dObj = new Date(item.date);
         const dIndex = dayOfYear(dObj);
@@ -57,9 +45,10 @@ export async function updateHinweisSection(gtsResults, endDate) {
             lastKnown = D_C[i];
         }
     }
-    // Now D_C[1..n] is the GTS curve up to endDate
 
     // 2) Extend curve by F=14 days linearly => D_E
+    const R = 7;   // Rearview window
+    const F = 14;  // Forecast window
     const maxDays = isLeap ? 366 : 365;
     const m = Math.min(n + F, maxDays);
 
@@ -89,8 +78,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
     const TSUM_max = D_E[m] || TSUM_current;
 
     // 3) Load Tracht data => relevant_list
-    const TRACT_DATA_KEY = "trachtData";
-    let trachtData = loadTrachtData(TRACT_DATA_KEY);
+    let trachtData = loadTrachtData("trachtData");
     trachtData = trachtData.filter(row => row.active);
 
     const relevant_list = trachtData
@@ -101,8 +89,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
         }))
         .sort((a, b) => a.TSUM_start - b.TSUM_start);
 
-    // 4) forecast_list => items with TSUM_start > TSUM_current
-    //    but <= TSUM_max
+    // 4) forecast_list => items with TSUM_start > TSUM_current but <= TSUM_max
     let forecast_list = [];
     if (n > 5) {
         forecast_list = relevant_list.filter(
@@ -113,8 +100,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
         console.log("[INFO] No forecast generated: within the first 5 days of the year.");
     }
 
-    // 5) rearview_list => items in the last R days
-    //    that is TSUM_start > D_E[n-R], TSUM_start <= TSUM_current
+    // 5) rearview_list => items in last R days => TSUM_start > D_E[n-R], TSUM_start <= TSUM_current
     const TSUM_rearviewLimit = (n - R) < 1 ? 0 : (D_E[n - R] || 0);
     const rearview_list = relevant_list.filter(row => {
         return row.TSUM_start > TSUM_rearviewLimit && row.TSUM_start <= TSUM_current;
@@ -122,29 +108,31 @@ export async function updateHinweisSection(gtsResults, endDate) {
     computeDatesForList(forecast_list, D_E, n);
     computeDatesForList(rearview_list, D_E, n);
 
-    // 6) Render result lines
+    // 6) Build HTML
     let html = "<h2>Imkerliche Information</h2>\n";
-    html += `<p>
-          <span class="small-gray-text">
-              <a href="components/einstellungen.html">Die Tracht Einstellungen können ergänzt oder modifiziert werden.</a>
-          </span>
-      </p>`;
+    html += `
+      <p>
+        <span class="small-gray-text">
+          <a href="components/einstellungen.html">Die Tracht Einstellungen können ergänzt oder modifiziert werden.</a>
+        </span>
+      </p>
+    `;
 
     // 6A) Rearview info
     if (rearview_list.length === 0) {
         html += `<p style="color: grey;">
-        Keine Information zu den letzten ${R} Tagen
-      </p>`;
+          Keine Information zu den letzten ${R} Tagen
+        </p>`;
     } else {
         rearview_list.forEach(row => {
             const absDays = Math.abs(row.days);
             if (absDays === 0) {
                 html += `<p style="font-weight: bold; color: #ff8020;">
-                Heute am ${row.date}: ${row.string}  (GTS = ${row.TSUM_start})
+                  Heute am ${row.date}: ${row.string}  (GTS = ${row.TSUM_start})
                 </p>`;
             } else {
                 html += `<p style="color: #802020;">
-                vor ${absDays} Tagen am ${row.date}: ${row.string}  (GTS = ${row.TSUM_start})
+                  vor ${absDays} Tagen am ${row.date}: ${row.string}  (GTS = ${row.TSUM_start})
                 </p>`;
             }
         });
@@ -152,46 +140,55 @@ export async function updateHinweisSection(gtsResults, endDate) {
 
     // 6B) Forecast info
     if (forecast_list.length === 0) {
-        // No forecast => show message
         html += `<p style="color: grey;">
-        Keine Information zu den nächsten ${F} Tagen
-      </p>`;
+          Keine Information zu den nächsten ${F} Tagen
+        </p>`;
 
-        // NEW CODE BELOW: Show the next 3 upcoming events (beyond TSUM_current)
+        // 6C) Show the “Danach:” top 3 **only** if forecast_list is empty
         const upcomingAll = trachtData
           .filter(row => row.TS_start > TSUM_current)
           .sort((a, b) => {
-            // First sort by TS_start ascending
             if (a.TS_start !== b.TS_start) {
-                return a.TS_start - b.TS_start;
+              return a.TS_start - b.TS_start;
             }
-            // If tie, sort alphabetically by plant
             return a.plant.localeCompare(b.plant);
           });
         const upcomingTop3 = upcomingAll.slice(0, 3);
+
         if (upcomingTop3.length > 0) {
             html += `<p style="font-style: italic;">Danach:</p>`;
             upcomingTop3.forEach(item => {
-              html += `<p style="color: #608000;">
-                bei GTS=${item.TS_start} ${item.plant}
-              </p>`;
+                html += `<p style="color: #608000;">
+                  bei GTS=${item.TS_start} ${item.plant}
+                </p>`;
             });
         }
     } else {
-        // We have some forecast items
+        // We have some forecast items => do NOT show the “Danach:” part
         forecast_list.forEach(row => {
             html += `<p style="font-weight: bold; color: #206020;">
-            in ${row.days} Tagen am ${row.date}: ${row.string}   (GTS = ${row.TSUM_start})
+              in ${row.days} Tagen am ${row.date}: ${row.string} (GTS = ${row.TSUM_start})
             </p>`;
         });
     }
 
-    // Replace the entire hinweisSection content
     hinweisSection.innerHTML = html;
 }
 
+// ------------------------------------------------
+// Helper: ensure localStorage has defaultTrachtData
+// ------------------------------------------------
+function ensureTrachtDataInLocalStorage() {
+  const TRACT_DATA_KEY = "trachtData";
+  const stored = localStorage.getItem(TRACT_DATA_KEY);
+  if (!stored) {
+    console.log("[information.js] No trachtData in localStorage => using defaults.");
+    localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(defaultTrachtData));
+  }
+}
+
 // ----------------------
-// Helper functions
+// Remaining helper funcs
 // ----------------------
 function isLeapYear(y) {
     return ((y % 400 === 0) || (y % 4 === 0 && y % 100 !== 0));

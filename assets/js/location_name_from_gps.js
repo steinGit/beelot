@@ -97,7 +97,7 @@ export class LocationNameFromGPS {
       if (house_number && road) {
         locationName = `${road} ${house_number}, `;
       } else if (nearestPlace) {
-        locationName = `In der Nähe von ${nearestPlace}, `;
+        locationName = `${nearestPlace}, `;
       }
 
       if (state) {

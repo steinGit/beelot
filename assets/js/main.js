@@ -162,10 +162,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Show/hide the coordinates line based on the existing location
   toggleCoordinatesLine();
 
-  if (lastLoc) {
-    plotUpdater.run();
-  }
-  
+  // IMPORTANT: Regardless of whether we have a last location or not, run the logic once
+  // so that the Imkerliche Information is immediately computed.
+  plotUpdater.run();
+
   // 3) The version placeholder logic is done in index.html now.
 
   // Now set up event listeners
