@@ -77,14 +77,18 @@
       <section class="eingabe-section">
         <div class="input-group">
           <button id="ort-karte-btn">Ort auf Karte wählen</button><br />
-          <label for="ort">Koordinaten:</label>
-          <output
-            type="text"
-            id="ort"
-            name="ort"
-            placeholder="Aktuelle Position oder Ort wählen..."
-          ></output
-          ><br />
+
+          <div id="coordinates-line" style="display: none;">
+            <label for="ort">Koordinaten:</label>
+            <output
+              type="text"
+              id="ort"
+              name="ort"
+              placeholder="Aktuelle Position oder Ort wählen..."
+              ></output>
+          </div>
+
+          <br />
           <output
             type="text"
             id="location-name"
@@ -96,8 +100,7 @@
 
       <section class="ergebnis-section">
         <p id="ergebnis-text">
-          Die Grünland-Temperatur-Summe wird berechnet wenn ein Ort ausgewählt
-          ist.
+          Die Grünland-Temperatur-Summe wird berechnet wenn ein Ort ausgewählt ist.
         </p>
       </section>
 
@@ -105,9 +108,7 @@
       <section class="hinweis-section">
         <h2>Imkerliche Information</h2>
         <p>
-          Die Tracht Einstellungen können
-          <a href="components/einstellungen.html">hier</a> ergänzt oder
-          modifiziert werden.
+              <a href="components/einstellungen.html">Die Tracht Einstellungen können ergänzt oder modifiziert werden.</a>
         </p>
         <p>
           Empfehlungen und Blühphasen Voraussagen werden berechnet wenn ein Ort
@@ -115,7 +116,7 @@
         </p>
       </section>
 
-      <section class="zeitreise-section">
+      <section class="plot-section">
         <h2>Simulation</h2>
         <div class="input-group">
           <label for="datum">Datum:</label>
@@ -131,12 +132,9 @@
           <!-- Keep hidden if your code references it -->
           <button id="berechnen-btn" style="display: none;">Berechnen</button>
         </div>
-      </section>
 
-      <section class="plot-section">
         <h2>
-          Diagramm (GTS) in °C
-          <button id="toggle-gts-plot">anzeigen</button>
+          <button id="toggle-gts-plot">Diagramm (GTS) in °C anzeigen</button>
         </h2>
         <div class="plot-container" id="gts-plot-container">
           <div class="input-group">
@@ -162,8 +160,7 @@
         </div>
 
         <h2>
-          Diagramm (Tagesmitteltemperaturen) in °C
-          <button id="toggle-temp-plot">anzeigen</button>
+          <button id="toggle-temp-plot">Diagramm (Tagesmitteltemperaturen) in °C anzeigen</button>
         </h2>
         <div class="plot-container" id="temp-plot-container">
           <canvas id="temp-plot"></canvas>

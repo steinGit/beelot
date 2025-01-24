@@ -226,7 +226,7 @@ export class PlotUpdater {
     if (this.locationNameOutput) {
       this.locationNameOutput.textContent = "Standortname wird ermittelt...";
       const locationName = await this.locationFetcher.getLocationName(lat, lon);
-      this.locationNameOutput.textContent = locationName;
+      this.locationNameOutput.textContent = "In der Nähe von: " + locationName;
     }
   }
 
@@ -429,7 +429,7 @@ export class PlotUpdater {
       <span style="font-weight: normal; color: #202020;">Die Grünland-Temperatur-Summe am </span>
       <span style="font-weight: ${dateWeight}; color: ${dateColor};">${formattedDate}</span>
       <span style="font-weight: normal; color: #202020;"> ${betragenStr} </span>
-      <span style="font-weight: bold; color: darkgreen;">${lastGTS.toFixed(1)}</span>°
+      <span style="font-weight: bold; color: darkgreen;">${lastGTS.toFixed(1)}</span>° C
     `;
   }
 

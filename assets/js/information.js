@@ -126,7 +126,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
     let html = "<h2>Imkerliche Information</h2>\n";
     html += `<p>
           <span class="small-gray-text">
-              Die Tracht Einstellungen können <a href="components/einstellungen.html">hier</a> ergänzt oder modifiziert werden.
+              <a href="components/einstellungen.html">Die Tracht Einstellungen können ergänzt oder modifiziert werden.</a>
           </span>
       </p>`;
 

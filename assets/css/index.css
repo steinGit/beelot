@@ -6,7 +6,7 @@
     font-weight: bold;
 }
 
-.eingabe-section, .zeitreise-section, .ergebnis-section, .plot-section, .hinweis-section {
+.eingabe-section, .ergebnis-section, .plot-section, .hinweis-section {
     border-top: 1px solid #ccc;
     padding: 20px;
 }
@@ -24,6 +24,7 @@
     color: black; /* Optional: changes text color */
     border: none; /* Optional: removes border */
     cursor: pointer; /* Optional: adds a pointer on hover */
+    box-shadow: 2px 2px 5px rgba(60, 60, 60, 0.3);
 }
 
 #ort-karte-btn:hover {
@@ -126,4 +127,16 @@
 #temp-plot {
     width: 100%; /* Ensure the canvas scales horizontally */
     height: 500px; /* Set a fixed height for the canvas */
+}
+
+/* Make the “Diagramm (GTS) …” and “Diagramm (Tagesmitteltemperaturen) …” buttons big, yellow, with shadow */
+#toggle-gts-plot,
+#toggle-temp-plot {
+  background-color: rgba(255,255,0,0.3);
+  font-size: 1.1rem;
+  padding: 10px 20px;
+  margin: 10px 0;
+  box-shadow: 2px 2px 5px rgba(60, 60, 60, 0.3);
+  border: none;       /* optional: remove default border */
+  cursor: pointer;    /* optional: show pointer on hover */
 }

@@ -1,5 +1,3 @@
-// FILE: /home/fridtjofstein/privat/beelot/assets/js/main.js
-
 /**
  * @module main
  * Handles event listeners and initial setup
@@ -21,11 +19,10 @@ import {
   toggleTempPlotBtn,
   tempPlotContainer,
   toggle5yrPlotBtn,
-  locationNameOutput // Import the new exported element
+  locationNameOutput
 } from './ui.js';
 
 import { PlotUpdater } from './plotUpdater.js';
-// import { VERSION } from './version.js';  // <-- No longer needed
 
 /**
  * Helper: get local "today" in YYYY-MM-DD format
@@ -34,13 +31,12 @@ function getLocalTodayString() {
   const now = new Date();
   // Use local offset to ensure correct date even if user is in e.g. UTC+something
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-  const dateStr = local.toISOString().split('T')[0];
-  return dateStr;
+  return local.toISOString().split('T')[0];
 }
 
 /**
- * Dynamically updates the #zeitraum select options so that we never select beyond the year change.
- * Preserves the user's previous selection if it's still available.
+ * Dynamically updates the #zeitraum select options so that we never select
+ * beyond the year change. Preserves the user's previous selection if it's still available.
  */
 function updateZeitraumSelect() {
   if (!datumInput) return; // if there's no date input, skip
@@ -50,7 +46,7 @@ function updateZeitraumSelect() {
 
   const [yyyy, mm, dd] = datumVal.split('-').map(x => parseInt(x, 10));
   const selectedDate = new Date(yyyy, mm - 1, dd, 0, 0, 0, 0);
-  const startOfYear = new Date(yyyy, 0, 1); 
+  const startOfYear = new Date(yyyy, 0, 1);
   const diffMs = selectedDate.getTime() - startOfYear.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 3600 * 24));
 
@@ -66,17 +62,17 @@ function updateZeitraumSelect() {
   const optYTD = new Option("Seit Jahresanfang", "ytd", false, false);
   zeitraumSelect.add(optYTD);
 
-  // If we are >= 7 days into January
+  // If we are >= 7 days into the year
   if (diffDays >= 7) {
     const opt7 = new Option("1 Woche", "7", false, false);
     zeitraumSelect.add(opt7);
   }
-  // If we are >= 14 days into January
+  // If we are >= 14 days into the year
   if (diffDays >= 14) {
     const opt14 = new Option("2 Wochen", "14", false, false);
     zeitraumSelect.add(opt14);
   }
-  // If we are >= 28 days into January
+  // If we are >= 28 days into the year
   if (diffDays >= 28) {
     const opt28 = new Option("4 Wochen", "28", false, false);
     zeitraumSelect.add(opt28);
@@ -96,8 +92,23 @@ let plotUpdater = null;
 // Also track the multi-year toggle
 let showFiveYear = false;
 
-document.addEventListener('DOMContentLoaded', () => {
+/**
+ * Show/hide the "Koordinaten:" line if a location is (not) chosen.
+ */
+function toggleCoordinatesLine() {
+  const coordinatesLineEl = document.getElementById("coordinates-line");
+  if (!coordinatesLineEl) return; // If index.html wasn't updated, just skip
 
+  const val = ortInput.value || "";
+  // Hide if there's no valid lat/lon
+  if (!val.includes("Lat") || !val.includes("Lon")) {
+    coordinatesLineEl.style.display = "none";
+  } else {
+    coordinatesLineEl.style.display = "block";
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
   // First, check if we're on a page that actually has these elements
   // (i.e. the index/home page). If not, skip the rest to avoid errors.
   if (
@@ -116,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
     !toggleTempPlotBtn ||
     !tempPlotContainer ||
     !toggle5yrPlotBtn ||
-    !locationNameOutput // Ensure the new element exists
+    !locationNameOutput
   ) {
     console.log("[main.js] Not all index elements exist => skipping main logic on this page.");
     return;
@@ -132,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
     gtsPlotContainer,
     tempPlotContainer,
     chartRefs: { chartGTS: null, chartTemp: null },
-    locationNameOutput // Pass the new output element
+    locationNameOutput
   });
 
   // 2) Set date to local "today" & load last known location
@@ -146,12 +157,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const lastLoc = localStorage.getItem("lastLocation");
   if (lastLoc) {
     ortInput.value = lastLoc;
+  }
+
+  // Show/hide the coordinates line based on the existing location
+  toggleCoordinatesLine();
+
+  if (lastLoc) {
     plotUpdater.run();
   }
   
-  // 3) We remove the version placeholder logic,
-  //    because each page sets it after injecting header.html.
-  //    No more "No element found" warning in main.js.
+  // 3) The version placeholder logic is done in index.html now.
 
   // Now set up event listeners
   setupEventListeners();
@@ -161,9 +176,9 @@ document.addEventListener('DOMContentLoaded', () => {
  * Attach event listeners (only if DOM elements exist).
  */
 function setupEventListeners() {
-  
   toggle5yrPlotBtn.addEventListener('click', () => {
     showFiveYear = !showFiveYear;
+    // Expose the variable for other modules if needed
     window.showFiveYear = showFiveYear;
 
     if (showFiveYear) {
@@ -177,7 +192,9 @@ function setupEventListeners() {
     }
   });
 
+  // Whenever the user manually changes the ortInput, show/hide coords line & re-run
   ortInput.addEventListener('change', () => {
+    toggleCoordinatesLine();
     plotUpdater.run();
   });
 
@@ -214,9 +231,10 @@ function setupEventListeners() {
     plotUpdater.run();
   });
 
+  // Allow + and - keys for date increment/decrement
   document.addEventListener('keydown', (event) => {
     if (event.key === "+" || event.code === "NumpadAdd") {
-      datumPlusBtn.click(); 
+      datumPlusBtn.click();
     } else if (event.key === "-" || event.code === "NumpadSubtract") {
       datumMinusBtn.click();
     }
@@ -234,16 +252,16 @@ function setupEventListeners() {
   toggleGtsPlotBtn.addEventListener("click", () => {
     gtsPlotContainer.classList.toggle("visible");
     toggleGtsPlotBtn.textContent = gtsPlotContainer.classList.contains("visible")
-      ? "ausblenden"
-      : "anzeigen";
+      ? "Diagramm (GTS) ausblenden"
+      : "Diagramm (GTS) anzeigen";
   });
 
   // Hide temp plot container on page load
   toggleTempPlotBtn.addEventListener("click", () => {
     tempPlotContainer.classList.toggle("visible");
     toggleTempPlotBtn.textContent = tempPlotContainer.classList.contains("visible")
-      ? "ausblenden"
-      : "anzeigen";
+      ? "Diagramm (Tagesmitteltemperaturen) ausblenden"
+      : "Diagramm (Tagesmitteltemperaturen) anzeigen";
   });
 
   ortKarteBtn.addEventListener('click', () => {
@@ -258,7 +276,12 @@ function setupEventListeners() {
   });
 
   mapSaveBtn.addEventListener('click', () => {
+    // Saves lat/lon to ortInput
     window.saveMapSelection();
+
+    // Force the same logic as if the user had typed in ortInput
+    ortInput.dispatchEvent(new Event("change"));
+
     // Programmatically click the hidden "berechnenBtn"
     berechnenBtn.click();
   });
