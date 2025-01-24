@@ -165,3 +165,18 @@ footer nav a:hover {
   font-weight: bold;
   color: #333333;
 }
+
+.unstyled-link {
+  text-decoration: none; /* Removes underline */
+  color: inherit;        /* Inherits the color from the parent element */
+  cursor: pointer;       /* Ensures the link appears clickable */
+}
+
+.unstyled-link:visited {
+  color: inherit;        /* Keeps the same color after visiting the link */
+}
+
+.unstyled-link:hover {
+  color: red;        
+  text-decoration: none; /* No underline on hover */
+}
