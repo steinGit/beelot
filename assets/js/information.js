@@ -139,12 +139,26 @@ export async function updateHinweisSection(gtsResults, endDate) {
     }
 
     // 6B) Forecast info
-    if (forecast_list.length === 0) {
-        html += `<p style="color: grey;">
+
+    const n_forecasts = forecast_list.length
+    if (n_forecasts > 0) {
+        // We have some forecast items => do NOT show the “Danach:” part
+        forecast_list.forEach(row => {
+            html += `<p style="font-weight: bold; color: #206020;">
+              in ${row.days} Tagen am ${row.date}: ${row.string} (GTS = ${row.TSUM_start})
+            </p>`;
+        });
+
+    }
+
+    const max_n_upcoming = 3
+    const n_upcoming = Math.max(0, max_n_upcoming - n_forecasts)
+    if (n_upcoming > 0) {
+        if (n_forecasts === 0) {
+            html += `<p style="color: grey;">
           Keine Information zu den nächsten ${F} Tagen
         </p>`;
-
-        // 6C) Show the “Danach:” top 3 **only** if forecast_list is empty
+        }
         const upcomingAll = trachtData
           .filter(row => row.TS_start > TSUM_current)
           .sort((a, b) => {
@@ -153,23 +167,16 @@ export async function updateHinweisSection(gtsResults, endDate) {
             }
             return a.plant.localeCompare(b.plant);
           });
-        const upcomingTop3 = upcomingAll.slice(0, 3);
+        const upcomingTop = upcomingAll.slice(0, n_upcoming);
 
-        if (upcomingTop3.length > 0) {
+        if (upcomingTop.length > 0) {
             html += `<p style="font-style: italic;">Danach:</p>`;
-            upcomingTop3.forEach(item => {
+            upcomingTop.forEach(item => {
                 html += `<p style="color: #608000;">
                   bei GTS=${item.TS_start} ${item.plant}
                 </p>`;
             });
         }
-    } else {
-        // We have some forecast items => do NOT show the “Danach:” part
-        forecast_list.forEach(row => {
-            html += `<p style="font-weight: bold; color: #206020;">
-              in ${row.days} Tagen am ${row.date}: ${row.string} (GTS = ${row.TSUM_start})
-            </p>`;
-        });
     }
 
     hinweisSection.innerHTML = html;
