@@ -139,7 +139,6 @@ export async function updateHinweisSection(gtsResults, endDate) {
     }
 
     // 6B) Forecast info
-
     const n_forecasts = forecast_list.length
     if (n_forecasts > 0) {
         // We have some forecast items => do NOT show the “Danach:” part
@@ -167,7 +166,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
             }
             return a.plant.localeCompare(b.plant);
           });
-        const upcomingTop = upcomingAll.slice(0, n_upcoming);
+        const upcomingTop = upcomingAll.slice(n_forecasts, n_upcoming + n_forecasts);
 
         if (upcomingTop.length > 0) {
             html += `<p style="font-style: italic;">Danach:</p>`;
