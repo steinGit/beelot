@@ -33,15 +33,9 @@
 
 
 #ergebnis-text {
-    font-size: 2em;          /* Doppelte Größe */
+    font-size: 1.4em;          /* Doppelte Größe */
     font-weight: bold;      /* Fett */
     color: darkgreen;       /* Dunkelgrün */
-}
-
-#ergebnis-text2 {
-    font-size: 2em;          /* Doppelte Größe */
-    font-weight: bold;      /* Fett */
-    color: #304030;
 }
 
 .leaflet-popup-content-wrapper {
