@@ -17,17 +17,17 @@
       import { VERSION } from "./assets/js/version.js";
 
       fetch("components/header.html")
-        .then(response => response.text())
-        .then(html => {
-          document.getElementById("header-placeholder").innerHTML = html;
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById("header-placeholder").innerHTML = html;
 
-          const versionElement = document.getElementById("version-placeholder");
-          if (versionElement) {
+        const versionElement = document.getElementById("version-placeholder");
+        if (versionElement) {
             versionElement.textContent = `Version ${VERSION}`;
-          }
+        }
 
-          import("./assets/js/main.js");
-        });
+        import("./assets/js/main.js");
+    });
     </script>
 
     <!-- Main Content -->
@@ -341,10 +341,21 @@
           <details>
             <summary>Wie genau ist BeeLot (geographisch)?</summary>
             <p>
-              Um Bandbreite zu sparen benutze ich einen Cache für die Temperaturdaten. Da runde ich auf 0.01°. Das führt zu etwa 700 m x 1100 m großen Kacheln.
+              Um Bandbreite zu sparen, werden Temperaturdaten zwischengespeichert (Cache).
+              Dabei wird <strong>nicht die Temperatur gerundet</strong>, sondern die
+              <strong>geografische Position</strong>.
             </p>
             <p>
-              In anderen Worten: ein Verschieben innerhalb solcher Größenordnungen wird nicht deine Berechnungen ändern.
+              Konkret werden Breiten- und Längengrad (Latitude und Longitude) auf
+              <strong>0,01 geografische Grad</strong> gerundet. Diese gerundeten Koordinaten
+              dienen als Schlüssel, unter dem die Temperaturdaten gespeichert werden.
+              Alle Orte, deren Koordinaten nach dieser Rundung gleich sind, teilen sich
+              dieselben Temperaturwerte.
+            </p>
+            <p>
+              Dadurch entstehen Flächen von ungefähr
+              <strong>700&nbsp;m × 1100&nbsp;m</strong>, für die jeweils gemeinsame
+              Temperaturwerte verwendet werden.
             </p>
           </details>
           <details>
@@ -400,12 +411,12 @@
           </p>
           <p>
             An der <a href="https://bienenkunde.uni-hohenheim.de"
-              target="_blank" rel="noopener noreferrer">Landesanstalt für
+                      target="_blank" rel="noopener noreferrer">Landesanstalt für
               Bienenkunde der Uni Hohenheim</a> besuchte ich den jährlich
-              angebotenen Anfängertag (im November).
+            angebotenen Anfängertag (im November).
 
             Anschließend durchlief ich den Anfängerkurs
-              im <a href="https://imker-esslingen.de" target="_blank" rel="noopener noreferrer">Imkerverein Esslingen</a>.
+            im <a href="https://imker-esslingen.de" target="_blank" rel="noopener noreferrer">Imkerverein Esslingen</a>.
           </p>
           <p>
             Seitdem widme ich mich voller Freude der Imkerei. Durch
@@ -421,12 +432,12 @@
 
         <details>
           <summary>Feedback</summary>
-              <p>
-                Wenn ihr Verbesserungsvorschläge/Kommentare/Ideen habt oder
-                Bugs findet, schickt
-                mir selbige bitte per E-Mail
-                an <a href="mailto:info.beelot@gmail.com" target="_blank" rel="noopener noreferrer">info.beelot@gmail.com</a>
-              </p>
+          <p>
+            Wenn ihr Verbesserungsvorschläge/Kommentare/Ideen habt oder
+            Bugs findet, schickt
+            mir selbige bitte per E-Mail
+            an <a href="mailto:info.beelot@gmail.com" target="_blank" rel="noopener noreferrer">info.beelot@gmail.com</a>
+          </p>
         </details>
 
       </section>
@@ -476,10 +487,10 @@
     <div id="footer-placeholder"></div>
     <script>
       fetch("components/footer.html")
-    .then(response => response.text())
-    .then(html => {
-        document.getElementById("footer-placeholder").innerHTML = html;
-    });
+      .then(response => response.text())
+      .then(html => {
+      document.getElementById("footer-placeholder").innerHTML = html;
+      });
     </script>
   </body>
 </html>
