@@ -8,11 +8,15 @@
 import { formatDateLocal, isValidDate } from './utils.js';
 
 /**
- * Retrieves cached data from localStorage based on the provided key.
- * @param {string} key - The key to retrieve from localStorage.
+ * Retrieves cached data from a cache store or localStorage based on the provided key.
+ * @param {string} key - The key to retrieve.
+ * @param {Object|null} cacheStore - Optional cache store with get/set methods.
  * @returns {Object|null} - The parsed data if present, otherwise null.
  */
-export function getCachedData(key) {
+export function getCachedData(key, cacheStore = null) {
+    if (cacheStore) {
+        return cacheStore.get(key);
+    }
     const cached = localStorage.getItem(key);
     if (cached) {
         return JSON.parse(cached);
@@ -21,11 +25,16 @@ export function getCachedData(key) {
 }
 
 /**
- * Stores data in localStorage under the provided key.
+ * Stores data in a cache store or localStorage under the provided key.
  * @param {string} key - The key under which to store the data.
  * @param {Object} data - The data to store.
+ * @param {Object|null} cacheStore - Optional cache store with get/set methods.
  */
-export function setCachedData(key, data) {
+export function setCachedData(key, data, cacheStore = null) {
+    if (cacheStore) {
+        cacheStore.set(key, data);
+        return;
+    }
     localStorage.setItem(key, JSON.stringify(data));
 }
 
@@ -53,7 +62,7 @@ function computeCacheKey(type, lat, lon, yearOrRange) {
  * @param {Date} end - End date.
  * @returns {Promise<Object>} - The fetched historical data.
  */
-export async function fetchHistoricalData(lat, lon, start, end) {
+export async function fetchHistoricalData(lat, lon, start, end, cacheStore = null) {
     // Validate Date objects
     if (!isValidDate(start) || !isValidDate(end)) {
         throw new Error("Invalid start or end date provided.");
@@ -74,7 +83,7 @@ export async function fetchHistoricalData(lat, lon, start, end) {
 
         // Cache key for the entire year
         const yearKey = computeCacheKey('historical', lat, lon, startYear);
-        const cachedYearData = getCachedData(yearKey);
+        const cachedYearData = getCachedData(yearKey, cacheStore);
         if (cachedYearData) {
             console.log(`[DEBUG dataService.js] Cached full-year data found for ${yearKey}.`);
             return extractDateRangeFromYearData(cachedYearData, start, end);
@@ -86,8 +95,8 @@ export async function fetchHistoricalData(lat, lon, start, end) {
 
         console.log(`[DEBUG dataService.js] Fetching full-year data for ${startYear}.`);
 
-        const data = await fetchHistoricalYear(lat, lon, fullYearStart, fullYearEnd);
-        setCachedData(yearKey, data);
+        const data = await fetchHistoricalYear(lat, lon, fullYearStart, fullYearEnd, cacheStore);
+        setCachedData(yearKey, data, cacheStore);
 
         return extractDateRangeFromYearData(data, start, end);
     }
@@ -99,7 +108,7 @@ export async function fetchHistoricalData(lat, lon, start, end) {
         lon,
         `${formatDateLocal(start)}_${formatDateLocal(end)}`
     );
-    const cachedData = getCachedData(cacheKey);
+    const cachedData = getCachedData(cacheKey, cacheStore);
     if (cachedData) {
         console.log(`[DEBUG dataService.js] Historical data loaded from cache (key=${cacheKey}).`);
         return cachedData;
@@ -119,7 +128,7 @@ export async function fetchHistoricalData(lat, lon, start, end) {
             throw new Error(`Error fetching historical data: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
-        setCachedData(cacheKey, data);
+        setCachedData(cacheKey, data, cacheStore);
         return data;
     } catch (error) {
         console.error(`[DEBUG dataService.js] Error fetching historical data: ${error.message}`);
@@ -135,7 +144,7 @@ export async function fetchHistoricalData(lat, lon, start, end) {
  * @param {Date} end - End date (end of the year).
  * @returns {Promise<Object>} - The full-year historical data.
  */
-async function fetchHistoricalYear(lat, lon, start, end) {
+async function fetchHistoricalYear(lat, lon, start, end, cacheStore) {
     const roundedLat = Math.round(lat * 100) / 100;
     const roundedLon = Math.round(lon * 100) / 100;
     const url = `https://archive-api.open-meteo.com/v1/era5?latitude=${roundedLat}&longitude=${roundedLon}&start_date=${formatDateLocal(
@@ -184,14 +193,14 @@ function extractDateRangeFromYearData(yearData, start, end) {
  * @param {Date} end - End date.
  * @returns {Promise<Object>} - The fetched recent data.
  */
-export async function fetchRecentData(lat, lon, start, end) {
+export async function fetchRecentData(lat, lon, start, end, cacheStore = null) {
     // Validate Date objects
     if (!isValidDate(start) || !isValidDate(end)) {
         throw new Error("Invalid start or end date provided.");
     }
 
     const cacheKey = computeCacheKey('recent', lat, lon, `${formatDateLocal(start)}_${formatDateLocal(end)}`);
-    const cachedData = getCachedData(cacheKey);
+    const cachedData = getCachedData(cacheKey, cacheStore);
     if (cachedData) {
         console.log(`[DEBUG dataService.js] Recent data loaded from cache (key=${cacheKey}).`);
         return cachedData;
@@ -210,7 +219,7 @@ export async function fetchRecentData(lat, lon, start, end) {
         }
 
         const data = await response.json();
-        setCachedData(cacheKey, data);
+        setCachedData(cacheKey, data, cacheStore);
         return data;
     } catch (error) {
         console.error(`[DEBUG dataService.js] Error fetching recent data: ${error.message}`);

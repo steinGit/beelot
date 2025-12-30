@@ -6,6 +6,48 @@
     font-weight: bold;
 }
 
+.standort-section {
+    border-top: 1px solid #ccc;
+    padding: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.location-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.location-tab {
+    background-color: #f7f7f7;
+    border: 1px solid #ccc;
+    border-radius: 16px;
+    padding: 6px 12px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.location-tab.active {
+    background-color: #ffefc4;
+    border-color: #ff8000;
+}
+
+.location-tab-add {
+    background-color: #dff5ff;
+}
+
+.location-name-input {
+    border: 1px solid #ff8000;
+    border-radius: 12px;
+    padding: 4px 8px;
+    font-size: 1rem;
+    width: 140px;
+}
+
 .eingabe-section, .ergebnis-section, .plot-section, .hinweis-section {
     border-top: 1px solid #ccc;
     padding: 20px;

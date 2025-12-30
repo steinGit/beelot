@@ -17,6 +17,12 @@ import {
 import { updateHinweisSection } from './information.js';
 import { formatDateLocal, isValidDate } from './utils.js';
 import { LocationNameFromGPS } from './location_name_from_gps.js'; // Import the new class
+import {
+  createLocationNameCacheStore,
+  createWeatherCacheStore,
+  getLocationById,
+  updateLocation
+} from './locationStore.js';
 
 /**
  * Helper to forcibly destroy any leftover chart using a given canvas ID.
@@ -32,6 +38,7 @@ function destroyIfCanvasInUse(canvasId) {
 
 export class PlotUpdater {
   constructor({
+    locationId,
     ortInput,
     datumInput,
     zeitraumSelect,
@@ -43,6 +50,7 @@ export class PlotUpdater {
     locationNameOutput // Add locationNameOutput to constructor
   }) {
     this.verbose = false;
+    this.locationId = locationId;
     this.ortInput = ortInput;
     this.datumInput = datumInput;
     this.zeitraumSelect = zeitraumSelect;
@@ -60,10 +68,26 @@ export class PlotUpdater {
     this.filteredTempsDates = [];
     this.filteredTempsData = [];
 
-    // Instantiate the LocationNameFromGPS class
+    this.weatherCacheStore = createWeatherCacheStore(this.locationId);
+    this.locationNameCacheStore = createLocationNameCacheStore(this.locationId);
     this.locationFetcher = new LocationNameFromGPS({
-      email: 'info.beelot@gmail.com'
+      email: 'info.beelot@gmail.com',
+      cacheStore: this.locationNameCacheStore
     });
+  }
+
+  setLocationId(locationId) {
+    this.locationId = locationId;
+    this.weatherCacheStore = createWeatherCacheStore(this.locationId);
+    this.locationNameCacheStore = createLocationNameCacheStore(this.locationId);
+    this.locationFetcher = new LocationNameFromGPS({
+      email: 'info.beelot@gmail.com',
+      cacheStore: this.locationNameCacheStore
+    });
+  }
+
+  getLocation() {
+    return getLocationById(this.locationId);
   }
 
   /**
@@ -71,8 +95,13 @@ export class PlotUpdater {
    */
   async run() {
     try {
+      const location = this.getLocation();
+      if (!location) {
+        console.warn("[PlotUpdater] => Missing active location.");
+        return;
+      }
       // Step 1) Validate lat/lon input
-      if (!this.step1CheckLatLon()) return;
+      if (!this.step1CheckLatLon(location)) return;
 
       // Step 2) Create local "today midnight"
       const localTodayMidnight = this.step2CreateLocalTodayMidnight();
@@ -82,7 +111,7 @@ export class PlotUpdater {
       if (!endDate) return;
 
       // Step 4) Parse lat/lon
-      const { lat, lon } = this.step4ParseLatLon();
+      const { lat, lon } = this.step4ParseLatLon(location);
 
       // Fetch and display location name
       this.step4aFetchAndDisplayLocationName(lat, lon);
@@ -133,6 +162,18 @@ export class PlotUpdater {
       // Step 16) Update hints
       await this.step16UpdateHinweisSection(gtsResults, endDate);
 
+      updateLocation(this.locationId, (current) => {
+        current.calculations.gtsResults = gtsResults;
+        current.calculations.filteredResults = filteredResults;
+        current.calculations.temps = {
+          dates: [...this.filteredTempsDates],
+          values: [...this.filteredTempsData]
+        };
+        if (this.hinweisSection) {
+          current.calculations.hinweisHtml = this.hinweisSection.innerHTML;
+        }
+      });
+
     } catch (err) {
       console.log("[PlotUpdater] => Caught error:", err);
       this.ergebnisTextEl.textContent = "Ein Fehler ist aufgetreten. Bitte versuche es später erneut.";
@@ -150,9 +191,8 @@ export class PlotUpdater {
    * @returns {boolean} - True if valid, false otherwise.
    */
   // plotUpdater.js, inside step1CheckLatLon():
-  step1CheckLatLon() {
-    const ortVal = this.ortInput.value || "";
-    if (!ortVal.includes("Lat") || !ortVal.includes("Lon")) {
+  step1CheckLatLon(location) {
+    if (!location.coordinates) {
       // Replace textContent => innerHTML:
     this.ergebnisTextEl.innerHTML = `
       <span style="font-weight: normal; color: #202020;">Die <a href="components/faq.html" class="unstyled-link">Grünland-Temperatur-Summe</a> wird berechnet wenn ein Ort ausgewählt ist.</span>`;
@@ -209,14 +249,11 @@ export class PlotUpdater {
    * Step 4: Parse latitude and longitude from the input field.
    * @returns {Object} - An object containing latitude and longitude.
    */
-  step4ParseLatLon() {
-    const ortVal = this.ortInput.value.trim();
-    const parts = ortVal.split(",");
-    const latPart = parts[0].split(":")[1];
-    const lonPart = parts[1].split(":")[1];
-    const lat = parseFloat(latPart.trim());
-    const lon = parseFloat(lonPart.trim());
-    return { lat, lon };
+  step4ParseLatLon(location) {
+    return {
+      lat: location.coordinates.lat,
+      lon: location.coordinates.lon
+    };
   }
 
   /**
@@ -229,6 +266,9 @@ export class PlotUpdater {
       this.locationNameOutput.textContent = "Standortname wird ermittelt...";
       const locationName = await this.locationFetcher.getLocationName(lat, lon);
       this.locationNameOutput.textContent = "In der Nähe von: " + locationName;
+      updateLocation(this.locationId, (current) => {
+        current.calculations.locationLabel = locationName;
+      });
     }
   }
 
@@ -278,15 +318,38 @@ export class PlotUpdater {
 
     if (differenceInDays > 10) {
       // Only historical
-      const histData = await fetchHistoricalData(lat, lon, fetchStartDate, endDate);
+      const histData = await fetchHistoricalData(
+        lat,
+        lon,
+        fetchStartDate,
+        endDate,
+        this.weatherCacheStore
+      );
       if (histData && histData.daily) {
         allDates = histData.daily.time;
         allTemps = histData.daily.temperature_2m_mean;
       }
     } else {
       // Combine historical + recent
-      const histData = await fetchHistoricalData(lat, lon, fetchStartDate, endDate);
-      const recentData = await fetchRecentData(lat, lon, recentStartDate, endDate);
+      const histEndDate = new Date(recentStartDate);
+      histEndDate.setDate(histEndDate.getDate() - 1);
+      let histData = null;
+      if (histEndDate >= fetchStartDate) {
+        histData = await fetchHistoricalData(
+          lat,
+          lon,
+          fetchStartDate,
+          histEndDate,
+          this.weatherCacheStore
+        );
+      }
+      const recentData = await fetchRecentData(
+        lat,
+        lon,
+        recentStartDate,
+        endDate,
+        this.weatherCacheStore
+      );
 
       if (histData && histData.daily) {
         allDates = allDates.concat(histData.daily.time);
@@ -466,7 +529,14 @@ export class PlotUpdater {
     }
 
     if (window.showFiveYear) {
-      const multiYearData = await build5YearData(lat, lon, plotStartDate, endDate, filteredResults);
+      const multiYearData = await build5YearData(
+        lat,
+        lon,
+        plotStartDate,
+        endDate,
+        filteredResults,
+        this.weatherCacheStore
+      );
       this.chartGTS = plotMultipleYearData(multiYearData);
     } else {
       this.chartGTS = plotData(filteredResults);

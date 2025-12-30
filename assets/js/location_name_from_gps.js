@@ -11,12 +11,14 @@ export class LocationNameFromGPS {
    * @param {string} [options.email] - Contact email as required by Nominatim.
    * @param {number} [options.cachePrecision] - Number of decimal places for lat/lon in cache keys.
    * @param {boolean} [options.verbose] - Enables verbose logging if true.
+   * @param {Object} [options.cacheStore] - Optional cache store with get/set methods.
    */
   constructor(options = {}) {
     this.apiUrl = options.apiUrl || 'https://nominatim.openstreetmap.org/reverse';
     this.email = options.email || 'your-email@example.com'; // Replace with your actual email
     this.cachePrecision = options.cachePrecision || 4; // Default precision
     this.verbose = true; // Hardwired to true as per request
+    this.cacheStore = options.cacheStore || null;
   }
 
   /**
@@ -44,7 +46,7 @@ export class LocationNameFromGPS {
     }
 
     const cacheKey = this._generateCacheKey(lat, lon);
-    const cachedName = localStorage.getItem(cacheKey);
+    const cachedName = this.cacheStore ? this.cacheStore.get(cacheKey) : localStorage.getItem(cacheKey);
 
     if (cachedName) {
       if (this.verbose) {
@@ -92,24 +94,20 @@ export class LocationNameFromGPS {
       const nearestPlace = city || town || village;
 
       // Construct a readable location name
-      let locationName = '';
-
+      const parts = [];
       if (house_number && road) {
-        locationName = `${road} ${house_number}, `;
-      } else if (nearestPlace) {
-        locationName = `${nearestPlace}, `;
+        parts.push(`${road} ${house_number}`);
       }
-
-      if (state) {
-        locationName += `${state}, `;
+      if (nearestPlace) {
+        parts.push(nearestPlace);
+      } else if (!house_number && !road && state) {
+        parts.push(state);
       }
-
       if (country) {
-        locationName += `${country}`;
+        parts.push(country);
       }
 
-      // Trim any trailing commas and spaces
-      locationName = locationName.replace(/,\s*$/, '');
+      let locationName = parts.join(', ');
 
       // Fallback if constructed name is empty
       if (!locationName) {
@@ -117,7 +115,11 @@ export class LocationNameFromGPS {
       }
 
       // Cache the result
-      localStorage.setItem(cacheKey, locationName);
+      if (this.cacheStore) {
+        this.cacheStore.set(cacheKey, locationName);
+      } else {
+        localStorage.setItem(cacheKey, locationName);
+      }
       if (this.verbose) {
         console.log(`[LocationNameFromGPS] Fetched from API and cached (${cacheKey}): ${locationName}`);
       }
@@ -136,6 +138,10 @@ export class LocationNameFromGPS {
    */
   clearCache(lat, lon) {
     const cacheKey = this._generateCacheKey(lat, lon);
+    if (this.cacheStore) {
+      this.cacheStore.remove(cacheKey);
+      return;
+    }
     localStorage.removeItem(cacheKey);
     if (this.verbose) {
       console.log(`[LocationNameFromGPS] Cache cleared for key: ${cacheKey}`);
@@ -146,6 +152,14 @@ export class LocationNameFromGPS {
    * Clears the entire location cache.
    */
   clearAllCache() {
+    if (this.cacheStore) {
+      this.cacheStore.clear();
+      if (this.verbose) {
+        console.log("[LocationNameFromGPS] Cache cleared for active location.");
+      }
+      return;
+    }
+
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);

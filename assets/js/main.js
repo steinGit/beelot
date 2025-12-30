@@ -19,10 +19,24 @@ import {
   toggleTempPlotBtn,
   tempPlotContainer,
   toggle5yrPlotBtn,
-  locationNameOutput
+  locationNameOutput,
+  locationTabsContainer,
+  locationDeleteBtn
 } from './ui.js';
 
 import { PlotUpdater } from './plotUpdater.js';
+import {
+  createLocationEntry,
+  deleteLocationEntry,
+  formatCoordinates,
+  getActiveLocation,
+  getActiveLocationId,
+  getLocationById,
+  getLocationsInOrder,
+  renameLocation,
+  setActiveLocation,
+  updateLocation
+} from './locationStore.js';
 
 /**
  * Helper: get local "today" in YYYY-MM-DD format
@@ -99,12 +113,193 @@ function toggleCoordinatesLine() {
   const coordinatesLineEl = document.getElementById("coordinates-line");
   if (!coordinatesLineEl) return; // If index.html wasn't updated, just skip
 
-  const val = ortInput.value || "";
-  // Hide if there's no valid lat/lon
-  if (!val.includes("Lat") || !val.includes("Lon")) {
+  const activeLocation = getActiveLocation();
+  if (!activeLocation || !activeLocation.coordinates) {
     coordinatesLineEl.style.display = "none";
   } else {
     coordinatesLineEl.style.display = "block";
+  }
+}
+
+function updateActiveLocationUiState(partial) {
+  const activeId = getActiveLocationId();
+  if (!activeId) {
+    return;
+  }
+  updateLocation(activeId, (location) => {
+    location.ui = {
+      ...location.ui,
+      ...partial,
+      map: {
+        ...location.ui.map,
+        ...(partial.map || {})
+      }
+    };
+  });
+}
+
+function setPlotVisibility(showGts, showTemp) {
+  gtsPlotContainer.classList.toggle("visible", showGts);
+  toggleGtsPlotBtn.textContent = showGts
+    ? "Diagramm (GTS) ausblenden"
+    : "Diagramm (GTS) anzeigen";
+
+  tempPlotContainer.classList.toggle("visible", showTemp);
+  toggleTempPlotBtn.textContent = showTemp
+    ? "Diagramm (Tagesmitteltemperaturen) ausblenden"
+    : "Diagramm (Tagesmitteltemperaturen) anzeigen";
+}
+
+function applyLocationState(location) {
+  const todayStr = getLocalTodayString();
+  const selectedDate = location.ui.selectedDate || todayStr;
+  datumInput.value = selectedDate;
+  datumInput.max = todayStr;
+  if (location.ui.zeitraum) {
+    zeitraumSelect.value = location.ui.zeitraum;
+  }
+  updateZeitraumSelect();
+  if (location.ui.zeitraum) {
+    zeitraumSelect.value = location.ui.zeitraum;
+  }
+
+  if (!location.ui.selectedDate) {
+    updateActiveLocationUiState({
+      selectedDate: datumInput.value,
+      zeitraum: zeitraumSelect.value
+    });
+  }
+
+  if (location.coordinates) {
+    ortInput.value = formatCoordinates(location.coordinates.lat, location.coordinates.lon);
+  } else {
+    ortInput.value = "";
+  }
+
+  toggleCoordinatesLine();
+
+  if (location.calculations.locationLabel) {
+    locationNameOutput.textContent = `In der Nähe von: ${location.calculations.locationLabel}`;
+  } else {
+    locationNameOutput.textContent = "Standortname wird angezeigt...";
+  }
+
+  showFiveYear = Boolean(location.ui.showFiveYear);
+  window.showFiveYear = showFiveYear;
+  toggle5yrPlotBtn.textContent = showFiveYear ? "das ausgewählte Jahr" : "die letzten 5 Jahre";
+
+  setPlotVisibility(location.ui.gtsPlotVisible, location.ui.tempPlotVisible);
+}
+
+function updateDeleteButton() {
+  const locations = getLocationsInOrder();
+  const activeId = getActiveLocationId();
+  const activeIndex = locations.findIndex((location) => location.id === activeId);
+  const deletable = activeIndex > 0;
+  locationDeleteBtn.style.display = deletable ? "inline-block" : "none";
+}
+
+function startEditingLocationName(locationId, nameElement) {
+  const location = getLocationById(locationId);
+  if (!location || !nameElement) {
+    return;
+  }
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "location-name-input";
+  input.value = location.name;
+  nameElement.replaceWith(input);
+  input.focus();
+  input.select();
+
+  const commit = () => {
+    renameLocation(locationId, input.value);
+    renderLocationTabs();
+  };
+
+  input.addEventListener("blur", commit);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      commit();
+    }
+    if (event.key === "Escape") {
+      renderLocationTabs();
+    }
+  });
+}
+
+function renderLocationTabs() {
+  if (!locationTabsContainer) {
+    return;
+  }
+  locationTabsContainer.innerHTML = "";
+
+  const locations = getLocationsInOrder();
+  const activeId = getActiveLocationId();
+
+  locations.forEach((location) => {
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = `location-tab${location.id === activeId ? " active" : ""}`;
+    tab.dataset.locationId = location.id;
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "location-name";
+    nameSpan.textContent = location.name;
+    nameSpan.addEventListener("click", (event) => {
+      event.stopPropagation();
+      startEditingLocationName(location.id, nameSpan);
+    });
+
+    tab.appendChild(nameSpan);
+    tab.addEventListener("click", () => {
+      switchLocation(location.id);
+    });
+
+    locationTabsContainer.appendChild(tab);
+  });
+
+  const addTab = document.createElement("button");
+  addTab.type = "button";
+  addTab.className = "location-tab location-tab-add";
+  addTab.textContent = "+";
+  addTab.addEventListener("click", () => {
+    const newLocation = createLocationEntry();
+    switchLocation(newLocation.id);
+  });
+  locationTabsContainer.appendChild(addTab);
+
+  updateDeleteButton();
+}
+
+function switchLocation(locationId) {
+  if (locationId === getActiveLocationId()) {
+    return;
+  }
+  const currentLocation = getActiveLocation();
+  if (currentLocation) {
+    updateActiveLocationUiState({
+      selectedDate: datumInput.value,
+      zeitraum: zeitraumSelect.value,
+      showFiveYear: showFiveYear,
+      gtsPlotVisible: gtsPlotContainer.classList.contains("visible"),
+      tempPlotVisible: tempPlotContainer.classList.contains("visible")
+    });
+  }
+
+  setActiveLocation(locationId);
+  const nextLocation = getActiveLocation();
+  if (!nextLocation) {
+    return;
+  }
+
+  applyLocationState(nextLocation);
+  renderLocationTabs();
+
+  if (plotUpdater) {
+    plotUpdater.setLocationId(locationId);
+    plotUpdater.run();
   }
 }
 
@@ -127,14 +322,18 @@ document.addEventListener('DOMContentLoaded', () => {
     !toggleTempPlotBtn ||
     !tempPlotContainer ||
     !toggle5yrPlotBtn ||
-    !locationNameOutput
+    !locationNameOutput ||
+    !locationTabsContainer ||
+    !locationDeleteBtn
   ) {
     console.log("[main.js] Not all index elements exist => skipping main logic on this page.");
     return;
   }
 
   // 1) Build a new PlotUpdater
+  const activeLocationId = getActiveLocationId();
   plotUpdater = new PlotUpdater({
+    locationId: activeLocationId,
     ortInput,
     datumInput,
     zeitraumSelect,
@@ -146,27 +345,18 @@ document.addEventListener('DOMContentLoaded', () => {
     locationNameOutput
   });
 
-  // 2) Set date to local "today" & load last known location
-  const todayStr = getLocalTodayString();
-  datumInput.value = todayStr;
-  datumInput.max   = todayStr;
-
-  // Make sure to update #zeitraum select options the first time
-  updateZeitraumSelect();
-
-  const lastLoc = localStorage.getItem("lastLocation");
-  if (lastLoc) {
-    ortInput.value = lastLoc;
+  const activeLocation = getActiveLocation();
+  if (activeLocation) {
+    applyLocationState(activeLocation);
   }
-
-  // Show/hide the coordinates line based on the existing location
-  toggleCoordinatesLine();
 
   // IMPORTANT: Regardless of whether we have a last location or not, run the logic once
   // so that the Imkerliche Information is immediately computed.
   plotUpdater.run();
 
   // 3) The version placeholder logic is done in index.html now.
+
+  renderLocationTabs();
 
   // Now set up event listeners
   setupEventListeners();
@@ -180,6 +370,8 @@ function setupEventListeners() {
     showFiveYear = !showFiveYear;
     // Expose the variable for other modules if needed
     window.showFiveYear = showFiveYear;
+
+    updateActiveLocationUiState({ showFiveYear });
 
     if (showFiveYear) {
       toggle5yrPlotBtn.textContent = 'das ausgewählte Jahr';
@@ -195,15 +387,24 @@ function setupEventListeners() {
   // Whenever the user manually changes the ortInput, show/hide coords line & re-run
   ortInput.addEventListener('change', () => {
     toggleCoordinatesLine();
+    updateActiveLocationUiState({
+      selectedDate: datumInput.value,
+      zeitraum: zeitraumSelect.value
+    });
     plotUpdater.run();
   });
 
   zeitraumSelect.addEventListener('change', () => {
+    updateActiveLocationUiState({ zeitraum: zeitraumSelect.value });
     plotUpdater.run();
   });
 
   datumInput.addEventListener('change', () => {
     updateZeitraumSelect();
+    updateActiveLocationUiState({
+      selectedDate: datumInput.value,
+      zeitraum: zeitraumSelect.value
+    });
     plotUpdater.run();
   });
 
@@ -220,6 +421,10 @@ function setupEventListeners() {
     }
     datumInput.value = current.toISOString().split('T')[0];
     updateZeitraumSelect();
+    updateActiveLocationUiState({
+      selectedDate: datumInput.value,
+      zeitraum: zeitraumSelect.value
+    });
     plotUpdater.run();
   });
 
@@ -228,6 +433,10 @@ function setupEventListeners() {
     current.setDate(current.getDate() - 1);
     datumInput.value = current.toISOString().split('T')[0];
     updateZeitraumSelect();
+    updateActiveLocationUiState({
+      selectedDate: datumInput.value,
+      zeitraum: zeitraumSelect.value
+    });
     plotUpdater.run();
   });
 
@@ -244,24 +453,31 @@ function setupEventListeners() {
     const newToday = getLocalTodayString();
     datumInput.value = newToday;
     updateZeitraumSelect();
+    updateActiveLocationUiState({
+      selectedDate: datumInput.value,
+      zeitraum: zeitraumSelect.value
+    });
     plotUpdater.run();
   });
 
-  // Hide GTS plot container on page load
-  gtsPlotContainer.classList.remove("visible");
   toggleGtsPlotBtn.addEventListener("click", () => {
     gtsPlotContainer.classList.toggle("visible");
     toggleGtsPlotBtn.textContent = gtsPlotContainer.classList.contains("visible")
       ? "Diagramm (GTS) ausblenden"
       : "Diagramm (GTS) anzeigen";
+    updateActiveLocationUiState({
+      gtsPlotVisible: gtsPlotContainer.classList.contains("visible")
+    });
   });
 
-  // Hide temp plot container on page load
   toggleTempPlotBtn.addEventListener("click", () => {
     tempPlotContainer.classList.toggle("visible");
     toggleTempPlotBtn.textContent = tempPlotContainer.classList.contains("visible")
       ? "Diagramm (Tagesmitteltemperaturen) ausblenden"
       : "Diagramm (Tagesmitteltemperaturen) anzeigen";
+    updateActiveLocationUiState({
+      tempPlotVisible: tempPlotContainer.classList.contains("visible")
+    });
   });
 
   ortKarteBtn.addEventListener('click', () => {
@@ -284,5 +500,29 @@ function setupEventListeners() {
 
     // Programmatically click the hidden "berechnenBtn"
     berechnenBtn.click();
+  });
+
+  locationDeleteBtn.addEventListener("click", () => {
+    const activeId = getActiveLocationId();
+    const locations = getLocationsInOrder();
+    if (locations.length <= 1) {
+      return;
+    }
+    if (locations[0].id === activeId) {
+      return;
+    }
+    if (!window.confirm("Bist Du Dir sicher?")) {
+      return;
+    }
+    const deleted = deleteLocationEntry(activeId);
+    if (deleted) {
+      const nextLocation = getActiveLocation();
+      renderLocationTabs();
+      if (nextLocation) {
+        applyLocationState(nextLocation);
+        plotUpdater.setLocationId(nextLocation.id);
+        plotUpdater.run();
+      }
+    }
   });
 }

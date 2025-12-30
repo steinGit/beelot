@@ -3,7 +3,7 @@
  * UI-Interaktionen, DOM-Referenzen, Anzeigen/Verstecken von Elementen
  */
 
-import { PlotUpdater } from './plotUpdater.js'; // <-- new import
+import { formatCoordinates, getActiveLocation, updateLocation } from './locationStore.js';
 
 // DOM references
 export const ortInput          = document.getElementById('ort');
@@ -28,6 +28,8 @@ export const toggleTempPlotBtn = document.getElementById('toggle-temp-plot');
 export const tempPlotContainer = document.getElementById('temp-plot-container');
 
 export const locationNameOutput = document.getElementById('location-name');
+export const locationTabsContainer = document.getElementById('location-tabs');
+export const locationDeleteBtn = document.getElementById('location-delete-btn');
 
 // The main "Ergebnis" paragraph
 const ergebnisTextEl = document.getElementById('ergebnis-text');
@@ -36,6 +38,7 @@ const ergebnisTextEl = document.getElementById('ergebnis-text');
 let map = null;
 let marker = null;
 let selectedLatLng = null;
+const GLOBAL_MAP_VIEW_KEY = "beelotLastMapView";
 
 // We'll create our PlotUpdater instance later
 let plotUpdater = null;
@@ -44,6 +47,7 @@ let plotUpdater = null;
  * Initializes or updates the Leaflet map overlay.
  */
 window.initOrUpdateMap = () => {
+  const activeLocation = getActiveLocation();
   if (!map) {
     map = L.map('map').setView([51.1657, 10.4515], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -63,48 +67,64 @@ window.initOrUpdateMap = () => {
       }
     });
 
-    // Restore last map position/zoom
-    const lastPos = localStorage.getItem("lastPos");
-    const lastZoom = localStorage.getItem("lastZoom");
-    if (lastPos && lastZoom) {
-      const coords = lastPos.split(',');
+    map.on('moveend', () => {
+      const center = map.getCenter();
+      localStorage.setItem(
+        GLOBAL_MAP_VIEW_KEY,
+        JSON.stringify({ lat: center.lat, lon: center.lng, zoom: map.getZoom() })
+      );
+    });
+
+    // Restore last map position/zoom for active location
+    const globalMapView = localStorage.getItem(GLOBAL_MAP_VIEW_KEY);
+    if (globalMapView) {
+      try {
+        const parsed = JSON.parse(globalMapView);
+        if (parsed && typeof parsed.lat === "number" && typeof parsed.lon === "number") {
+          map.setView([parsed.lat, parsed.lon], parseInt(parsed.zoom, 10) || map.getZoom());
+        }
+      } catch (error) {
+        console.warn("[ui.js] Failed to parse stored map view.", error);
+      }
+    }
+
+    if (activeLocation && activeLocation.ui.map.lastPos && activeLocation.ui.map.lastZoom) {
+      const coords = activeLocation.ui.map.lastPos.split(',');
       const lat = parseFloat(coords[0]);
       const lon = parseFloat(coords[1]);
-      map.setView([lat, lon], parseInt(lastZoom));
-      const lastLoc = localStorage.getItem("lastLocation");
-      if (lastLoc && lastLoc.includes("Lat") && lastLoc.includes("Lon")) {
-        const parts = lastLoc.split(',');
-        const latPart = parts[0].split(':')[1];
-        const lonPart = parts[1].split(':')[1];
-        const latSaved = parseFloat(latPart.trim());
-        const lonSaved = parseFloat(lonPart.trim());
-        selectedLatLng = {lat: latSaved, lng: lonSaved};
+      map.setView([lat, lon], parseInt(activeLocation.ui.map.lastZoom));
+      if (activeLocation.coordinates) {
+        selectedLatLng = { lat: activeLocation.coordinates.lat, lng: activeLocation.coordinates.lon };
         if (marker) {
           map.removeLayer(marker);
         }
-        marker = L.marker([latSaved, lonSaved]).addTo(map);
+        marker = L.marker([selectedLatLng.lat, selectedLatLng.lng]).addTo(map);
       }
+    } else if (activeLocation && activeLocation.coordinates) {
+      map.setView([activeLocation.coordinates.lat, activeLocation.coordinates.lon], 12);
+      selectedLatLng = { lat: activeLocation.coordinates.lat, lng: activeLocation.coordinates.lon };
+      marker = L.marker([selectedLatLng.lat, selectedLatLng.lng]).addTo(map);
     }
   } else {
     // If map already exists, just refresh sizing
     setTimeout(() => {
       map.invalidateSize();
-      const lastLoc = localStorage.getItem("lastLocation");
-      if (lastLoc) {
-        const parts = lastLoc.split(',');
-        const latPart = parts[0].split(':')[1];
-        const lonPart = parts[1].split(':')[1];
-        const latSaved = parseFloat(latPart.trim());
-        const lonSaved = parseFloat(lonPart.trim());
+      if (activeLocation && activeLocation.coordinates) {
         map.setView(
-          [latSaved, lonSaved],
-          parseInt(localStorage.getItem("lastZoom")) || map.getZoom()
+          [activeLocation.coordinates.lat, activeLocation.coordinates.lon],
+          parseInt(activeLocation.ui.map.lastZoom) || map.getZoom()
         );
         if (marker) {
           map.removeLayer(marker);
         }
-        marker = L.marker([latSaved, lonSaved]).addTo(map);
-        selectedLatLng = { lat: latSaved, lng: lonSaved };
+        marker = L.marker([activeLocation.coordinates.lat, activeLocation.coordinates.lon]).addTo(map);
+        selectedLatLng = { lat: activeLocation.coordinates.lat, lng: activeLocation.coordinates.lon };
+      } else {
+        if (marker) {
+          map.removeLayer(marker);
+          marker = null;
+        }
+        selectedLatLng = null;
       }
     }, 100);
   }
@@ -116,11 +136,19 @@ window.initOrUpdateMap = () => {
 window.saveMapSelection = () => {
   console.log("[DEBUG] saveMapSelection() => if user selectedLatLng=", selectedLatLng);
   if (selectedLatLng) {
-    const locString = `Lat: ${selectedLatLng.lat.toFixed(5)}°, Lon: ${selectedLatLng.lng.toFixed(5)}°`;
+    const locString = formatCoordinates(selectedLatLng.lat, selectedLatLng.lng);
     ortInput.value = locString;
-    localStorage.setItem("lastLocation", locString);
-    localStorage.setItem("lastPos", `${map.getCenter().lat},${map.getCenter().lng}`);
-    localStorage.setItem("lastZoom", map.getZoom());
+    const activeLocation = getActiveLocation();
+    if (activeLocation) {
+      updateLocation(activeLocation.id, (location) => {
+        location.coordinates = {
+          lat: selectedLatLng.lat,
+          lon: selectedLatLng.lng
+        };
+        location.ui.map.lastPos = `${map.getCenter().lat},${map.getCenter().lng}`;
+        location.ui.map.lastZoom = map.getZoom();
+      });
+    }
     if (plotUpdater) {
       plotUpdater.run();
     }
@@ -128,5 +156,3 @@ window.saveMapSelection = () => {
   const mapPopup = document.getElementById('map-popup');
   mapPopup.style.display = 'none';
 };
-
-

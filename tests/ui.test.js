@@ -1,38 +1,41 @@
-import { initializeUI, updatePlots } from '../assets/js/ui';
-
-describe('updatePlots', () => {
+describe('ui module exports', () => {
     beforeEach(() => {
-        // Mock DOM elements
+        localStorage.clear();
+        jest.resetModules();
         document.body.innerHTML = `
             <input id="datum" value="2025-01-01" />
             <input id="ort" value="Lat: 51.1657, Lon: 10.4515" />
-            <div id="ergebnis-text"></div>
+            <select id="zeitraum"></select>
+            <button id="berechnen-btn"></button>
+            <button id="ort-karte-btn"></button>
+            <button id="map-close-btn"></button>
+            <button id="map-save-btn"></button>
+            <button id="datum-plus"></button>
+            <button id="datum-minus"></button>
+            <button id="datum-heute"></button>
+            <button id="toggle-gts-plot"></button>
+            <div id="gts-plot-container"></div>
+            <button id="toggle-temp-plot"></button>
+            <div id="temp-plot-container"></div>
+            <button id="toggle-5yr-plot"></button>
+            <output id="location-name"></output>
+            <div id="location-tabs"></div>
+            <button id="location-delete-btn"></button>
         `;
-
-        // Initialize the UI module with mocked DOM
-        initializeUI();
     });
 
-    test('clears results if no location is provided', async () => {
-        const ortInput = document.getElementById('ort');
-        ortInput.value = ''; // Clear the input value
-        await updatePlots();
-        const resultText = document.getElementById('ergebnis-text').textContent;
-        expect(resultText).toContain('Die Grünland-Temperatur-Summe wird berechnet');
+    test('exports DOM references when elements exist', async () => {
+        const ui = await import('../assets/js/ui');
+        expect(ui.ortInput).toBeInstanceOf(HTMLElement);
+        expect(ui.datumInput).toBeInstanceOf(HTMLElement);
+        expect(ui.locationNameOutput).toBeInstanceOf(HTMLElement);
+        expect(ui.locationTabsContainer).toBeInstanceOf(HTMLElement);
+        expect(ui.locationDeleteBtn).toBeInstanceOf(HTMLElement);
     });
 
-    test('does not clear results if location is provided', async () => {
-        const ortInput = document.getElementById('ort');
-        ortInput.value = 'Lat: 51.1657, Lon: 10.4515'; // Set valid location
-        await updatePlots();
-        const resultText = document.getElementById('ergebnis-text').textContent;
-        expect(resultText).not.toContain('Die Grünland-Temperatur-Summe wird berechnet');
-    });
-
-    test('throws error if initializeUI is not called', async () => {
-        // Reset the module to simulate uninitialized UI
-        jest.resetModules();
-        const { updatePlots } = await import('../assets/js/ui');
-        await expect(updatePlots()).rejects.toThrow('UI elements not initialized. Call initializeUI() first.');
+    test('registers map helper functions on window', async () => {
+        await import('../assets/js/ui');
+        expect(typeof window.initOrUpdateMap).toBe('function');
+        expect(typeof window.saveMapSelection).toBe('function');
     });
 });

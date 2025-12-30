@@ -2,6 +2,11 @@ import { beekeeperColor, plotData } from '../assets/js/charts';
 
 beforeAll(() => {
     HTMLCanvasElement.prototype.getContext = jest.fn(() => ({}));
+    global.Chart = class {
+        constructor() {
+            this.destroy = jest.fn();
+        }
+    };
 });
 
 describe('beekeeperColor', () => {

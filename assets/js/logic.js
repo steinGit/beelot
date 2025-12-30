@@ -137,7 +137,15 @@ export function calculateGTS(dates, values, verbose = false) {
  * @param {boolean} verbose - If true, logs additional debug information.
  * @returns {Promise<Object>} - An object containing 'year', 'labels', and 'gtsValues'.
  */
-export async function fetchGTSForYear(lat, lon, year, baseStartDate, baseEndDate, verbose = false) {
+export async function fetchGTSForYear(
+    lat,
+    lon,
+    year,
+    baseStartDate,
+    baseEndDate,
+    verbose = false,
+    cacheStore = null
+) {
     if (verbose) {
         console.log("[DEBUG logic.js] fetchGTSForYear() => year=", year,
                     " baseStartDate=", formatDateLocal(baseStartDate),
@@ -153,7 +161,7 @@ export async function fetchGTSForYear(lat, lon, year, baseStartDate, baseEndDate
     // " yearEnd=", formatDateLocal(yearEnd));
 
     // B) Fetch historical data from yearStart to yearEnd
-    const histData = await fetchHistoricalData(lat, lon, yearStart, yearEnd);
+    const histData = await fetchHistoricalData(lat, lon, yearStart, yearEnd, cacheStore);
     if (!histData || !histData.daily) {
         console.warn("[DEBUG logic.js] no daily data found for year=", year);
         return { year, labels: [], gtsValues: [] };
@@ -212,7 +220,14 @@ export async function fetchGTSForYear(lat, lon, year, baseStartDate, baseEndDate
  * @param {Array<Object>} data_current_year - Array of objects like [{date, gts}, ...] for the current year.
  * @returns {Promise<Array<Object>>} - Array of yearly data objects.
  */
-export async function build5YearData(lat, lon, baseStartDate, baseEndDate, data_current_year) {
+export async function build5YearData(
+    lat,
+    lon,
+    baseStartDate,
+    baseEndDate,
+    data_current_year,
+    cacheStore = null
+) {
     const mainYear = baseEndDate.getFullYear();
     const allResults = [];
 
@@ -265,7 +280,15 @@ export async function build5YearData(lat, lon, baseStartDate, baseEndDate, data_
             //
             try {
                 // console.log("[DEBUG logic.js] build5YearData() y=", y, " yearPlotStart= ", formatDateLocal(yearPlotStart), " yearPlotEnd= ", formatDateLocal(yearPlotEnd));
-                const yearly = await fetchGTSForYear(lat, lon, y, yearPlotStart, yearPlotEnd);
+                const yearly = await fetchGTSForYear(
+                    lat,
+                    lon,
+                    y,
+                    yearPlotStart,
+                    yearPlotEnd,
+                    false,
+                    cacheStore
+                );
                 // console.log("[DEBUG logic.js] build5YearData() => year=", y,
                 //    " => #points=", yearly.gtsValues.length);
                 allResults.push(yearly);
@@ -278,4 +301,3 @@ export async function build5YearData(lat, lon, baseStartDate, baseEndDate, data_
     // console.log("[DEBUG logic.js] build5YearData() => total sets=", allResults.length);
     return allResults;
 }
-
