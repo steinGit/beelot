@@ -31,5 +31,15 @@
     "testing",
     "beelot"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "overrides": {
+    "form-data": "4.0.4",
+    "js-yaml": "3.14.2",
+    "@eslint/eslintrc": {
+      "js-yaml": "4.1.1"
+    },
+    "eslint": {
+      "js-yaml": "4.1.1"
+    }
+  }
 }
