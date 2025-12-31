@@ -20,7 +20,7 @@ describe('ui module exports', () => {
             <button id="toggle-5yr-plot"></button>
             <output id="location-name"></output>
             <div id="location-tabs"></div>
-            <button id="location-delete-btn"></button>
+            <div id="location-panel"></div>
         `;
     });
 
@@ -30,7 +30,7 @@ describe('ui module exports', () => {
         expect(ui.datumInput).toBeInstanceOf(HTMLElement);
         expect(ui.locationNameOutput).toBeInstanceOf(HTMLElement);
         expect(ui.locationTabsContainer).toBeInstanceOf(HTMLElement);
-        expect(ui.locationDeleteBtn).toBeInstanceOf(HTMLElement);
+        expect(ui.locationPanel).toBeInstanceOf(HTMLElement);
     });
 
     test('registers map helper functions on window', async () => {

@@ -156,6 +156,11 @@ export async function fetchGTSForYear(
     const yearStart = createLocalStartOfDay(year, 0, 1);
     const yearEnd = new Date(year, baseEndDate.getMonth(), baseEndDate.getDate(), 0, 0, 0, 0);
     yearEnd.setDate(yearEnd.getDate() + 1);
+    if (yearEnd.getFullYear() !== year) {
+        yearEnd.setFullYear(year);
+        yearEnd.setMonth(11);
+        yearEnd.setDate(31);
+    }
 
     // console.log("[DEBUG logic.js] => yearStart=", formatDateLocal(yearStart),
     // " yearEnd=", formatDateLocal(yearEnd));

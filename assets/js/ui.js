@@ -29,7 +29,7 @@ export const tempPlotContainer = document.getElementById('temp-plot-container');
 
 export const locationNameOutput = document.getElementById('location-name');
 export const locationTabsContainer = document.getElementById('location-tabs');
-export const locationDeleteBtn = document.getElementById('location-delete-btn');
+export const locationPanel = document.getElementById('location-panel');
 
 // The main "Ergebnis" paragraph
 const ergebnisTextEl = document.getElementById('ergebnis-text');

@@ -14,6 +14,13 @@ describe('calculateGTS', () => {
             { date: '2025-01-03', gts: 22.5 },
         ]);
     });
+
+    test('keeps GTS stable across consecutive non-positive days', () => {
+        const dates = ['2025-12-30', '2025-12-31'];
+        const values = [5, -2];
+        const result = calculateGTS(dates, values);
+        expect(result[0].gts).toBe(result[1].gts);
+    });
 });
 
 describe('calculateGTS with larger dataset', () => {

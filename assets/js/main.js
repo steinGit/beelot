@@ -21,7 +21,7 @@ import {
   toggle5yrPlotBtn,
   locationNameOutput,
   locationTabsContainer,
-  locationDeleteBtn
+  locationPanel
 } from './ui.js';
 
 import { PlotUpdater } from './plotUpdater.js';
@@ -105,6 +105,45 @@ function updateZeitraumSelect() {
 let plotUpdater = null;
 // Also track the multi-year toggle
 let showFiveYear = false;
+let confirmModalResolver = null;
+
+function confirmModal({ title, message, confirmText = "Löschen", cancelText = "Abbrechen" }) {
+  const modal = document.getElementById("confirm-modal");
+  const titleEl = document.getElementById("confirm-modal-title");
+  const messageEl = document.getElementById("confirm-modal-message");
+  const acceptBtn = document.getElementById("confirm-modal-accept");
+  const cancelBtn = document.getElementById("confirm-modal-cancel");
+
+  if (!modal || !titleEl || !messageEl || !acceptBtn || !cancelBtn) {
+    return Promise.resolve(false);
+  }
+
+  titleEl.textContent = title;
+  messageEl.textContent = message;
+  acceptBtn.textContent = confirmText;
+  cancelBtn.textContent = cancelText;
+
+  modal.classList.add("is-visible");
+  modal.setAttribute("aria-hidden", "false");
+
+  return new Promise((resolve) => {
+    confirmModalResolver = resolve;
+    acceptBtn.focus();
+  });
+}
+
+function closeConfirmModal(result) {
+  const modal = document.getElementById("confirm-modal");
+  if (!modal) {
+    return;
+  }
+  modal.classList.remove("is-visible");
+  modal.setAttribute("aria-hidden", "true");
+  if (confirmModalResolver) {
+    confirmModalResolver(result);
+    confirmModalResolver = null;
+  }
+}
 
 /**
  * Show/hide the "Koordinaten:" line if a location is (not) chosen.
@@ -189,14 +228,10 @@ function applyLocationState(location) {
   toggle5yrPlotBtn.textContent = showFiveYear ? "das ausgewählte Jahr" : "die letzten 5 Jahre";
 
   setPlotVisibility(location.ui.gtsPlotVisible, location.ui.tempPlotVisible);
-}
 
-function updateDeleteButton() {
-  const locations = getLocationsInOrder();
-  const activeId = getActiveLocationId();
-  const activeIndex = locations.findIndex((location) => location.id === activeId);
-  const deletable = activeIndex > 0;
-  locationDeleteBtn.style.display = deletable ? "inline-block" : "none";
+  if (locationPanel) {
+    locationPanel.setAttribute("aria-labelledby", `location-tab-${location.id}`);
+  }
 }
 
 function startEditingLocationName(locationId, nameElement) {
@@ -243,11 +278,17 @@ function renderLocationTabs() {
     tab.type = "button";
     tab.className = `location-tab${location.id === activeId ? " active" : ""}`;
     tab.dataset.locationId = location.id;
+    tab.role = "tab";
+    tab.id = `location-tab-${location.id}`;
+    tab.setAttribute("aria-selected", location.id === activeId ? "true" : "false");
+    tab.setAttribute("tabindex", location.id === activeId ? "0" : "-1");
+    tab.setAttribute("aria-controls", "location-panel");
 
     const nameSpan = document.createElement("span");
     nameSpan.className = "location-name";
     nameSpan.textContent = location.name;
-    nameSpan.addEventListener("click", (event) => {
+    nameSpan.addEventListener("dblclick", (event) => {
+      event.preventDefault();
       event.stopPropagation();
       startEditingLocationName(location.id, nameSpan);
     });
@@ -263,14 +304,52 @@ function renderLocationTabs() {
   const addTab = document.createElement("button");
   addTab.type = "button";
   addTab.className = "location-tab location-tab-add";
+  addTab.role = "tab";
+  addTab.id = "location-tab-add";
+  addTab.setAttribute("aria-selected", "false");
+  addTab.setAttribute("tabindex", "-1");
+  addTab.setAttribute("aria-controls", "location-panel");
   addTab.textContent = "+";
   addTab.addEventListener("click", () => {
-    const newLocation = createLocationEntry();
-    switchLocation(newLocation.id);
+    createLocationEntry();
+    window.location.reload();
   });
   locationTabsContainer.appendChild(addTab);
 
-  updateDeleteButton();
+  const removeTab = document.createElement("button");
+  removeTab.type = "button";
+  removeTab.className = "location-tab location-tab-remove";
+  removeTab.role = "tab";
+  removeTab.id = "location-tab-remove";
+  removeTab.setAttribute("aria-selected", "false");
+  removeTab.setAttribute("tabindex", "-1");
+  removeTab.setAttribute("aria-controls", "location-panel");
+  removeTab.textContent = "-";
+  removeTab.addEventListener("click", () => {
+    const activeId = getActiveLocationId();
+    const locationsList = getLocationsInOrder();
+    if (locationsList.length <= 1) {
+      return;
+    }
+    if (locationsList[0].id === activeId) {
+      return;
+    }
+    confirmModal({
+      title: "Eintrag wirklich löschen?",
+      message: "Dies entfernt den Eintrag und alle zugehörigen Daten.",
+      confirmText: "Löschen",
+      cancelText: "Abbrechen"
+    }).then((confirmed) => {
+      if (!confirmed) {
+        return;
+      }
+      const deleted = deleteLocationEntry(activeId);
+      if (deleted) {
+        window.location.reload();
+      }
+    });
+  });
+  locationTabsContainer.appendChild(removeTab);
 }
 
 function switchLocation(locationId) {
@@ -296,6 +375,10 @@ function switchLocation(locationId) {
 
   applyLocationState(nextLocation);
   renderLocationTabs();
+
+  if (locationPanel) {
+    locationPanel.setAttribute("aria-labelledby", `location-tab-${locationId}`);
+  }
 
   if (plotUpdater) {
     plotUpdater.setLocationId(locationId);
@@ -324,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
     !toggle5yrPlotBtn ||
     !locationNameOutput ||
     !locationTabsContainer ||
-    !locationDeleteBtn
+    !locationPanel
   ) {
     console.log("[main.js] Not all index elements exist => skipping main logic on this page.");
     return;
@@ -366,6 +449,19 @@ document.addEventListener('DOMContentLoaded', () => {
  * Attach event listeners (only if DOM elements exist).
  */
 function setupEventListeners() {
+  const modalAccept = document.getElementById("confirm-modal-accept");
+  const modalCancel = document.getElementById("confirm-modal-cancel");
+  const modalOverlay = document.getElementById("confirm-modal");
+  if (modalAccept && modalCancel && modalOverlay) {
+    modalAccept.addEventListener("click", () => closeConfirmModal(true));
+    modalCancel.addEventListener("click", () => closeConfirmModal(false));
+    modalOverlay.addEventListener("click", (event) => {
+      if (event.target === modalOverlay) {
+        closeConfirmModal(false);
+      }
+    });
+  }
+
   toggle5yrPlotBtn.addEventListener('click', () => {
     showFiveYear = !showFiveYear;
     // Expose the variable for other modules if needed
@@ -502,27 +598,4 @@ function setupEventListeners() {
     berechnenBtn.click();
   });
 
-  locationDeleteBtn.addEventListener("click", () => {
-    const activeId = getActiveLocationId();
-    const locations = getLocationsInOrder();
-    if (locations.length <= 1) {
-      return;
-    }
-    if (locations[0].id === activeId) {
-      return;
-    }
-    if (!window.confirm("Bist Du Dir sicher?")) {
-      return;
-    }
-    const deleted = deleteLocationEntry(activeId);
-    if (deleted) {
-      const nextLocation = getActiveLocation();
-      renderLocationTabs();
-      if (nextLocation) {
-        applyLocationState(nextLocation);
-        plotUpdater.setLocationId(nextLocation.id);
-        plotUpdater.run();
-      }
-    }
-  });
 }

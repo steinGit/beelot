@@ -154,7 +154,11 @@ function loadState() {
 let state = loadState();
 
 function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.warn("[locationStore] Failed to persist state.", error);
+  }
 }
 
 function sanitizeName(name, fallback) {

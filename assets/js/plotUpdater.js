@@ -50,6 +50,7 @@ export class PlotUpdater {
     locationNameOutput // Add locationNameOutput to constructor
   }) {
     this.verbose = false;
+    this.debugGts = false; // set to true for temporary debugging only.
     this.locationId = locationId;
     this.ortInput = ortInput;
     this.datumInput = datumInput;
@@ -127,11 +128,22 @@ export class PlotUpdater {
         lat, lon, fetchStartDate, endDate, recentStartDate, differenceInDays
       );
       if (allDates.length === 0) return;
+      if (this.debugGts) {
+        console.log("[GTS DEBUG] endDate", formatDateLocal(endDate));
+        console.log("[GTS DEBUG] allDates tail", allDates.slice(-7));
+        console.log("[GTS DEBUG] allTemps tail", allTemps.slice(-7));
+      }
 
       // Step 8) GTS calculations
       const gtsResults = this.step8CalculateGTS(allDates, allTemps);
+      if (this.debugGts) {
+        console.log("[GTS DEBUG] gtsResults tail", gtsResults.slice(-7));
+      }
       // Step 9) Filter GTS to [plotStartDate..endDate]
       const filteredResults = this.step9FilterGTS(gtsResults, plotStartDate, endDate);
+      if (this.debugGts) {
+        console.log("[GTS DEBUG] filteredResults tail", filteredResults.slice(-7));
+      }
 
       if (this.verbose)
       {
@@ -313,36 +325,49 @@ export class PlotUpdater {
     {
         console.log("[PlotUpdater] step7FetchAllData() =>", formatDateLocal(fetchStartDate), "->", formatDateLocal(endDate));
     }
-    let allDates = [];
-    let allTemps = [];
-
-    if (differenceInDays > 10) {
-      // Only historical
-      const histData = await fetchHistoricalData(
-        lat,
-        lon,
-        fetchStartDate,
-        endDate,
-        this.weatherCacheStore
-      );
-      if (histData && histData.daily) {
-        allDates = histData.daily.time;
-        allTemps = histData.daily.temperature_2m_mean;
+    const dataByDate = {};
+    const addToMap = (dates, temps, overwrite) => {
+      if (!dates || !temps) {
+        return;
       }
-    } else {
-      // Combine historical + recent
-      const histEndDate = new Date(recentStartDate);
-      histEndDate.setDate(histEndDate.getDate() - 1);
-      let histData = null;
-      if (histEndDate >= fetchStartDate) {
-        histData = await fetchHistoricalData(
+      for (let i = 0; i < dates.length; i++) {
+        const dateKey = dates[i];
+        if (!overwrite && Object.prototype.hasOwnProperty.call(dataByDate, dateKey)) {
+          continue;
+        }
+        dataByDate[dateKey] = temps[i];
+      }
+    };
+
+    const histData = await fetchHistoricalData(
+      lat,
+      lon,
+      fetchStartDate,
+      endDate,
+      this.weatherCacheStore
+    );
+
+    if (histData && histData.daily && histData.daily.time.length > 0) {
+      addToMap(histData.daily.time, histData.daily.temperature_2m_mean, true);
+
+      const lastHistDateStr = histData.daily.time[histData.daily.time.length - 1];
+      const endDateStr = formatDateLocal(endDate);
+      if (lastHistDateStr < endDateStr) {
+        const lastHistDate = new Date(lastHistDateStr);
+        const recentStart = new Date(lastHistDate);
+        recentStart.setDate(recentStart.getDate() + 1);
+        const recentData = await fetchRecentData(
           lat,
           lon,
-          fetchStartDate,
-          histEndDate,
+          recentStart,
+          endDate,
           this.weatherCacheStore
         );
+        if (recentData && recentData.daily) {
+          addToMap(recentData.daily.time, recentData.daily.temperature_2m_mean, false);
+        }
       }
+    } else if (differenceInDays <= 10) {
       const recentData = await fetchRecentData(
         lat,
         lon,
@@ -350,24 +375,15 @@ export class PlotUpdater {
         endDate,
         this.weatherCacheStore
       );
-
-      if (histData && histData.daily) {
-        allDates = allDates.concat(histData.daily.time);
-        allTemps = allTemps.concat(histData.daily.temperature_2m_mean);
-      }
       if (recentData && recentData.daily) {
-        allDates = allDates.concat(recentData.daily.time);
-        allTemps = allTemps.concat(recentData.daily.temperature_2m_mean);
+        addToMap(recentData.daily.time, recentData.daily.temperature_2m_mean, true);
       }
     }
 
-    // Remove duplicates and sort
-    const dataByDate = {};
-    for (let i = 0; i < allDates.length; i++) {
-      dataByDate[allDates[i]] = allTemps[i];
-    }
+    // Sort by date
+    const allDates = Object.keys(dataByDate);
 
-    const sortedDates = Object.keys(dataByDate).sort((a, b) => new Date(a) - new Date(b));
+    const sortedDates = allDates.sort((a, b) => new Date(a) - new Date(b));
     const sortedTemps = sortedDates.map(d => dataByDate[d]);
 
     if (sortedTemps.length === 0) {

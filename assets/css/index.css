@@ -24,20 +24,26 @@
 
 .location-tab {
     background-color: #f7f7f7;
-    border: 1px solid #ccc;
-    border-radius: 16px;
+    border: 1px solid transparent;
+    border-bottom: 2px solid transparent;
+    border-radius: 10px 10px 0 0;
     padding: 6px 12px;
     font-weight: bold;
     cursor: pointer;
 }
 
 .location-tab.active {
-    background-color: #ffefc4;
+    background-color: #fff3d1;
     border-color: #ff8000;
+    border-bottom-color: #ff8000;
 }
 
 .location-tab-add {
     background-color: #dff5ff;
+}
+
+.location-tab-remove {
+    background-color: #ffe5e5;
 }
 
 .location-name-input {
@@ -46,6 +52,35 @@
     padding: 4px 8px;
     font-size: 1rem;
     width: 140px;
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.modal-overlay.is-visible {
+    display: flex;
+}
+
+.modal-dialog {
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    width: min(90vw, 420px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 16px;
 }
 
 .eingabe-section, .ergebnis-section, .plot-section, .hinweis-section {

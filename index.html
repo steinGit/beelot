@@ -75,102 +75,103 @@
 
     <main>
       <section class="standort-section">
-        <div id="location-tabs" class="location-tabs"></div>
-        <button id="location-delete-btn" class="red-button" type="button">Standort löschen</button>
+        <div id="location-tabs" class="location-tabs" role="tablist" aria-label="Standorte"></div>
       </section>
 
-      <section class="eingabe-section">
-        <div class="input-group">
-          <button id="ort-karte-btn">Ort auf Karte wählen</button><br />
+      <div id="location-panel" role="tabpanel" tabindex="0">
+        <section class="eingabe-section">
+          <div class="input-group">
+            <button id="ort-karte-btn">Ort auf Karte wählen</button><br />
 
-          <div id="coordinates-line" style="display: none;">
-            <label for="ort">Koordinaten:</label>
+            <div id="coordinates-line" style="display: none;">
+              <label for="ort">Koordinaten:</label>
+              <output
+                type="text"
+                id="ort"
+                name="ort"
+                placeholder="Aktuelle Position oder Ort wählen..."
+                ></output>
+            </div>
+
+            <br />
             <output
               type="text"
-              id="ort"
-              name="ort"
-              placeholder="Aktuelle Position oder Ort wählen..."
-              ></output>
+              id="location-name"
+              name="location-name"
+              placeholder="Standortname wird angezeigt..."
+            ></output>
           </div>
+        </section>
 
-          <br />
-          <output
-            type="text"
-            id="location-name"
-            name="location-name"
-            placeholder="Standortname wird angezeigt..."
-          ></output>
-        </div>
-      </section>
+        <section class="ergebnis-section">
+          <p id="ergebnis-text">
+            Die Grünland-Temperatur-Summe wird berechnet wenn ein Ort ausgewählt ist.
+          </p>
+        </section>
 
-      <section class="ergebnis-section">
-        <p id="ergebnis-text">
-          Die Grünland-Temperatur-Summe wird berechnet wenn ein Ort ausgewählt ist.
-        </p>
-      </section>
+        <!-- This section will get populated by information.js -->
+        <section class="hinweis-section">
+          <h2>Imkerliche Information</h2>
+          <p>
+                <a href="components/einstellungen.html">Die Tracht Einstellungen können ergänzt oder modifiziert werden.</a>
+          </p>
+          <p>
+            Empfehlungen und Blühphasen Voraussagen werden berechnet wenn ein Ort
+            ausgewählt wurde.
+          </p>
+        </section>
 
-      <!-- This section will get populated by information.js -->
-      <section class="hinweis-section">
-        <h2>Imkerliche Information</h2>
-        <p>
-              <a href="components/einstellungen.html">Die Tracht Einstellungen können ergänzt oder modifiziert werden.</a>
-        </p>
-        <p>
-          Empfehlungen und Blühphasen Voraussagen werden berechnet wenn ein Ort
-          ausgewählt wurde.
-        </p>
-      </section>
-
-      <section class="plot-section">
-        <h2>Simulation</h2>
-        <div class="input-group">
-          <label for="datum">Datum:</label>
-          <input type="date" id="datum" name="datum" />
-          <button id="datum-plus">+</button>
-          <button id="datum-minus">-</button>
-          <!-- Always visible -->
-          <button id="datum-heute">heute</button><br />
-          <span class="small-gray-text">
-            Hinweis: benutze die "+" und "-" Taste auf der Tastatur oder Numpad
-          </span>
-
-          <!-- Keep hidden if your code references it -->
-          <button id="berechnen-btn" style="display: none;">Berechnen</button>
-        </div>
-
-        <h2>
-          <button id="toggle-gts-plot">Diagramm (GTS) anzeigen</button>
-        </h2>
-        <div class="plot-container" id="gts-plot-container">
+        <section class="plot-section">
+          <h2>Simulation</h2>
           <div class="input-group">
-            <label for="zeitraum">Darstellungs Zeitraum:</label>
-            <select id="zeitraum" name="zeitraum">
-              <option value="7">1 Woche</option>
-              <option value="14">2 Wochen</option>
-              <option value="28">4 Wochen</option>
-              <option value="ytd" selected>Seit Jahresanfang</option>
-            </select>
-            <br />
-            <button
-              id="toggle-5yr-plot"
-              style="display: inline-block;"
-            >
-              die letzten 5 Jahre
-            </button>
-          </div>
-          <!-- Added a wrapper for the canvas -->
-          <div class="plot-wrapper">
-            <canvas id="plot-canvas"></canvas>
-          </div>
-        </div>
+            <label for="datum">Datum:</label>
+            <input type="date" id="datum" name="datum" />
+            <button id="datum-plus">+</button>
+            <button id="datum-minus">-</button>
+            <!-- Always visible -->
+            <button id="datum-heute">heute</button><br />
+            <span class="small-gray-text">
+              Hinweis: benutze die "+" und "-" Taste auf der Tastatur oder Numpad
+            </span>
 
-        <h2>
-          <button id="toggle-temp-plot">Diagramm (Tagesmitteltemperaturen) anzeigen</button>
-        </h2>
-        <div class="plot-container" id="temp-plot-container">
-          <canvas id="temp-plot"></canvas>
-        </div>
-      </section>
+            <!-- Keep hidden if your code references it -->
+            <button id="berechnen-btn" style="display: none;">Berechnen</button>
+          </div>
+
+          <h2>
+            <button id="toggle-gts-plot">Diagramm (GTS) anzeigen</button>
+          </h2>
+          <div class="plot-container" id="gts-plot-container">
+            <div class="input-group">
+              <label for="zeitraum">Darstellungs Zeitraum:</label>
+              <select id="zeitraum" name="zeitraum">
+                <option value="7">1 Woche</option>
+                <option value="14">2 Wochen</option>
+                <option value="28">4 Wochen</option>
+                <option value="ytd" selected>Seit Jahresanfang</option>
+              </select>
+              <br />
+              <button
+                id="toggle-5yr-plot"
+                style="display: inline-block;"
+              >
+                die letzten 5 Jahre
+              </button>
+            </div>
+            <!-- Added a wrapper for the canvas -->
+            <div class="plot-wrapper">
+              <canvas id="plot-canvas"></canvas>
+            </div>
+          </div>
+
+          <h2>
+            <button id="toggle-temp-plot">Diagramm (Tagesmitteltemperaturen) anzeigen</button>
+          </h2>
+          <div class="plot-container" id="temp-plot-container">
+            <canvas id="temp-plot"></canvas>
+          </div>
+        </section>
+      </div>
 
     </main>
 
@@ -180,6 +181,17 @@
         <button id="map-save-btn">Diesen Ort verwenden</button>
       </div>
       <div id="map"></div>
+    </div>
+
+    <div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <h3 id="confirm-modal-title">Eintrag wirklich löschen?</h3>
+        <p id="confirm-modal-message">Dies entfernt den Eintrag und alle zugehörigen Daten.</p>
+        <div class="modal-actions">
+          <button id="confirm-modal-accept" class="red-button" type="button">Löschen</button>
+          <button id="confirm-modal-cancel" type="button">Abbrechen</button>
+        </div>
+      </div>
     </div>
 
     <!-- Leaflet JS -->
