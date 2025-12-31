@@ -489,7 +489,12 @@ export class PlotUpdater {
    * @param {Date} endDate - End date for reference in messages.
    */
   step12UpdateErgebnisText(gtsResults, endDate) {
-    const formattedDate = formatDateLocal(endDate);
+    // Use Intl.DateTimeFormat for stable German long date output across browsers.
+    const formattedDate = new Intl.DateTimeFormat("de-DE", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric"
+    }).format(endDate);
     const localTodayStr = formatDateLocal(new Date());
     const lastGTS = gtsResults.length
       ? gtsResults[gtsResults.length - 1].gts
@@ -499,7 +504,7 @@ export class PlotUpdater {
     let dateWeight = "bold";
     let betragenStr = "beträgt";
 
-    if (formattedDate === localTodayStr) {
+    if (formatDateLocal(endDate) === localTodayStr) {
       dateColor = "#206020";
       betragenStr = "beträgt";
     } else {
