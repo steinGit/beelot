@@ -39,7 +39,27 @@
           <p>
             <ol style="list-style-type: decimal; margin-left: 20px; padding: 0; line-height: 1.8;">
               <li style="margin-bottom: 20px;">
-                Wähle einen Ort auf der Karte:
+                Wähle oder erstelle einen Standort. Anfangs gibt es einen Standard-Standort:
+                <br>
+                <img src="assets/img/tabs01.png" "Initiales Standort Reiter Bild" style="height: 40px; width: auto;">
+                <br>
+                Du kannst mehrere Standorte gleichzeitig verwalten. Jeder ist unabhängig von den anderen.<br>
+                Mit "+" kann ein neuer Standort angelegt werden.<br>
+                Mit "-" wird der aktive Standort gelöscht.<br>
+                Mit Doppelklick auf einen Standort Reiter Name kann dieser geändert werden:
+                <br>
+                <img src="assets/img/tabs02.png" "Name ändern." style="height: 50px; width: auto;">
+                <br>
+                Sinnvolle Namen schaffen Klarheit:
+                <br>
+                <img src="assets/img/tabs03.png" "Klare Bezeichnungen." style="height: 40px; width: auto;">
+                <br><br>
+                <b>Hinweis:</b><br>
+                Jeder Standort ist eine eigene „Karteikarte“ mit einem fest zugewiesenen Ort und einer eigenen Grünland-Temperatur-Summe.
+                Du kannst zwischen Standorten wechseln, ohne die anderen zu verändern.<br>
+              </li>
+              <li style="margin-bottom: 20px;">
+                Im aktuell ausgewählten Standort (aktiver Reiter): Wähle einen Ort auf der Karte:<br>
                 <br>
                 <img src="assets/img/ort_button.png" "Ort Button Bild" style="width: 150px; height: auto;">
                 <br>
@@ -497,10 +517,10 @@
     <div id="footer-placeholder"></div>
     <script>
       fetch("components/footer.html")
-      .then(response => response.text())
-      .then(html => {
-      document.getElementById("footer-placeholder").innerHTML = html;
-      });
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById("footer-placeholder").innerHTML = html;
+    });
     </script>
   </body>
 </html>
