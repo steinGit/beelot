@@ -26,6 +26,7 @@ describe('plotData', () => {
 
     test('plots data when input is valid', () => {
         document.body.innerHTML = '<canvas id="plot-canvas"></canvas>';
+        window.gtsColorScheme = 'queen';
         const results = [
             { date: '2025-01-01', gts: 15 },
             { date: '2025-01-02', gts: 20 },

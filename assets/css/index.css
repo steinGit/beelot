@@ -78,6 +78,111 @@
     top: -1px;
 }
 
+.gts-range-group {
+    border: 0;
+    margin: 10px 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.gts-range-title {
+    font-weight: bold;
+    color: #333;
+    margin-right: 4px;
+}
+
+.gts-range-group label {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    cursor: pointer;
+}
+
+.gts-color-group {
+    border: 0;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.gts-color-group label {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    cursor: pointer;
+}
+
+.gts-color-group input:disabled + span {
+    color: #9a9a9a;
+}
+
+.gts-color-group input:disabled {
+    cursor: not-allowed;
+}
+
+.gts-color-group input:disabled + span {
+    cursor: not-allowed;
+}
+
+.tooltip {
+    position: absolute;
+    background: #fffaf0;
+    border: 1px solid #e0d8c8;
+    color: #333;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    max-width: 280px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    z-index: 20000;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.tooltip.is-visible {
+    opacity: 1;
+}
+
+.gts-control-group {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: #ffffff;
+}
+
+.brave-hint {
+    font-style: italic;
+    color: #7a7a7a;
+    font-weight: normal;
+    margin-left: 6px;
+}
+
+.sync-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 12px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.sync-toggle input {
+    cursor: pointer;
+}
+
+.legend-location-label {
+    font-weight: bold;
+    margin: 6px 0 4px;
+    color: #333;
+}
+
 .modal-overlay {
     position: fixed;
     inset: 0;

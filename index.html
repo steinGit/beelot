@@ -122,14 +122,21 @@
         </section>
 
         <section class="plot-section">
-          <h2>Simulation</h2>
+          <h2>Visualisierung</h2>
           <div class="input-group">
             <label for="datum">Datum:</label>
             <input type="date" id="datum" name="datum" />
             <button id="datum-plus">+</button>
             <button id="datum-minus">-</button>
             <!-- Always visible -->
-            <button id="datum-heute">heute</button><br />
+            <button id="datum-heute">heute</button>
+            <span id="standort-sync-control">
+              <label class="sync-toggle">
+                <input type="checkbox" id="standort-sync-toggle" />
+                <span id="standort-sync-label" class="tooltip-anchor" tabindex="0" aria-describedby="standort-sync-tooltip">Standort-Sync</span>
+              </label>
+            </span>
+            <br />
             <span class="small-gray-text">
               Hinweis: benutze die "+" und "-" Taste auf der Tastatur oder Numpad
             </span>
@@ -141,23 +148,51 @@
           <h2>
             <button id="toggle-gts-plot">Diagramm (GTS) anzeigen</button>
           </h2>
+          <div id="legend-location-label" class="legend-location-label"></div>
           <div class="plot-container" id="gts-plot-container">
             <div class="input-group">
               <label for="zeitraum">Darstellungs Zeitraum:</label>
-              <select id="zeitraum" name="zeitraum">
-                <option value="7">1 Woche</option>
-                <option value="14">2 Wochen</option>
-                <option value="28">4 Wochen</option>
-                <option value="ytd" selected>Seit Jahresanfang</option>
-              </select>
-              <br />
-              <button
-                id="toggle-5yr-plot"
-                style="display: inline-block;"
-              >
+            <select id="zeitraum" name="zeitraum">
+              <option value="7">1 Woche</option>
+              <option value="14">2 Wochen</option>
+              <option value="28">4 Wochen</option>
+              <option value="ytd" selected>Seit Jahresanfang</option>
+            </select>
+            <br />
+            <fieldset class="gts-range-group gts-control-group">
+              <legend class="gts-range-title">GTS Zeitraum</legend>
+              <label>
+                <input type="radio" name="gts-range" value="1" checked />
+                das ausgewählte Jahr
+              </label>
+              <label>
+                <input type="radio" name="gts-range" value="5" />
                 die letzten 5 Jahre
-              </button>
-            </div>
+              </label>
+              <label>
+                <input type="radio" name="gts-range" value="10" />
+                die letzten 10 Jahre
+              </label>
+            </fieldset>
+            <fieldset class="gts-color-group gts-control-group">
+              <legend class="gts-range-title">
+                Farbschema
+                <span id="brave-color-hint" class="brave-hint" aria-live="polite"></span>
+              </legend>
+              <label>
+                <input type="radio" name="gts-color-scheme" value="queen" checked />
+                <span id="gts-queen-label" class="tooltip-anchor" tabindex="0" aria-describedby="gts-queen-tooltip">Königinnenfarben</span>
+              </label>
+              <label>
+                <input type="radio" name="gts-color-scheme" value="turbo" />
+                <span id="gts-rainbow-label" class="tooltip-anchor" tabindex="0" aria-describedby="gts-rainbow-tooltip">Regenbogen</span>
+              </label>
+              <label>
+                <input type="radio" name="gts-color-scheme" value="temperature" />
+                <span id="gts-temp-label" class="tooltip-anchor" tabindex="0" aria-describedby="gts-temp-tooltip">Temperatur</span>
+              </label>
+            </fieldset>
+          </div>
             <!-- Added a wrapper for the canvas -->
             <div class="plot-wrapper">
               <canvas id="plot-canvas"></canvas>
@@ -192,6 +227,22 @@
           <button id="confirm-modal-cancel" type="button">Abbrechen</button>
         </div>
       </div>
+    </div>
+
+    <div id="gts-temp-tooltip" class="tooltip" role="tooltip" aria-hidden="true">
+      Die Farben zeigen, welche Kurve am rechten Rand des Diagramms den höchsten GTS-Wert hat. Je röter, desto höher.
+    </div>
+
+    <div id="gts-queen-tooltip" class="tooltip" role="tooltip" aria-hidden="true">
+      Jedes Jahr wird in seiner traditionellen Königinnenfarbe dargestellt.
+    </div>
+
+    <div id="gts-rainbow-tooltip" class="tooltip" role="tooltip" aria-hidden="true">
+      Die Kurven werden gleichmäßig von blau bis rot eingefärbt, unabhängig vom GTS-Wert.
+    </div>
+
+    <div id="standort-sync-tooltip" class="tooltip" role="tooltip" aria-hidden="true">
+      Synchronisiert Datum und alle Visualisierungseinstellungen über alle Standorte hinweg.
     </div>
 
     <!-- Leaflet JS -->

@@ -21,6 +21,72 @@ export function beekeeperColor(year) {
     return colorMap[remainder];
 }
 
+const OLDER_YEAR_PALETTE = [
+    "rgb(180, 180, 255)",
+    "rgb(130, 230, 130)",
+    "rgb(255, 100, 100)",
+    "rgb(255, 230, 50)",
+    "rgb(180, 180, 180)"
+];
+
+const COLOR_MAP = {
+    blue: [0, 0, 255],
+    red: [255, 0, 0],
+    green: [0, 128, 0],
+    grey: [128, 128, 128],
+    "#ddaa00": [221, 170, 0]
+};
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const TURBO_MIN = 0.05;
+const TURBO_MAX = 0.95;
+
+const turboColor = (t) => {
+    const tt = clamp(t, TURBO_MIN, TURBO_MAX);
+    const r = 34.61 + tt * (1172.33 + tt * (-10793.56 + tt * (33300.12 + tt * (-38394.49 + tt * 14825.05))));
+    const g = 23.31 + tt * (557.33 + tt * (1225.33 + tt * (-3574.96 + tt * (1073.77 + tt * 707.56))));
+    const b = 27.2 + tt * (3211.1 + tt * (-15327.97 + tt * (27814.0 + tt * (-22569.18 + tt * 6838.66))));
+    return `rgb(${clamp(Math.round(r), 0, 255)}, ${clamp(Math.round(g), 0, 255)}, ${clamp(Math.round(b), 0, 255)})`;
+};
+
+const colorToRgba = (color, alpha) => {
+    if (color.startsWith("rgb(")) {
+        return color.replace("rgb(", "rgba(").replace(")", `, ${alpha})`);
+    }
+    if (color.startsWith("#") && color.length === 7) {
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    const rgb = COLOR_MAP[color];
+    if (!rgb) {
+        return color;
+    }
+    return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+};
+
+const getTurboForIndex = (yearIndex, totalYears) => {
+    const t = totalYears <= 1 ? TURBO_MIN : yearIndex / (totalYears - 1);
+    return turboColor(t);
+};
+
+const getQueenForIndex = (yearIndex, year) => {
+    // TODO: Extend per-range styling if additional year ranges are added.
+    if (yearIndex >= 5) {
+        return OLDER_YEAR_PALETTE[clamp(yearIndex - 5, 0, OLDER_YEAR_PALETTE.length - 1)];
+    }
+    return beekeeperColor(year);
+};
+
+const getColorForIndex = (yearIndex, totalYears, year, scheme) => {
+    if (scheme === "turbo") {
+        return getTurboForIndex(yearIndex, totalYears);
+    }
+    return getQueenForIndex(yearIndex, year);
+};
+
 /**
  * Plot a single GTS dataset (the existing approach).
  * E.g. filteredResults => array of { date, gts }.
@@ -35,27 +101,20 @@ export function plotData(results, verbose = false) {
         return null;
     }
 
+    const POINTS_THRESHOLD = 100;
+    const pointRadius = results.length > POINTS_THRESHOLD ? 0 : 5;
+    const pointHoverRadius = results.length > POINTS_THRESHOLD ? 0 : 7;
+
     const labels = results.map(r => formatDayMonth(r.date));
 
     const data = results.map(r => r.gts);
 
     // Use the last date's year for color
     const endDate = new Date(results[results.length - 1].date);
-    const yearColor = beekeeperColor(endDate.getFullYear());
+    const yearColor = getColorForIndex(0, 1, endDate.getFullYear(), window.gtsColorScheme || "queen");
 
     // Determine background color based on the year color
-    let bgColor = 'rgba(0,0,255,0.2)';
-    if (yearColor === 'grey') {
-        bgColor = 'rgba(128,128,128,0.2)';
-    } else if (yearColor === '#ddaa00') {
-        bgColor = 'rgba(221,170,0,0.2)';
-    } else if (yearColor === 'red') {
-        bgColor = 'rgba(255,0,0,0.2)';
-    } else if (yearColor === 'green') {
-        bgColor = 'rgba(0,128,0,0.2)';
-    } else if (yearColor === 'blue') {
-        bgColor = 'rgba(0,0,255,0.2)';
-    }
+    const bgColor = colorToRgba(yearColor, 0.2);
 
     const ctx = document.getElementById('plot-canvas').getContext('2d');
     const chartGTS = new Chart(ctx, {
@@ -69,8 +128,8 @@ export function plotData(results, verbose = false) {
                 backgroundColor: bgColor,
                 fill: true,
                 tension: 0.1,
-                pointRadius: 5,
-                pointHoverRadius: 7
+                pointRadius: pointRadius,
+                pointHoverRadius: pointHoverRadius
             }]
         },
         options: {
@@ -205,31 +264,49 @@ export function plotDailyTemps(dates, temps, verbose = false) {
 export function plotMultipleYearData(multiYearData) {
     const ctx = document.getElementById('plot-canvas').getContext('2d');
 
+    const years = multiYearData.map(item => item.year);
+    const newestYear = Math.max(...years);
+    const POINTS_THRESHOLD = 100;
+    const scheme = window.gtsColorScheme || "queen";
+
+    const getPointRadius = (length) => (length > POINTS_THRESHOLD ? 0 : 4);
+    const getPointHoverRadius = (length) => (length > POINTS_THRESHOLD ? 0 : 6);
+
     // Build multiple Chart.js datasets
+    let temperatureColors = null;
+    if (scheme === "temperature") {
+        const sortedByGts = [...multiYearData].sort((a, b) => {
+            const aLast = a.gtsValues[a.gtsValues.length - 1] || 0;
+            const bLast = b.gtsValues[b.gtsValues.length - 1] || 0;
+            return aLast - bLast;
+        });
+        temperatureColors = new Map();
+        const total = sortedByGts.length;
+        sortedByGts.forEach((item, index) => {
+            temperatureColors.set(item.year, getTurboForIndex(index, total));
+        });
+    }
+
     const datasets = multiYearData.map(item => {
-        const yearColor = beekeeperColor(item.year);
-        let bgColor = 'rgba(0,0,255,0.0)';
-        if (yearColor === 'grey') {
-            bgColor = 'rgba(128,128,128,0.0)';
-        } else if (yearColor === '#ddaa00') {
-            bgColor = 'rgba(221,170,0,0.0)';
-        } else if (yearColor === 'red') {
-            bgColor = 'rgba(255,0,0,0.0)';
-        } else if (yearColor === 'green') {
-            bgColor = 'rgba(0,128,0,0.0)';
-        } else if (yearColor === 'blue') {
-            bgColor = 'rgba(0,0,255,0.0)';
-        }
+        const yearIndex = newestYear - item.year;
+        const borderColor = scheme === "temperature"
+            ? temperatureColors.get(item.year)
+            : getColorForIndex(yearIndex, multiYearData.length, item.year, scheme);
+        const isOlder = yearIndex >= 5;
+        const pointRadius = getPointRadius(item.gtsValues.length);
+        const pointHoverRadius = getPointHoverRadius(item.gtsValues.length);
+        const bgColor = colorToRgba(borderColor, 0.0);
 
         return {
             label: `${item.year}`,
             data: item.gtsValues,
-            borderColor: yearColor,
+            borderColor: borderColor,
             backgroundColor: bgColor,
             fill: true,
             tension: 0.1,
-            pointRadius: 4,
-            pointHoverRadius: 6
+            pointRadius: pointRadius,
+            pointHoverRadius: pointHoverRadius,
+            pointStyle: isOlder ? 'triangle' : 'circle'
         };
     });
 

@@ -13,14 +13,20 @@ describe('ui module exports', () => {
             <button id="datum-plus"></button>
             <button id="datum-minus"></button>
             <button id="datum-heute"></button>
+            <input type="checkbox" id="standort-sync-toggle" />
             <button id="toggle-gts-plot"></button>
             <div id="gts-plot-container"></div>
             <button id="toggle-temp-plot"></button>
             <div id="temp-plot-container"></div>
-            <button id="toggle-5yr-plot"></button>
             <output id="location-name"></output>
             <div id="location-tabs"></div>
             <div id="location-panel"></div>
+            <label><input type="radio" name="gts-range" value="1" checked /></label>
+            <label><input type="radio" name="gts-range" value="5" /></label>
+            <label><input type="radio" name="gts-range" value="10" /></label>
+            <label><input type="radio" name="gts-color-scheme" value="queen" checked /></label>
+            <label><input type="radio" name="gts-color-scheme" value="turbo" /></label>
+            <label><input type="radio" name="gts-color-scheme" value="temperature" /></label>
         `;
     });
 

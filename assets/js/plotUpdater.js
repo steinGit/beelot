@@ -12,6 +12,7 @@ import {
   computeStartDate,
   getSelectedEndDate,
   build5YearData,
+  buildYearData,
   computeDateRange
 } from './logic.js';
 import { updateHinweisSection } from './information.js';
@@ -549,13 +550,15 @@ export class PlotUpdater {
       return;
     }
 
-    if (window.showFiveYear) {
-      const multiYearData = await build5YearData(
+    const yearRange = window.gtsYearRange || 1;
+    if (yearRange > 1) {
+      const multiYearData = await buildYearData(
         lat,
         lon,
         plotStartDate,
         endDate,
         filteredResults,
+        yearRange,
         this.weatherCacheStore
       );
       this.chartGTS = plotMultipleYearData(multiYearData);

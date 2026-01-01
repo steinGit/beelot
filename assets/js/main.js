@@ -18,7 +18,9 @@ import {
   gtsPlotContainer,
   toggleTempPlotBtn,
   tempPlotContainer,
-  toggle5yrPlotBtn,
+  gtsRangeInputs,
+  gtsColorInputs,
+  standortSyncToggle,
   locationNameOutput,
   locationTabsContainer,
   locationPanel
@@ -104,7 +106,66 @@ function updateZeitraumSelect() {
 // We'll hold a reference to our PlotUpdater instance here
 let plotUpdater = null;
 // Also track the multi-year toggle
-let showFiveYear = false;
+let gtsYearRange = 1;
+let gtsColorScheme = "queen";
+let standortSyncEnabled = false;
+const STANDORT_SYNC_KEY = "beelotStandortSync";
+const STANDORT_SYNC_CONTROL_ID = "standort-sync-control";
+
+function loadStandortSyncState() {
+  const stored = localStorage.getItem(STANDORT_SYNC_KEY);
+  if (stored === null) {
+    return false;
+  }
+  return stored === "true";
+}
+
+function persistStandortSyncState() {
+  localStorage.setItem(STANDORT_SYNC_KEY, String(standortSyncEnabled));
+}
+
+function getSyncPayload() {
+  return {
+    selectedDate: datumInput.value,
+    zeitraum: zeitraumSelect.value,
+    gtsYearRange: gtsYearRange,
+    gtsColorScheme: gtsColorScheme,
+    gtsPlotVisible: gtsPlotContainer.classList.contains("visible"),
+    tempPlotVisible: tempPlotContainer.classList.contains("visible")
+  };
+}
+
+function applySyncToAllLocations(payload) {
+  getLocationsInOrder().forEach((location) => {
+    updateLocation(location.id, (current) => {
+      current.ui.selectedDate = payload.selectedDate;
+      current.ui.zeitraum = payload.zeitraum;
+      current.ui.gtsYearRange = payload.gtsYearRange;
+      current.ui.gtsColorScheme = payload.gtsColorScheme;
+      current.ui.gtsPlotVisible = payload.gtsPlotVisible;
+      current.ui.tempPlotVisible = payload.tempPlotVisible;
+    });
+  });
+}
+
+function updateColorSchemeAvailability(rangeValue) {
+  const lockToQueen = rangeValue === 1;
+  gtsColorInputs.forEach((input) => {
+    if (input.value === "queen") {
+      input.disabled = false;
+      return;
+    }
+    input.disabled = lockToQueen;
+  });
+  if (lockToQueen) {
+    gtsColorScheme = "queen";
+    window.gtsColorScheme = gtsColorScheme;
+    gtsColorInputs.forEach((input) => {
+      input.checked = input.value === "queen";
+    });
+    updateActiveLocationUiState({ gtsColorScheme });
+  }
+}
 let confirmModalResolver = null;
 
 function confirmModal({ title, message, confirmText = "Löschen", cancelText = "Abbrechen" }) {
@@ -175,6 +236,10 @@ function updateActiveLocationUiState(partial) {
       }
     };
   });
+
+  if (standortSyncEnabled) {
+    applySyncToAllLocations(getSyncPayload());
+  }
 }
 
 function setPlotVisibility(showGts, showTemp) {
@@ -223,15 +288,42 @@ function applyLocationState(location) {
     locationNameOutput.textContent = "Standortname wird angezeigt...";
   }
 
-  showFiveYear = Boolean(location.ui.showFiveYear);
-  window.showFiveYear = showFiveYear;
-  toggle5yrPlotBtn.textContent = showFiveYear ? "das ausgewählte Jahr" : "die letzten 5 Jahre";
+  gtsYearRange = location.ui.gtsYearRange || 1;
+  window.gtsYearRange = gtsYearRange;
+  if (gtsRangeInputs.length > 0) {
+    gtsRangeInputs.forEach((input) => {
+      input.checked = parseInt(input.value, 10) === gtsYearRange;
+    });
+  }
+
+  gtsColorScheme = location.ui.gtsColorScheme || "queen";
+  window.gtsColorScheme = gtsColorScheme;
+  if (gtsColorInputs.length > 0) {
+    gtsColorInputs.forEach((input) => {
+      input.checked = input.value === gtsColorScheme;
+    });
+  }
+  updateColorSchemeAvailability(gtsYearRange);
 
   setPlotVisibility(location.ui.gtsPlotVisible, location.ui.tempPlotVisible);
 
   if (locationPanel) {
     locationPanel.setAttribute("aria-labelledby", `location-tab-${location.id}`);
   }
+
+  const legendLabel = document.getElementById("legend-location-label");
+  if (legendLabel) {
+    legendLabel.textContent = `${location.name}:`;
+  }
+}
+
+function updateStandortSyncVisibility() {
+  const control = document.getElementById(STANDORT_SYNC_CONTROL_ID);
+  if (!control) {
+    return;
+  }
+  const locations = getLocationsInOrder();
+  control.style.display = locations.length > 1 ? "inline-block" : "none";
 }
 
 function startEditingLocationName(locationId, nameElement) {
@@ -316,40 +408,43 @@ function renderLocationTabs() {
   });
   locationTabsContainer.appendChild(addTab);
 
-  const removeTab = document.createElement("button");
-  removeTab.type = "button";
-  removeTab.className = "location-tab location-tab-remove";
-  removeTab.role = "tab";
-  removeTab.id = "location-tab-remove";
-  removeTab.setAttribute("aria-selected", "false");
-  removeTab.setAttribute("tabindex", "-1");
-  removeTab.setAttribute("aria-controls", "location-panel");
-  removeTab.textContent = "-";
-  removeTab.addEventListener("click", () => {
-    const activeId = getActiveLocationId();
-    const locationsList = getLocationsInOrder();
-    if (locationsList.length <= 1) {
-      return;
-    }
-    if (locationsList[0].id === activeId) {
-      return;
-    }
-    confirmModal({
-      title: "Eintrag wirklich löschen?",
-      message: "Dies entfernt den Eintrag und alle zugehörigen Daten.",
-      confirmText: "Löschen",
-      cancelText: "Abbrechen"
-    }).then((confirmed) => {
-      if (!confirmed) {
-        return;
-      }
-      const deleted = deleteLocationEntry(activeId);
-      if (deleted) {
-        window.location.reload();
-      }
+  if (locations.length > 1) {
+    const removeTab = document.createElement("button");
+    removeTab.type = "button";
+    removeTab.className = "location-tab location-tab-remove";
+    removeTab.role = "tab";
+    removeTab.id = "location-tab-remove";
+    removeTab.setAttribute("aria-selected", "false");
+    removeTab.setAttribute("tabindex", "-1");
+    removeTab.setAttribute("aria-controls", "location-panel");
+    removeTab.textContent = "-";
+    removeTab.addEventListener("click", () => {
+      const activeId = getActiveLocationId();
+      confirmModal({
+        title: "Eintrag wirklich löschen?",
+        message: "Dies entfernt den Eintrag und alle zugehörigen Daten.",
+        confirmText: "Löschen",
+        cancelText: "Abbrechen"
+      }).then((confirmed) => {
+        if (!confirmed) {
+          return;
+        }
+        const deleted = deleteLocationEntry(activeId);
+        if (deleted) {
+          window.location.reload();
+        }
+      });
     });
-  });
-  locationTabsContainer.appendChild(removeTab);
+    locationTabsContainer.appendChild(removeTab);
+  }
+
+  const legendLabel = document.getElementById("legend-location-label");
+  const activeLocation = getActiveLocation();
+  if (legendLabel && activeLocation) {
+    legendLabel.textContent = `${activeLocation.name}:`;
+  }
+
+  updateStandortSyncVisibility();
 }
 
 function switchLocation(locationId) {
@@ -361,7 +456,8 @@ function switchLocation(locationId) {
     updateActiveLocationUiState({
       selectedDate: datumInput.value,
       zeitraum: zeitraumSelect.value,
-      showFiveYear: showFiveYear,
+      gtsYearRange: gtsYearRange,
+      gtsColorScheme: gtsColorScheme,
       gtsPlotVisible: gtsPlotContainer.classList.contains("visible"),
       tempPlotVisible: tempPlotContainer.classList.contains("visible")
     });
@@ -404,7 +500,8 @@ document.addEventListener('DOMContentLoaded', () => {
     !gtsPlotContainer ||
     !toggleTempPlotBtn ||
     !tempPlotContainer ||
-    !toggle5yrPlotBtn ||
+    gtsRangeInputs.length === 0 ||
+    gtsColorInputs.length === 0 ||
     !locationNameOutput ||
     !locationTabsContainer ||
     !locationPanel
@@ -441,6 +538,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   renderLocationTabs();
 
+  updateStandortSyncVisibility();
+
+  standortSyncEnabled = loadStandortSyncState();
+  if (standortSyncToggle) {
+    standortSyncToggle.checked = standortSyncEnabled;
+  }
+
+  if (standortSyncEnabled) {
+    applySyncToAllLocations(getSyncPayload());
+  }
+
   // Now set up event listeners
   setupEventListeners();
 });
@@ -449,6 +557,158 @@ document.addEventListener('DOMContentLoaded', () => {
  * Attach event listeners (only if DOM elements exist).
  */
 function setupEventListeners() {
+  const braveHintEl = document.getElementById("brave-color-hint");
+  const isBrave = () => {
+    if (typeof navigator === "undefined") {
+      return false;
+    }
+    const braveObj = navigator.brave;
+    if (braveObj && typeof braveObj.isBrave === "function") {
+      try {
+        braveObj.isBrave().then((result) => {
+          if (braveHintEl) {
+            braveHintEl.textContent = result
+              ? "Farben können im Browser Brave teilweise verfälscht dargestellt werden."
+              : "";
+          }
+        });
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+    return false;
+  };
+  if (braveHintEl) {
+    isBrave();
+  }
+
+  if (standortSyncToggle) {
+    standortSyncToggle.addEventListener("change", () => {
+      standortSyncEnabled = standortSyncToggle.checked;
+      persistStandortSyncState();
+      if (standortSyncEnabled) {
+        applySyncToAllLocations(getSyncPayload());
+      }
+    });
+  }
+
+  const tooltipPairs = [
+    { labelId: "gts-queen-label", tooltipId: "gts-queen-tooltip" },
+    { labelId: "gts-rainbow-label", tooltipId: "gts-rainbow-tooltip" },
+    { labelId: "gts-temp-label", tooltipId: "gts-temp-tooltip" },
+    { labelId: "standort-sync-label", tooltipId: "standort-sync-tooltip" }
+  ];
+
+  tooltipPairs.forEach(({ labelId, tooltipId }) => {
+    const label = document.getElementById(labelId);
+    const tooltip = document.getElementById(tooltipId);
+    let tooltipTimer = null;
+
+    const showTooltip = () => {
+      if (!label || !tooltip) {
+        return;
+      }
+      const rect = label.getBoundingClientRect();
+      tooltip.style.top = `${window.scrollY + rect.top - tooltip.offsetHeight - 8}px`;
+      tooltip.style.left = `${window.scrollX + rect.left}px`;
+      tooltip.classList.add("is-visible");
+      tooltip.setAttribute("aria-hidden", "false");
+    };
+
+    const scheduleTooltip = () => {
+      if (tooltipTimer) {
+        clearTimeout(tooltipTimer);
+      }
+      tooltipTimer = window.setTimeout(showTooltip, 300);
+    };
+
+    const hideTooltip = () => {
+      if (tooltipTimer) {
+        clearTimeout(tooltipTimer);
+        tooltipTimer = null;
+      }
+      if (!tooltip) {
+        return;
+      }
+      tooltip.classList.remove("is-visible");
+      tooltip.setAttribute("aria-hidden", "true");
+    };
+
+    if (label && tooltip) {
+      label.addEventListener("mouseenter", scheduleTooltip);
+      label.addEventListener("mouseleave", hideTooltip);
+      label.addEventListener("focus", scheduleTooltip);
+      label.addEventListener("blur", hideTooltip);
+    }
+  });
+
+  const tabTooltipText = "Mit den Pfeiltasten ← und → kannst du zwischen den Standorten wechseln – ideal zum Vergleichen.";
+  const tabTooltip = document.createElement("div");
+  tabTooltip.id = "location-tab-tooltip";
+  tabTooltip.className = "tooltip";
+  tabTooltip.setAttribute("role", "tooltip");
+  tabTooltip.setAttribute("aria-hidden", "true");
+  tabTooltip.textContent = tabTooltipText;
+  document.body.appendChild(tabTooltip);
+  let tabTooltipTimer = null;
+
+  const showTabTooltip = (target) => {
+    if (!target) {
+      return;
+    }
+    const rect = target.getBoundingClientRect();
+    tabTooltip.style.top = `${window.scrollY + rect.top - tabTooltip.offsetHeight - 8}px`;
+    tabTooltip.style.left = `${window.scrollX + rect.left}px`;
+    tabTooltip.classList.add("is-visible");
+    tabTooltip.setAttribute("aria-hidden", "false");
+  };
+
+  const scheduleTabTooltip = (event) => {
+    if (tabTooltipTimer) {
+      clearTimeout(tabTooltipTimer);
+    }
+    const target = event.currentTarget;
+    tabTooltipTimer = window.setTimeout(() => showTabTooltip(target), 300);
+  };
+
+  const hideTabTooltip = () => {
+    if (tabTooltipTimer) {
+      clearTimeout(tabTooltipTimer);
+      tabTooltipTimer = null;
+    }
+    tabTooltip.classList.remove("is-visible");
+    tabTooltip.setAttribute("aria-hidden", "true");
+  };
+
+  const bindTabTooltip = (element) => {
+    if (!element) {
+      return;
+    }
+    element.setAttribute("aria-describedby", tabTooltip.id);
+    element.addEventListener("mouseenter", scheduleTabTooltip);
+    element.addEventListener("mouseleave", hideTabTooltip);
+    element.addEventListener("focus", scheduleTabTooltip);
+    element.addEventListener("blur", hideTabTooltip);
+  };
+
+  const attachTabTooltips = () => {
+    const tabElements = document.querySelectorAll(".location-tab");
+    tabElements.forEach((tab) => {
+      if (tab.dataset.tooltipBound === "true") {
+        return;
+      }
+      tab.dataset.tooltipBound = "true";
+      bindTabTooltip(tab);
+    });
+  };
+
+  const observer = new MutationObserver(() => {
+    attachTabTooltips();
+  });
+  observer.observe(document.getElementById("location-tabs"), { childList: true });
+  attachTabTooltips();
+
   const modalAccept = document.getElementById("confirm-modal-accept");
   const modalCancel = document.getElementById("confirm-modal-cancel");
   const modalOverlay = document.getElementById("confirm-modal");
@@ -462,22 +722,36 @@ function setupEventListeners() {
     });
   }
 
-  toggle5yrPlotBtn.addEventListener('click', () => {
-    showFiveYear = !showFiveYear;
-    // Expose the variable for other modules if needed
-    window.showFiveYear = showFiveYear;
+  gtsRangeInputs.forEach((input) => {
+    input.addEventListener('change', () => {
+      if (!input.checked) {
+        return;
+      }
+      gtsYearRange = parseInt(input.value, 10);
+      window.gtsYearRange = gtsYearRange;
+      updateActiveLocationUiState({ gtsYearRange });
+      updateColorSchemeAvailability(gtsYearRange);
+      if (plotUpdater) {
+        plotUpdater.run();
+      }
+    });
+  });
 
-    updateActiveLocationUiState({ showFiveYear });
-
-    if (showFiveYear) {
-      toggle5yrPlotBtn.textContent = 'das ausgewählte Jahr';
-    } else {
-      toggle5yrPlotBtn.textContent = 'die letzten 5 Jahre';
-    }
-
-    if (plotUpdater) {
-      plotUpdater.run();
-    }
+  gtsColorInputs.forEach((input) => {
+    input.addEventListener('change', () => {
+      if (!input.checked) {
+        return;
+      }
+      if (gtsYearRange === 1) {
+        return;
+      }
+      gtsColorScheme = input.value;
+      window.gtsColorScheme = gtsColorScheme;
+      updateActiveLocationUiState({ gtsColorScheme });
+      if (plotUpdater) {
+        plotUpdater.run();
+      }
+    });
   });
 
   // Whenever the user manually changes the ortInput, show/hide coords line & re-run
@@ -542,6 +816,24 @@ function setupEventListeners() {
       datumPlusBtn.click();
     } else if (event.key === "-" || event.code === "NumpadSubtract") {
       datumMinusBtn.click();
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      const activeElement = document.activeElement;
+      if (activeElement && (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA")) {
+        return;
+      }
+      const locations = getLocationsInOrder();
+      if (locations.length <= 1) {
+        return;
+      }
+      const activeId = getActiveLocationId();
+      const currentIndex = locations.findIndex((location) => location.id === activeId);
+      if (currentIndex === -1) {
+        return;
+      }
+      const offset = event.key === "ArrowLeft" ? -1 : 1;
+      const nextIndex = (currentIndex + offset + locations.length) % locations.length;
+      switchLocation(locations[nextIndex].id);
     }
   });
 

@@ -11,7 +11,8 @@ function buildDefaultUiState() {
   return {
     selectedDate: "",
     zeitraum: "ytd",
-    showFiveYear: false,
+    gtsYearRange: 1,
+    gtsColorScheme: "queen",
     gtsPlotVisible: false,
     tempPlotVisible: false,
     map: {
@@ -218,9 +219,24 @@ export function renameLocation(id, newName) {
 }
 
 export function createLocationEntry() {
+  const highestIndex = state.order.reduce((maxIndex, entryId) => {
+    const location = state.locations[entryId];
+    if (!location) {
+      return maxIndex;
+    }
+    const match = location.name.match(/^Standort\s+(\d+)$/);
+    if (!match) {
+      return maxIndex;
+    }
+    const index = parseInt(match[1], 10);
+    if (Number.isNaN(index)) {
+      return maxIndex;
+    }
+    return Math.max(maxIndex, index);
+  }, 0);
   const id = `loc-${state.nextId}`;
   state.nextId += 1;
-  const name = `${DEFAULT_NAME_PREFIX} ${state.order.length + 1}`;
+  const name = `${DEFAULT_NAME_PREFIX} ${highestIndex + 1}`;
   state.locations[id] = createLocation(id, name);
   state.order.push(id);
   state.activeId = id;
@@ -229,16 +245,18 @@ export function createLocationEntry() {
 }
 
 export function deleteLocationEntry(id) {
-  if (state.order[0] === id) {
+  if (state.order.length <= 1) {
     return false;
   }
   if (!state.locations[id]) {
     return false;
   }
+  const currentIndex = state.order.indexOf(id);
   delete state.locations[id];
   state.order = state.order.filter((entryId) => entryId !== id);
   if (!state.locations[state.activeId]) {
-    state.activeId = state.order[0];
+    const nextIndex = Math.min(currentIndex, state.order.length - 1);
+    state.activeId = state.order[nextIndex];
   }
   persist();
   return true;
