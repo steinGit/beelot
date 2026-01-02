@@ -397,7 +397,7 @@
           </details>
 
           <details>
-            <summary>Bekannte Bugs</summary>
+            <summary>Bekannte Bugs und die Abhilfe</summary>
             <details>
               <summary>"+" Button hängt (Simulation)</summary>
               <p>
@@ -412,6 +412,31 @@
               <summary>
                 Not a bug, but a Feature: Plot-Kurven von Schaltjahren haben einen Datenpunkt mehr.
               </summary>
+            </details>
+            <details>
+              <summary>Die Trachtpflanzen sind nicht anklickbar</summary>
+
+              <p>
+                Dein Browser verwendet einen Cache. Wenn zuvor eine ältere Version von BeeLot
+                genutzt wurde, kann es passieren, dass der Browser noch veraltete Inhalte
+                zwischenspeichert.
+              </p>
+
+              <p>
+                Du kannst den Browser jedoch zwingen, diese Daten zu verwerfen:
+              </p>
+
+              <ol>
+                <li>Drücke <strong>CTRL&nbsp;+&nbsp;F5</strong>, um die Seite vollständig neu zu laden.</li>
+                <li>Führe anschließend die folgenden drei Schritte aus:</li>
+              </ol>
+
+              <p>
+                <img
+                  src="assets/img/usage_reset_tracht.png"
+                  alt="Reset der Tracht-Tabelle"
+                  style="width: 600px; height: auto;">
+              </p>
             </details>
           </details>
         </details>
@@ -522,10 +547,10 @@
     <div id="footer-placeholder"></div>
     <script>
       fetch("components/footer.html")
-    .then(response => response.text())
-    .then(html => {
-        document.getElementById("footer-placeholder").innerHTML = html;
-    });
+      .then(response => response.text())
+      .then(html => {
+      document.getElementById("footer-placeholder").innerHTML = html;
+      });
     </script>
   </body>
 </html>
