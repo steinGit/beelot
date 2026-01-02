@@ -8,13 +8,13 @@ export const defaultTrachtData = [
 
     { active: true, TS_start: 35,  TS_end: 70,  plant: "Schneeglöckchen", url: "https://www.naturadb.de/pflanzen/galanthus-nivalis/" },
     { active: true, TS_start: 35,  TS_end: 70,  plant: "Winterlinge", url: "https://www.naturadb.de/pflanzen/eranthis-hyemalis/" },
-    { active: true, TS_start: 65,  TS_end: 120, plant: "Krokos", url: "https://www.naturadb.de/pflanzen/crocus/" },
+    { active: true, TS_start: 65,  TS_end: 120, plant: "Krokos", url: "https://www.naturadb.de/pflanzen/crocus-tommasinianus/" },
     { active: true, TS_start: 65,  TS_end: 120, plant: "Hasel", url: "https://www.naturadb.de/pflanzen/corylus-avellana/" },
     { active: true, TS_start: 65,  TS_end: 120, plant: "Winterjasmin", url: "https://www.naturadb.de/pflanzen/jasminum-nudiflorum/" },
 
-    { active: true, TS_start: 175, TS_end: 230, plant: "kleine Osterglocken", url: "https://www.naturadb.de/pflanzen/narcissus/" },
-    { active: true, TS_start: 175, TS_end: 230, plant: "Forsythien", url: "https://www.naturadb.de/pflanzen/forsythia/" },
-    { active: true, TS_start: 175, TS_end: 260, plant: "Weiden", url: "https://www.naturadb.de/pflanzen/salix/" },
+    { active: true, TS_start: 175, TS_end: 230, plant: "kleine Osterglocken", url: "https://www.naturadb.de/pflanzen/narcissus-cyclamineus/" },
+    { active: true, TS_start: 175, TS_end: 230, plant: "Forsythien", url: "https://www.naturadb.de/pflanzen/forsythia-x-intermedia/" },
+    { active: true, TS_start: 175, TS_end: 260, plant: "Weiden", url: "https://www.naturadb.de/pflanzen/salix-caprea/" },
 
     { active: true, TS_start: 200, TS_end: 200, plant: "Kornelkirsche", url: "https://www.naturadb.de/pflanzen/cornus-mas/" },
     { active: true, TS_start: 200, TS_end: 200, plant: "Traubenhyazinthe", url: "https://www.naturadb.de/pflanzen/muscari-armeniacum/" },
@@ -31,26 +31,26 @@ export const defaultTrachtData = [
     { active: true, TS_start: 300, TS_end: 300, plant: "Pfirsich", url: "https://www.naturadb.de/pflanzen/prunus-persica/" },
 
     { active: true, TS_start: 310, TS_end: 310, plant: "Tränendes Herz", url: "https://www.naturadb.de/pflanzen/lamprocapnos-spectabilis/" },
-    { active: true, TS_start: 320, TS_end: 320, plant: "Tulpe", url: "https://www.naturadb.de/pflanzen/tulipa/" },
+    { active: true, TS_start: 320, TS_end: 320, plant: "Tulpe", url: "https://www.naturadb.de/pflanzen/tulipa-sylvestris/" },
 
-    { active: true, TS_start: 340, TS_end: 340, plant: "Birke", url: "https://www.naturadb.de/pflanzen/betula/" },
+    { active: true, TS_start: 340, TS_end: 340, plant: "Birke", url: "https://www.naturadb.de/pflanzen/betula-pendula/" },
     { active: true, TS_start: 340, TS_end: 340, plant: "Schöllkraut", url: "https://www.naturadb.de/pflanzen/chelidonium-majus/" },
 
     { active: true, TS_start: 350, TS_end: 350, plant: "Löwenzahn", url: "https://www.naturadb.de/pflanzen/taraxacum-officinale/" },
-    { active: true, TS_start: 350, TS_end: 350, plant: "Magnolien", url: "https://www.naturadb.de/pflanzen/magnolia/" },
+    { active: true, TS_start: 350, TS_end: 350, plant: "Magnolien", url: "https://www.naturadb.de/pflanzen/magnolia-grandiflora/" },
 
-    { active: true, TS_start: 360, TS_end: 360, plant: "Jostabeere", url: "https://www.naturadb.de/pflanzen/ribes-nidigrolaria/" },
+    { active: true, TS_start: 360, TS_end: 360, plant: "Jostabeere", url: "https://www.naturadb.de/pflanzen/ribes-x-nidigrolaria/" },
 
     { active: true, TS_start: 365, TS_end: 460, plant: "Kirsche", url: "https://www.naturadb.de/pflanzen/prunus-avium/" },
 
     { active: true, TS_start: 370, TS_end: 370, plant: "Traubenkirsche", url: "https://www.naturadb.de/pflanzen/prunus-padus/" },
 
-    { active: true, TS_start: 380, TS_end: 380, plant: "Felsenbirne", url: "https://www.naturadb.de/pflanzen/amelanchier/" },
+    { active: true, TS_start: 380, TS_end: 380, plant: "Felsenbirne", url: "https://www.naturadb.de/pflanzen/amelanchier-ovalis/" },
     { active: true, TS_start: 380, TS_end: 380, plant: "Steinkraut", url: "https://www.naturadb.de/pflanzen/alyssum-saxatile/" },
 
     { active: true, TS_start: 390, TS_end: 390, plant: "Spargelaustrieb (ohne Folienabdeckung)", url: "https://www.naturadb.de/pflanzen/asparagus-officinalis/" },
     { active: true, TS_start: 400, TS_end: 400, plant: "Birne", url: "https://www.naturadb.de/pflanzen/pyrus-communis/" },
-    { active: true, TS_start: 400, TS_end: 400, plant: "Vergissmeinicht", url: "https://www.naturadb.de/pflanzen/myosotis/" },
+    { active: true, TS_start: 400, TS_end: 400, plant: "Vergissmeinicht", url: "https://www.naturadb.de/pflanzen/myosotis-sylvatica/" },
 
     { active: true, TS_start: 410, TS_end: 410, plant: "Fieberklee", url: "https://www.naturadb.de/pflanzen/menyanthes-trifoliata/" },
     { active: true, TS_start: 420, TS_end: 420, plant: "Wiesen-Schaumkraut", url: "https://www.naturadb.de/pflanzen/cardamine-pratensis/" },
@@ -61,13 +61,13 @@ export const defaultTrachtData = [
     { active: true, TS_start: 450, TS_end: 450, plant: "Bärlauch", url: "https://www.naturadb.de/pflanzen/allium-ursinum/" },
     { active: true, TS_start: 450, TS_end: 450, plant: "Stiefmütterchen", url: "https://www.naturadb.de/pflanzen/viola-tricolor/" },
 
-    { active: true, TS_start: 460, TS_end: 460, plant: "Hahnenfuß", url: "https://www.naturadb.de/pflanzen/ranunculus/" },
+    { active: true, TS_start: 460, TS_end: 460, plant: "Hahnenfuß", url: "https://www.naturadb.de/pflanzen/ranunculus-repens/" },
     { active: true, TS_start: 470, TS_end: 470, plant: "Taubnessel/Goldnessel", url: "https://www.naturadb.de/pflanzen/lamium-galeobdolon/" },
 
     { active: true, TS_start: 480, TS_end: 480, plant: "Apfel", url: "https://www.naturadb.de/pflanzen/malus-domestica/" },
     { active: true, TS_start: 480, TS_end: 480, plant: "Raps", url: "https://www.naturadb.de/pflanzen/brassica-napus/" },
     { active: true, TS_start: 480, TS_end: 480, plant: "Flieder", url: "https://www.naturadb.de/pflanzen/syringa-vulgaris/" },
-    { active: true, TS_start: 480, TS_end: 480, plant: "Gefleckter Aronstab", url: "https://www.naturadb.de/pflanzen/arisaema-maculatum/" },
+    { active: true, TS_start: 480, TS_end: 480, plant: "Gefleckter Aronstab", url: "https://www.naturadb.de/pflanzen/arum-maculatum/" },
 
     { active: true, TS_start: 490, TS_end: 490, plant: "Rhododendron", url: "https://www.naturadb.de/pflanzen/rhododendron/" },
     { active: true, TS_start: 500, TS_end: 500, plant: "Wiesensalbei", url: "https://www.naturadb.de/pflanzen/salvia-pratensis/" },
@@ -94,7 +94,7 @@ export const defaultTrachtData = [
     { active: true, TS_start: 750, TS_end: 750, plant: "Kamille", url: "https://www.naturadb.de/pflanzen/matricaria-chamomilla/" },
 
     { active: true, TS_start: 760, TS_end: 760, plant: "Kornblume", url: "https://www.naturadb.de/pflanzen/centaurea-cyanus/" },
-    { active: true, TS_start: 770, TS_end: 770, plant: "Schwertlilie (Iris hollandica)", url: "https://www.naturadb.de/pflanzen/iris-hollandica/" },
+    { active: true, TS_start: 770, TS_end: 770, plant: "Schwertlilie (Iris hollandica)", url: "https://www.naturadb.de/pflanzen/iris-germanica/" },
 
     { active: true, TS_start: 780, TS_end: 780, plant: "Lupine", url: "https://www.naturadb.de/pflanzen/lupinus-polyphyllus/" },
     { active: true, TS_start: 780, TS_end: 780, plant: "Giersch", url: "https://www.naturadb.de/pflanzen/aegopodium-podagraria/" },
@@ -106,7 +106,7 @@ export const defaultTrachtData = [
 
     { active: true, TS_start: 810, TS_end: 810, plant: "Perückenstrauch", url: "https://www.naturadb.de/pflanzen/cotinus-coggygria/" },
     { active: true, TS_start: 820, TS_end: 820, plant: "Robinie", url: "https://www.naturadb.de/pflanzen/robinia-pseudoacacia/" },
-    { active: true, TS_start: 830, TS_end: 830, plant: "Hartriegel", url: "https://www.naturadb.de/pflanzen/cornus/" },
+    { active: true, TS_start: 830, TS_end: 830, plant: "Hartriegel", url: "https://www.naturadb.de/pflanzen/cornus-sanguinea/" },
     { active: true, TS_start: 840, TS_end: 840, plant: "Holunder", url: "https://www.naturadb.de/pflanzen/sambucus-nigra/" },
     { active: true, TS_start: 850, TS_end: 850, plant: "Robinie", url: "https://www.naturadb.de/pflanzen/robinia-pseudoacacia/" },
 
@@ -118,34 +118,34 @@ export const defaultTrachtData = [
 
     { active: true, TS_start: 910, TS_end: 910, plant: "Karthäusernelke", url: "https://www.naturadb.de/pflanzen/dianthus-carthusianorum/" },
 
-    { active: true, TS_start: 940, TS_end: 940, plant: "Pfingstrose", url: "https://www.naturadb.de/pflanzen/paeonia/" },
+    { active: true, TS_start: 940, TS_end: 940, plant: "Pfingstrose", url: "https://www.naturadb.de/pflanzen/paeonia-officinalis/" },
     { active: true, TS_start: 940, TS_end: 940, plant: "Phacelia", url: "https://www.naturadb.de/pflanzen/phacelia-tanacetifolia/" },
     { active: true, TS_start: 940, TS_end: 940, plant: "Orangerotes Habichtskraut", url: "https://www.naturadb.de/pflanzen/hieracium-aurantiacum/" },
 
     { active: true, TS_start: 950, TS_end: 950, plant: "Zuckererbse", url: "https://www.naturadb.de/pflanzen/pisum-sativum/" },
 
     { active: true, TS_start: 960, TS_end: 960, plant: "Jungfer im Grünen", url: "https://www.naturadb.de/pflanzen/nigella-damascena/" },
-    { active: true, TS_start: 960, TS_end: 960, plant: "Fransenschwertel (Sparaxis)", url: "https://www.naturadb.de/pflanzen/sparaxis-tricolor/" },
+    { active: true, TS_start: 960, TS_end: 960, plant: "Fransenschwertel (Sparaxis)", url: "https://de.wikipedia.org/wiki/Sparaxis" },
 
     { active: true, TS_start: 1000, TS_end: 1000, plant: "Bartnelke", url: "https://www.naturadb.de/pflanzen/dianthus-barbatus/" },
     { active: true, TS_start: 1000, TS_end: 1200, plant: "Edelkastanie (Castanea sativa)", url: "https://www.naturadb.de/pflanzen/castanea-sativa/" },
 
     { active: true, TS_start: 1020, TS_end: 1020, plant: "Marien-Glockenblume", url: "https://www.naturadb.de/pflanzen/campanula-medium/" },
     { active: true, TS_start: 1030, TS_end: 1030, plant: "Roter Lein", url: "https://www.naturadb.de/pflanzen/linum-grandiflorum/" },
-    { active: true, TS_start: 1040, TS_end: 1040, plant: "Zwergmispel", url: "https://www.naturadb.de/pflanzen/cotoneaster/" },
+    { active: true, TS_start: 1040, TS_end: 1040, plant: "Zwergmispel", url: "https://www.naturadb.de/pflanzen/cotoneaster-integerrimus/" },
 
     { active: true, TS_start: 1050, TS_end: 1050, plant: "Scharfgarbe (rot)", url: "https://www.naturadb.de/pflanzen/achillea-millefolium/" },
     { active: true, TS_start: 1050, TS_end: 1050, plant: "Wiesen-Labkraut", url: "https://www.naturadb.de/pflanzen/galium-mollugo/" },
 
-    { active: true, TS_start: 1060, TS_end: 1060, plant: "Mittagsblume", url: "https://www.naturadb.de/pflanzen/delosperma/" },
-    { active: true, TS_start: 1080, TS_end: 1080, plant: "Königskerze", url: "https://www.naturadb.de/pflanzen/verbascum/" },
-    { active: true, TS_start: 1090, TS_end: 1090, plant: "Hauswurz", url: "https://www.naturadb.de/pflanzen/sempervivum/" },
+    { active: true, TS_start: 1060, TS_end: 1060, plant: "Mittagsblume", url: "https://www.naturadb.de/pflanzen/delosperma-cooperi/" },
+    { active: true, TS_start: 1080, TS_end: 1080, plant: "Königskerze", url: "https://www.naturadb.de/pflanzen/verbascum-densiflorum/" },
+    { active: true, TS_start: 1090, TS_end: 1090, plant: "Hauswurz", url: "https://www.naturadb.de/pflanzen/sempervivum-tectorum/" },
 
     { active: true, TS_start: 1100, TS_end: 1100, plant: "Wilde Brombeere", url: "https://www.naturadb.de/pflanzen/rubus-fruticosus/" },
     { active: true, TS_start: 1100, TS_end: 1100, plant: "Sommerlinde", url: "https://www.naturadb.de/pflanzen/tilia-platyphyllos/" },
 
-    { active: true, TS_start: 1120, TS_end: 1120, plant: "Clematis (spätblühend)", url: "https://www.naturadb.de/pflanzen/clematis/" },
-    { active: true, TS_start: 1200, TS_end: 1200, plant: "Malve", url: "https://www.naturadb.de/pflanzen/malva/" },
+    { active: true, TS_start: 1120, TS_end: 1120, plant: "Clematis (spätblühend)", url: "https://www.naturadb.de/pflanzen/clematis-vitalba/" },
+    { active: true, TS_start: 1200, TS_end: 1200, plant: "Malve", url: "https://www.naturadb.de/pflanzen/malva-sylvestris/" },
 
     { active: true, TS_start: 1300, TS_end: 1300, plant: "Nachtkerze", url: "https://www.naturadb.de/pflanzen/oenothera-biennis/" },
     { active: true, TS_start: 1320, TS_end: 1320, plant: "Wiesen-Flockenblume", url: "https://www.naturadb.de/pflanzen/centaurea-jacea/" },
@@ -156,13 +156,13 @@ export const defaultTrachtData = [
 
     { active: true, TS_start: 1420, TS_end: 1420, plant: "Schlafmohn", url: "https://www.naturadb.de/pflanzen/papaver-somniferum/" },
     { active: true, TS_start: 1440, TS_end: 1440, plant: "Vogelwicke", url: "https://www.naturadb.de/pflanzen/vicia-cracca/" },
-    { active: true, TS_start: 1450, TS_end: 1450, plant: "Lilie", url: "https://www.naturadb.de/pflanzen/lilium/" },
+    { active: true, TS_start: 1450, TS_end: 1450, plant: "Lilie", url: "https://www.naturadb.de/pflanzen/iris-germanica/" },
     { active: true, TS_start: 1460, TS_end: 1460, plant: "Edelwicke", url: "https://www.naturadb.de/pflanzen/lathyrus-odoratus/" },
     { active: true, TS_start: 1480, TS_end: 1480, plant: "Speisezwiebel", url: "https://www.naturadb.de/pflanzen/allium-cepa/" },
 
     { active: true, TS_start: 1500, TS_end: 1500, plant: "Schmetterlingsflieder", url: "https://www.naturadb.de/pflanzen/buddleja-davidii/" },
     { active: true, TS_start: 1520, TS_end: 1520, plant: "Karotte", url: "https://www.naturadb.de/pflanzen/daucus-carota/" },
-    { active: true, TS_start: 1540, TS_end: 1540, plant: "Tigerblume", url: "https://www.naturadb.de/pflanzen/tigridia-pavonia/" },
+    { active: true, TS_start: 1540, TS_end: 1540, plant: "Tigerblume", url: "https://de.wikipedia.org/wiki/Tigerblumen/" },
     { active: true, TS_start: 1550, TS_end: 1550, plant: "Palmlilie", url: "https://www.naturadb.de/pflanzen/yucca-filamentosa/" },
     { active: true, TS_start: 1580, TS_end: 1580, plant: "Dill", url: "https://www.naturadb.de/pflanzen/anethum-graveolens/" },
 

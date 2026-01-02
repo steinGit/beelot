@@ -138,7 +138,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
         forecast_list = relevant_list.filter(
             row => row.TSUM_start > TSUM_current
         );
-        computeDatesForList(forecast_list, D_E, n);
+        computeDatesForList(forecast_list, D_E, n, endDate);
     } else {
         console.log("[INFO] No forecast generated: within the first 5 days of the year.");
     }
@@ -148,8 +148,8 @@ export async function updateHinweisSection(gtsResults, endDate) {
     const rearview_list = relevant_list.filter(row => {
         return row.TSUM_start > TSUM_rearviewLimit && row.TSUM_start <= TSUM_current;
     });
-    computeDatesForList(forecast_list, D_E, n);
-    computeDatesForList(rearview_list, D_E, n);
+    computeDatesForList(forecast_list, D_E, n, endDate);
+    computeDatesForList(rearview_list, D_E, n, endDate);
 
     // 6) Build HTML
     let html = "<h2>Imkerliche Information</h2>\n";
@@ -161,21 +161,83 @@ export async function updateHinweisSection(gtsResults, endDate) {
       </p>
     `;
 
+    const getRecommendationInfo = (row) => {
+        const plantText = typeof row.plant === "string" ? row.plant : "";
+        const marker = "Empfehlung:";
+        const markerIndex = plantText.indexOf(marker);
+        if (markerIndex === -1) {
+            return { isRecommendation: false, cleanPlant: plantText };
+        }
+        const cleanPlant = plantText.slice(markerIndex + marker.length).trim();
+        return { isRecommendation: true, cleanPlant: cleanPlant || plantText.trim() };
+    };
+
+    const buildPlantLabelForRow = (row) => {
+        const info = getRecommendationInfo(row);
+        if (!info.isRecommendation) {
+            return buildPlantLabel(row);
+        }
+        const adjusted = { ...row, plant: info.cleanPlant };
+        return buildPlantLabel(adjusted);
+    };
+
+    const recommendationPrefix = "💡 Empfehlung: ";
+
+    const groupEntries = (list, getRelText) => {
+        const groups = new Map();
+        list.forEach((row) => {
+            const relText = getRelText(row);
+            const dateText = row.date || "";
+            const gtsValue = row.TSUM_start;
+            const recommendationInfo = getRecommendationInfo(row);
+            const keySuffix = recommendationInfo.isRecommendation
+                ? `rec|${recommendationInfo.cleanPlant}`
+                : "normal";
+            const key = `${relText}|${dateText}|${gtsValue}|${keySuffix}`;
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    relText,
+                    dateText,
+                    gtsValue,
+                    plants: [],
+                    isRecommendation: recommendationInfo.isRecommendation
+                });
+            }
+            groups.get(key).plants.push(buildPlantLabelForRow(row));
+        });
+        return Array.from(groups.values());
+    };
+
     // 6A) Rearview info
     if (rearview_list.length === 0) {
         html += `<p style="color: grey;">
           Keine Information zu den letzten ${R} Tagen
         </p>`;
     } else {
-        rearview_list.forEach(row => {
+        const rearviewGroups = groupEntries(rearview_list, (row) => {
             const absDays = Math.abs(row.days);
             if (absDays === 0) {
-                html += `<p style="font-weight: bold; color: #ff8020;">
-                  Heute am ${row.date}: ${buildPlantLabel(row)}  (GTS = ${row.TSUM_start})
+                return "Heute";
+            }
+            return `vor ${absDays} Tagen`;
+        });
+        rearviewGroups.forEach((group) => {
+            const plantList = group.plants.join(", ");
+            const prefix = group.isRecommendation ? recommendationPrefix : "";
+            const className = group.isRecommendation ? "imker-empfehlung-inline" : "";
+            if (group.relText === "Heute") {
+                const style = group.isRecommendation
+                    ? "font-weight: bold; color: #ff8020;"
+                    : "font-weight: bold; color: #ff8020;";
+                html += `<p style="${style}">
+                  ${group.relText} am ${group.dateText}: <span class="${className}">${prefix}${plantList}</span>  (GTS = ${group.gtsValue})
                 </p>`;
             } else {
-                html += `<p style="color: #802020;">
-                  vor ${absDays} Tagen am ${row.date}: ${buildPlantLabel(row)}  (GTS = ${row.TSUM_start})
+                const style = group.isRecommendation
+                    ? "font-weight: bold; color: #802020;"
+                    : "color: #802020;";
+                html += `<p style="${style}">
+                  ${group.relText} am ${group.dateText}: <span class="${className}">${prefix}${plantList}</span>  (GTS = ${group.gtsValue})
                 </p>`;
             }
         });
@@ -185,9 +247,16 @@ export async function updateHinweisSection(gtsResults, endDate) {
     const n_forecasts = forecast_list.length
     if (n_forecasts > 0) {
         // We have some forecast items => do NOT show the “Danach:” part
-        forecast_list.forEach(row => {
-            html += `<p style="font-weight: bold; color: #206020;">
-              in ${row.days} Tagen am ${row.date}: ${buildPlantLabel(row)} (GTS = ${row.TSUM_start})
+        const forecastGroups = groupEntries(forecast_list, (row) => `in ${row.days} Tagen`);
+        forecastGroups.forEach((group) => {
+            const plantList = group.plants.join(", ");
+            const prefix = group.isRecommendation ? recommendationPrefix : "";
+            const className = group.isRecommendation ? "imker-empfehlung-inline" : "";
+            const style = group.isRecommendation
+                ? "font-weight: bold; color: #206020;"
+                : "font-weight: bold; color: #206020;";
+            html += `<p style="${style}">
+              ${group.relText} am ${group.dateText}: <span class="${className}">${prefix}${plantList}</span> (GTS = ${group.gtsValue})
             </p>`;
         });
 
@@ -214,9 +283,17 @@ export async function updateHinweisSection(gtsResults, endDate) {
         if (upcomingTop.length > 0) {
             html += `<p style="font-style: italic;">Danach:</p>`;
             upcomingTop.forEach(item => {
-                html += `<p style="color: #608000;">
-                  bei GTS=${item.TS_start} ${buildPlantLabel(item)}
-                </p>`;
+                const recommendationInfo = getRecommendationInfo(item);
+                const label = buildPlantLabelForRow(item);
+                if (recommendationInfo.isRecommendation) {
+                    html += `<p style="font-weight: bold; color: #608000;">
+                      <span class="imker-empfehlung-inline">${recommendationPrefix}${label}</span> (bei GTS=${item.TS_start})
+                    </p>`;
+                } else {
+                    html += `<p style="color: #608000;">
+                      bei GTS=${item.TS_start} ${label}
+                    </p>`;
+                }
             });
         }
     }
@@ -318,7 +395,8 @@ function buildPlantLabel(row) {
     return `<a href="${url}" target="_blank" rel="noopener noreferrer">${plant}</a>`;
 }
 
-function computeDatesForList(list, curve, dayNow) {
+function computeDatesForList(list, curve, dayNow, referenceDate) {
+    const referenceYear = referenceDate instanceof Date ? referenceDate.getFullYear() : new Date().getFullYear();
     for (const row of list) {
         const needed = row.TSUM_start;
         let foundDayIndex = null;
@@ -329,7 +407,7 @@ function computeDatesForList(list, curve, dayNow) {
             }
         }
         if (foundDayIndex) {
-            row.date = transform_to_month_day(foundDayIndex, dayNow, new Date().getFullYear());
+            row.date = transform_to_month_day(foundDayIndex, dayNow, referenceYear);
             row.days = foundDayIndex - dayNow;
         } else {
             row.date = "??";

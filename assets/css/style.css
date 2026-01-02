@@ -159,6 +159,12 @@ footer nav a:hover {
   background-color: darkred;
 }
 
+.imker-empfehlung-inline {
+  background-color: rgba(255, 245, 200, 0.6);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
 #location-name {
   display: block;
   margin-top: 5px;
