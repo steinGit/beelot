@@ -124,7 +124,9 @@
         <section class="plot-section">
           <h2>Visualisierung</h2>
           <div class="input-group">
-            <label for="datum">Datum:</label>
+            <label for="datum">
+              <span id="datum-label" class="tooltip-anchor" tabindex="0" aria-describedby="datum-tooltip">Datum:</span>
+            </label>
             <input type="date" id="datum" name="datum" />
             <button id="datum-plus">+</button>
             <button id="datum-minus">-</button>
@@ -247,6 +249,10 @@
 
     <div id="standort-sync-tooltip" class="tooltip" role="tooltip" aria-hidden="true">
       Synchronisiert Datum und alle Visualisierungseinstellungen über alle Standorte hinweg.
+    </div>
+
+    <div id="datum-tooltip" class="tooltip" role="tooltip" aria-hidden="true">
+      Mit dem Datum kannst du simulieren, wie die Grünland-Temperatur-Summe und die imkerlichen Informationen zu einem früheren Zeitpunkt aussahen. Der Button „heute“ springt zurück zum aktuellen Datum.
     </div>
 
     <!-- Leaflet JS -->

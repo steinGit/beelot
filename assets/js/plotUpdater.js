@@ -118,12 +118,15 @@ export class PlotUpdater {
 
       // Step 4) Parse lat/lon
       const { lat, lon } = this.step4ParseLatLon(location);
+      this.currentLat = lat;
+      this.currentLon = lon;
 
       // Fetch and display location name
       this.step4aFetchAndDisplayLocationName(lat, lon);
 
       // Step 5) Date range logic
       const { differenceInDays, plotStartDate } = this.step5ComputeDateRange(endDate);
+      this.currentPlotStartDate = plotStartDate;
 
       // Step 6) fetchStartDate & recentStartDate
       const { fetchStartDate, recentStartDate } = this.step6ComputeFetchDates(endDate);
@@ -146,6 +149,7 @@ export class PlotUpdater {
       }
       // Step 9) Filter GTS to [plotStartDate..endDate]
       const filteredResults = this.step9FilterGTS(gtsResults, plotStartDate, endDate);
+      this.latestFilteredResults = filteredResults;
       if (this.debugGts) {
         console.log("[GTS DEBUG] filteredResults tail", filteredResults.slice(-7));
       }
@@ -172,6 +176,7 @@ export class PlotUpdater {
 
       // Step 14) GTS chart creation
       await this.step14CreateGTSChart(lat, lon, plotStartDate, endDate, filteredResults);
+      await this.step14bUpdateGtsComparison();
 
       // Step 15) Temp chart creation
       this.step15CreateTemperatureChart(endDate);
@@ -526,6 +531,8 @@ export class PlotUpdater {
     const lastGTS = gtsResults.length
       ? gtsResults[gtsResults.length - 1].gts
       : 0;
+    this.currentGtsValue = lastGTS;
+    this.currentEndDate = endDate;
 
     let dateColor = "#802020";
     let dateWeight = "bold";
@@ -543,6 +550,7 @@ export class PlotUpdater {
       <span style="font-weight: ${dateWeight}; color: ${dateColor};">${formattedDate}</span>
       <span style="font-weight: normal; color: #202020;"> ${betragenStr} </span>
       <span style="font-weight: bold; color: darkgreen;">${lastGTS.toFixed(1)}</span> °C
+      <span id="gts-year-comparison"></span>
     `;
   }
 
@@ -571,8 +579,10 @@ export class PlotUpdater {
    * @param {Array<Object>} filteredResults - Filtered GTS results.
    */
   async step14CreateGTSChart(lat, lon, plotStartDate, endDate, filteredResults) {
+    const viewKey = this.buildGtsViewKey(endDate);
     if (this.gtsPlotContainer.style.display === "none") {
       console.log("[PlotUpdater] => GTS container hidden => skipping chart creation.");
+      this.lastMultiYearData = this.getCachedMultiYearData(viewKey);
       return;
     }
 
@@ -602,6 +612,8 @@ export class PlotUpdater {
           this.weatherCacheStore
         );
       }
+      this.lastMultiYearData = multiYearData;
+      this.storeMultiYearData(viewKey, multiYearData);
       const gtsStats = this.computeStatsFromMultiYear(multiYearData);
       this.storeAxisStats("gts", endDate, gtsStats);
       const yRange = window.standortSyncEnabled
@@ -609,6 +621,7 @@ export class PlotUpdater {
         : null;
       this.chartGTS = plotMultipleYearData(multiYearData, yRange);
     } else {
+      this.lastMultiYearData = this.getCachedMultiYearData(viewKey);
       const gtsStats = this.computeStatsFromValues(filteredResults.map((item) => item.gts));
       this.storeAxisStats("gts", endDate, gtsStats);
       const yRange = window.standortSyncEnabled
@@ -616,6 +629,184 @@ export class PlotUpdater {
         : null;
       this.chartGTS = plotData(filteredResults, false, yRange);
     }
+  }
+
+  async step14bUpdateGtsComparison() {
+    if (!this.ergebnisTextEl) {
+      return;
+    }
+    const comparisonEl = this.ergebnisTextEl.querySelector("#gts-year-comparison");
+    if (comparisonEl) {
+      comparisonEl.innerHTML = "";
+    }
+    if (!Number.isFinite(this.currentGtsValue) || !(this.currentEndDate instanceof Date)) {
+      return;
+    }
+    if (!comparisonEl) {
+      return;
+    }
+    const viewKey = this.buildGtsViewKey(this.currentEndDate);
+    let resolvedData = this.getCachedMultiYearData(viewKey);
+    if (!Array.isArray(resolvedData)) {
+      if (this.currentPlotStartDate instanceof Date && Array.isArray(this.latestFilteredResults)) {
+        resolvedData = await buildYearData(
+          this.currentLat,
+          this.currentLon,
+          this.currentPlotStartDate,
+          this.currentEndDate,
+          this.latestFilteredResults,
+          3,
+          this.weatherCacheStore
+        );
+        this.storeMultiYearData(viewKey, resolvedData);
+      } else {
+        return;
+      }
+    }
+    const currentYear = this.currentEndDate.getFullYear();
+    const comparisonYears = [currentYear - 1, currentYear - 2];
+    const currentDayIndex = this.getDayOfYear(this.currentEndDate);
+    const comparisons = [];
+
+    const findMatchIndex = (entry) => {
+      if (!entry || !Array.isArray(entry.gtsValues)) {
+        return -1;
+      }
+      for (let i = 0; i < entry.gtsValues.length; i++) {
+        if (Number(entry.gtsValues[i]) >= this.currentGtsValue) {
+          return i;
+        }
+      }
+      return -1;
+    };
+
+    for (const year of comparisonYears) {
+      const entry = resolvedData.find((item) => item.year === year);
+      if (!entry || !Array.isArray(entry.gtsValues) || !Array.isArray(entry.labels)) {
+        continue;
+      }
+      let matchIndex = findMatchIndex(entry);
+      let labelSource = entry;
+      if (matchIndex === -1) {
+        const fullEntry = await this.getFullYearEntry(year);
+        if (fullEntry) {
+          matchIndex = findMatchIndex(fullEntry);
+          if (matchIndex !== -1) {
+            labelSource = fullEntry;
+          }
+        }
+      }
+      if (matchIndex === -1) {
+        continue;
+      }
+      const label = labelSource.labels[matchIndex];
+      const dateForYear = this.parseLabelDate(label, year);
+      if (!dateForYear) {
+        continue;
+      }
+      const dayIndex = this.getDayOfYear(dateForYear);
+      const deltaDays = currentDayIndex - dayIndex;
+      const referenceYear = year;
+      if (Math.abs(deltaDays) < 2) {
+        comparisons.push(`Wir liegen etwa gleich wie im Jahr ${referenceYear}.`);
+      } else if (deltaDays < 0) {
+        comparisons.push(`Wir sind dem Jahr ${referenceYear} um ${Math.abs(deltaDays)} Tage voraus.`);
+      } else {
+        comparisons.push(`Wir hängen dem Jahr ${referenceYear} um ${deltaDays} Tage hinterher.`);
+      }
+    }
+
+    if (comparisons.length === 0) {
+      return;
+    }
+    const sentence = comparisons.join("<br>");
+    comparisonEl.innerHTML = `<br><span style="font-weight: normal; color: #202020;">${sentence}</span>`;
+  }
+
+  getCachedMultiYearData(viewKey) {
+    const location = this.getLocation();
+    if (!location || !location.calculations || !location.calculations.gtsYearCurves) {
+      return null;
+    }
+    if (location.calculations.gtsYearCurves[viewKey]) {
+      return location.calculations.gtsYearCurves[viewKey];
+    }
+    const keyParts = viewKey.split("|");
+    if (keyParts.length < 2) {
+      return null;
+    }
+    const baseKey = `${keyParts[0]}|${keyParts[1]}|`;
+    const candidates = Object.keys(location.calculations.gtsYearCurves)
+      .filter((key) => key.startsWith(baseKey))
+      .map((key) => location.calculations.gtsYearCurves[key])
+      .filter((entry) => Array.isArray(entry));
+    return candidates.length > 0 ? candidates[0] : null;
+  }
+
+  getCachedMultiYearKeys() {
+    const location = this.getLocation();
+    if (!location || !location.calculations || !location.calculations.gtsYearCurves) {
+      return [];
+    }
+    return Object.keys(location.calculations.gtsYearCurves);
+  }
+
+  async getFullYearEntry(year) {
+    const fullKey = `full-${year}`;
+    const cached = this.getCachedMultiYearData(fullKey);
+    if (Array.isArray(cached) && cached.length > 0) {
+      return cached[0];
+    }
+    const baseStartDate = new Date(year, 0, 1);
+    const baseEndDate = new Date(year, 11, 31);
+    const data = await buildFullYearData(
+      this.currentLat,
+      this.currentLon,
+      year,
+      1,
+      baseStartDate,
+      baseEndDate,
+      this.weatherCacheStore
+    );
+    if (Array.isArray(data) && data.length > 0) {
+      this.storeMultiYearData(fullKey, data);
+      return data[0];
+    }
+    return null;
+  }
+
+  storeMultiYearData(viewKey, multiYearData) {
+    if (!Array.isArray(multiYearData)) {
+      return;
+    }
+    updateLocation(this.locationId, (current) => {
+      if (!current.calculations.gtsYearCurves) {
+        current.calculations.gtsYearCurves = {};
+      }
+      current.calculations.gtsYearCurves[viewKey] = multiYearData;
+    });
+  }
+
+  getDayOfYear(dateObj) {
+    const start = new Date(dateObj.getFullYear(), 0, 1);
+    const diff = dateObj - start;
+    return Math.floor(diff / 86400000) + 1;
+  }
+
+  parseLabelDate(label, year) {
+    if (typeof label !== "string") {
+      return null;
+    }
+    const parts = label.split(".");
+    if (parts.length < 2) {
+      return null;
+    }
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    if (!Number.isFinite(day) || !Number.isFinite(month)) {
+      return null;
+    }
+    return new Date(year, month - 1, day);
   }
 
   /**

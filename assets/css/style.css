@@ -165,6 +165,28 @@ footer nav a:hover {
   border-radius: 3px;
 }
 
+.imker-info-table {
+  border-collapse: collapse;
+}
+
+.imker-info-table td {
+  padding: 2px 10px;
+  vertical-align: top;
+}
+
+.imker-col-time {
+  white-space: nowrap;
+  padding-right: 16px;
+}
+
+.imker-col-content {
+  padding-right: 16px;
+}
+
+.imker-col-gts {
+  white-space: nowrap;
+}
+
 #location-name {
   display: block;
   margin-top: 5px;

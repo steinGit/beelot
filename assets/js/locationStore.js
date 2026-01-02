@@ -96,6 +96,7 @@ function ensureLocationShape(location) {
   normalized.cache.locationName = normalized.cache.locationName || {};
   normalized.calculations = normalized.calculations || buildDefaultCalculations();
   normalized.calculations.temps = normalized.calculations.temps || { dates: [], values: [] };
+  normalized.calculations.gtsYearCurves = normalized.calculations.gtsYearCurves || {};
   normalized.ui = normalized.ui || buildDefaultUiState();
   if (typeof normalized.ui.gtsRange20Active !== "boolean") {
     normalized.ui.gtsRange20Active = false;

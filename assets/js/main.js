@@ -653,7 +653,8 @@ function setupEventListeners() {
     { labelId: "gts-queen-label", tooltipId: "gts-queen-tooltip" },
     { labelId: "gts-rainbow-label", tooltipId: "gts-rainbow-tooltip" },
     { labelId: "gts-temp-label", tooltipId: "gts-temp-tooltip" },
-    { labelId: "standort-sync-label", tooltipId: "standort-sync-tooltip" }
+    { labelId: "standort-sync-label", tooltipId: "standort-sync-tooltip" },
+    { labelId: "datum-label", tooltipId: "datum-tooltip" }
   ];
 
   tooltipPairs.forEach(({ labelId, tooltipId }) => {

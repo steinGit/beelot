@@ -151,6 +151,20 @@ export async function updateHinweisSection(gtsResults, endDate) {
     computeDatesForList(forecast_list, D_E, n, endDate);
     computeDatesForList(rearview_list, D_E, n, endDate);
 
+    let noPastInfoLine = "";
+    let noFutureInfoLine = "";
+    const timelineRows = [];
+    const danachRows = [];
+    const pushRow = (targetRows, timeText, contentHtml, gtsText, rowStyle = "") => {
+        targetRows.push(
+            `<tr${rowStyle ? ` style="${rowStyle}"` : ""}>
+              <td class="imker-col-time">${timeText}</td>
+              <td class="imker-col-content">${contentHtml}</td>
+              <td class="imker-col-gts">${gtsText}</td>
+            </tr>`
+        );
+    };
+
     // 6) Build HTML
     let html = "<h2>Imkerliche Information</h2>\n";
     html += `
@@ -210,7 +224,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
 
     // 6A) Rearview info
     if (rearview_list.length === 0) {
-        html += `<p style="color: grey;">
+        noPastInfoLine = `<p style="color: grey;">
           Keine Information zu den letzten ${R} Tagen
         </p>`;
     } else {
@@ -226,19 +240,25 @@ export async function updateHinweisSection(gtsResults, endDate) {
             const prefix = group.isRecommendation ? recommendationPrefix : "";
             const className = group.isRecommendation ? "imker-empfehlung-inline" : "";
             if (group.relText === "Heute") {
-                const style = group.isRecommendation
-                    ? "font-weight: bold; color: #ff8020;"
-                    : "font-weight: bold; color: #ff8020;";
-                html += `<p style="${style}">
-                  ${group.relText} am ${group.dateText}: <span class="${className}">${prefix}${plantList}</span>  (GTS = ${group.gtsValue})
-                </p>`;
+                const style = "font-weight: bold; color: #ff8020;";
+                pushRow(
+                    timelineRows,
+                    `${group.relText} am ${group.dateText}:`,
+                    `<span class="${className}">${prefix}${plantList}</span>`,
+                    `GTS = ${group.gtsValue}`,
+                    style
+                );
             } else {
                 const style = group.isRecommendation
                     ? "font-weight: bold; color: #802020;"
                     : "color: #802020;";
-                html += `<p style="${style}">
-                  ${group.relText} am ${group.dateText}: <span class="${className}">${prefix}${plantList}</span>  (GTS = ${group.gtsValue})
-                </p>`;
+                pushRow(
+                    timelineRows,
+                    `${group.relText} am ${group.dateText}:`,
+                    `<span class="${className}">${prefix}${plantList}</span>`,
+                    `GTS = ${group.gtsValue}`,
+                    style
+                );
             }
         });
     }
@@ -252,50 +272,95 @@ export async function updateHinweisSection(gtsResults, endDate) {
             const plantList = group.plants.join(", ");
             const prefix = group.isRecommendation ? recommendationPrefix : "";
             const className = group.isRecommendation ? "imker-empfehlung-inline" : "";
-            const style = group.isRecommendation
-                ? "font-weight: bold; color: #206020;"
-                : "font-weight: bold; color: #206020;";
-            html += `<p style="${style}">
-              ${group.relText} am ${group.dateText}: <span class="${className}">${prefix}${plantList}</span> (GTS = ${group.gtsValue})
-            </p>`;
+            const style = "font-weight: bold; color: #206020;";
+            pushRow(
+                timelineRows,
+                `${group.relText} am ${group.dateText}:`,
+                `<span class="${className}">${prefix}${plantList}</span>`,
+                `GTS = ${group.gtsValue}`,
+                style
+            );
         });
+    } else {
+        noFutureInfoLine = `<p style="color: grey;">
+          Keine Information zu den nächsten ${F} Tagen
+        </p>`;
 
     }
 
     const max_n_upcoming = 3
     const n_upcoming = Math.max(0, max_n_upcoming - n_forecasts)
     if (n_upcoming > 0) {
-        if (n_forecasts === 0) {
-            html += `<p style="color: grey;">
-          Keine Information zu den nächsten ${F} Tagen
-        </p>`;
-        }
         const upcomingAll = trachtData
-          .filter(row => row.TS_start > TSUM_current)
+          .filter(row => row.TS_start > TSUM_max)
           .sort((a, b) => {
             if (a.TS_start !== b.TS_start) {
               return a.TS_start - b.TS_start;
             }
             return a.plant.localeCompare(b.plant);
           });
-        const upcomingTop = upcomingAll.slice(n_forecasts, n_upcoming + n_forecasts);
+        const upcomingTop = upcomingAll.slice(0, n_upcoming);
 
         if (upcomingTop.length > 0) {
-            html += `<p style="font-style: italic;">Danach:</p>`;
-            upcomingTop.forEach(item => {
-                const recommendationInfo = getRecommendationInfo(item);
-                const label = buildPlantLabelForRow(item);
-                if (recommendationInfo.isRecommendation) {
-                    html += `<p style="font-weight: bold; color: #608000;">
-                      <span class="imker-empfehlung-inline">${recommendationPrefix}${label}</span> (bei GTS=${item.TS_start})
-                    </p>`;
-                } else {
-                    html += `<p style="color: #608000;">
-                      bei GTS=${item.TS_start} ${label}
-                    </p>`;
+            const danachGroups = new Map();
+            upcomingTop.forEach((item) => {
+                const key = item.TS_start;
+                if (!danachGroups.has(key)) {
+                    danachGroups.set(key, []);
                 }
+                danachGroups.get(key).push(item);
+            });
+            Array.from(danachGroups.entries()).forEach(([gtsValue, items]) => {
+                const labels = items.map((item) => {
+                    const info = getRecommendationInfo(item);
+                    const label = buildPlantLabelForRow(item);
+                    if (info.isRecommendation) {
+                        return `<span class="imker-empfehlung-inline">${recommendationPrefix}${label}</span>`;
+                    }
+                    return label;
+                }).join(", ");
+                const hasRecommendation = items.some((item) => getRecommendationInfo(item).isRecommendation);
+                const style = hasRecommendation
+                    ? "font-weight: bold; color: #608000;"
+                    : "color: #608000;";
+                pushRow(
+                    danachRows,
+                    "",
+                    `${labels}`,
+                    `bei GTS = ${gtsValue}`,
+                    style
+                );
             });
         }
+    }
+
+    if (noPastInfoLine) {
+        html += noPastInfoLine;
+    }
+
+    if (timelineRows.length > 0) {
+        html += `
+          <table class="imker-info-table">
+            <tbody>
+              ${timelineRows.join("\n")}
+            </tbody>
+          </table>
+        `;
+    }
+
+    if (noFutureInfoLine) {
+        html += noFutureInfoLine;
+    }
+
+    if (danachRows.length > 0) {
+        html += `<p style="font-style: italic;">Danach:</p>`;
+        html += `
+          <table class="imker-info-table">
+            <tbody>
+              ${danachRows.join("\n")}
+            </tbody>
+          </table>
+        `;
     }
 
     hinweisSection.innerHTML = html;
