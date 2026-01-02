@@ -3,7 +3,6 @@
  * Funktionen für Settings
  */
 
-import { defaultTrachtData } from './tracht_data.js';
 
 // Funktion zum Ein-/Ausklappen der Abschnitte
 document.querySelectorAll('.settings-heading').forEach((heading) => {
@@ -28,17 +27,22 @@ document.addEventListener("DOMContentLoaded", () => {
   loadTrachtData();
 });
 
-function loadTrachtData() {
+async function loadTrachtData() {
   // Check localStorage for existing data
   const stored = localStorage.getItem(TRACT_DATA_KEY);
-  // If none => fallback to our single-source default
-  const data = stored ? JSON.parse(stored) : defaultTrachtData;
-
-  // Display to user
-  populateTrachtTable(data);
-
-  // Save it back to localStorage so we always have something stored
-  saveTrachtData(data);
+  if (stored) {
+    const data = JSON.parse(stored);
+    populateTrachtTable(data);
+    saveTrachtData(data);
+    return;
+  }
+  try {
+    const module = await import(`./tracht_data.js?ts=${Date.now()}`);
+    populateTrachtTable(module.defaultTrachtData);
+    saveTrachtData(module.defaultTrachtData);
+  } catch (error) {
+    console.error("[settings.js] loadTrachtData failed:", error);
+  }
 }
 
 /**
@@ -113,6 +117,18 @@ function populateTrachtTable(data) {
     tdTrash.appendChild(trashIcon);
     tr.appendChild(tdTrash);
 
+    // URL
+    const tdUrl = document.createElement("td");
+    const urlInput = document.createElement("input");
+    urlInput.type = "text";
+    urlInput.value = row.url || "";
+    urlInput.style.width = "100%";
+    urlInput.style.border = "none";
+    urlInput.style.backgroundColor = "transparent";
+    urlInput.onchange = () => updateUrl(idx, urlInput.value);
+    tdUrl.appendChild(urlInput);
+    tr.appendChild(tdUrl);
+
     tbody.appendChild(tr);
   });
 }
@@ -172,6 +188,15 @@ function updatePlant(idx, value) {
 }
 
 /**
+ * Update URL
+ */
+function updateUrl(idx, value) {
+  const data = getTrachtData();
+  data[idx].url = value;
+  saveTrachtData(data);
+}
+
+/**
  * Delete row
  */
 function deleteRow(idx) {
@@ -190,7 +215,8 @@ function addTrachtRow() {
     active: true,
     TS_start: 9000,
     TS_end: 9000,
-    plant: "Neue Pflanze"
+    plant: "Neue Pflanze",
+    url: ""
   });
   saveTrachtData(data);
   populateTrachtTable(data);
@@ -199,10 +225,17 @@ function addTrachtRow() {
 /**
  * Resets to defaultTrachtData
  */
-function resetTrachtData() {
+async function resetTrachtData() {
   if (!confirm("Willst du wirklich alles zurücksetzen?")) return;
-  saveTrachtData(defaultTrachtData);
-  populateTrachtTable(defaultTrachtData);
+  try {
+    // Reload defaults to avoid stale module cache after edits.
+    const module = await import(`./tracht_data.js?ts=${Date.now()}`);
+    saveTrachtData(module.defaultTrachtData);
+    populateTrachtTable(module.defaultTrachtData);
+  } catch (error) {
+    console.error("[settings.js] resetTrachtData failed:", error);
+    console.error("[settings.js] resetTrachtData failed:", error);
+  }
 }
 
 /**

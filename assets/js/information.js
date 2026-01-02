@@ -6,7 +6,21 @@
 
 import { defaultTrachtData } from './tracht_data.js';
 
+const DEFAULT_URL_BY_PLANT = new Map(
+    defaultTrachtData
+        .filter((row) => row && typeof row.plant === "string")
+        .map((row) => [row.plant.trim(), row.url])
+);
+
 export async function updateHinweisSection(gtsResults, endDate) {
+    const debugImkerInfo = window.debugImkerInfo === true
+        || localStorage.getItem("debugImkerInfo") === "true";
+    if (debugImkerInfo) {
+        console.log("[imker-info] updateHinweisSection start", {
+            gtsCount: Array.isArray(gtsResults) ? gtsResults.length : 0,
+            endDate: endDate ? endDate.toISOString() : null
+        });
+    }
     // STEP 0A) If localStorage has no "trachtData", set it to default.
     ensureTrachtDataInLocalStorage();
 
@@ -15,6 +29,9 @@ export async function updateHinweisSection(gtsResults, endDate) {
     if (!hinweisSection) {
         console.log("[information.js] .hinweis-section not found in DOM => cannot update.");
         return;
+    }
+    if (debugImkerInfo) {
+        console.log("[imker-info] hinweisSection found");
     }
 
     // 1) Convert gtsResults => C(day)
@@ -76,18 +93,44 @@ export async function updateHinweisSection(gtsResults, endDate) {
 
     const TSUM_current = D_E[n] || 0;
     const TSUM_max = D_E[m] || TSUM_current;
+    if (debugImkerInfo) {
+        console.log("[imker-info] TSUM_current/max", TSUM_current, TSUM_max);
+    }
 
     // 3) Load Tracht data => relevant_list
-    let trachtData = loadTrachtData("trachtData");
+    const rawTrachtData = loadTrachtData("trachtData");
+    const merged = mergeMissingUrls(rawTrachtData);
+    let trachtData = merged.data;
+    if (debugImkerInfo) {
+        console.log("[imker-info] trachtData loaded", {
+            rawCount: Array.isArray(rawTrachtData) ? rawTrachtData.length : 0,
+            mergedCount: Array.isArray(trachtData) ? trachtData.length : 0,
+            mergedChanged: merged.changed
+        });
+        const rawSample = Array.isArray(rawTrachtData)
+            ? rawTrachtData.find(row => row && row.plant === "Kornelkirsche")
+            : null;
+        const mergedSample = Array.isArray(trachtData)
+            ? trachtData.find(row => row && row.plant === "Kornelkirsche")
+            : null;
+        console.log("[imker-info] Kornelkirsche entry (raw)", rawSample);
+        console.log("[imker-info] Kornelkirsche entry (merged)", mergedSample);
+        console.log("[imker-info] URL migration applied", merged.changed);
+        console.log("[imker-info] active count", trachtData.filter(row => row && row.active).length);
+    }
     trachtData = trachtData.filter(row => row.active);
 
     const relevant_list = trachtData
         .filter(row => row.TS_start <= TSUM_max)
         .map(row => ({
             TSUM_start: row.TS_start,
-            string: row.plant
+            plant: row.plant,
+            url: row.url
         }))
         .sort((a, b) => a.TSUM_start - b.TSUM_start);
+    if (debugImkerInfo) {
+        console.log("[imker-info] relevant_list size", relevant_list.length);
+    }
 
     // 4) forecast_list => items with TSUM_start > TSUM_current but <= TSUM_max
     let forecast_list = [];
@@ -128,11 +171,11 @@ export async function updateHinweisSection(gtsResults, endDate) {
             const absDays = Math.abs(row.days);
             if (absDays === 0) {
                 html += `<p style="font-weight: bold; color: #ff8020;">
-                  Heute am ${row.date}: ${row.string}  (GTS = ${row.TSUM_start})
+                  Heute am ${row.date}: ${buildPlantLabel(row)}  (GTS = ${row.TSUM_start})
                 </p>`;
             } else {
                 html += `<p style="color: #802020;">
-                  vor ${absDays} Tagen am ${row.date}: ${row.string}  (GTS = ${row.TSUM_start})
+                  vor ${absDays} Tagen am ${row.date}: ${buildPlantLabel(row)}  (GTS = ${row.TSUM_start})
                 </p>`;
             }
         });
@@ -144,7 +187,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
         // We have some forecast items => do NOT show the “Danach:” part
         forecast_list.forEach(row => {
             html += `<p style="font-weight: bold; color: #206020;">
-              in ${row.days} Tagen am ${row.date}: ${row.string} (GTS = ${row.TSUM_start})
+              in ${row.days} Tagen am ${row.date}: ${buildPlantLabel(row)} (GTS = ${row.TSUM_start})
             </p>`;
         });
 
@@ -172,13 +215,16 @@ export async function updateHinweisSection(gtsResults, endDate) {
             html += `<p style="font-style: italic;">Danach:</p>`;
             upcomingTop.forEach(item => {
                 html += `<p style="color: #608000;">
-                  bei GTS=${item.TS_start} ${item.plant}
+                  bei GTS=${item.TS_start} ${buildPlantLabel(item)}
                 </p>`;
             });
         }
     }
 
     hinweisSection.innerHTML = html;
+    if (debugImkerInfo) {
+        console.log("[imker-info] updateHinweisSection done");
+    }
 }
 
 // ------------------------------------------------
@@ -190,6 +236,16 @@ function ensureTrachtDataInLocalStorage() {
   if (!stored) {
     console.log("[information.js] No trachtData in localStorage => using defaults.");
     localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(defaultTrachtData));
+    return;
+  }
+  try {
+    const parsed = JSON.parse(stored);
+    const merged = mergeMissingUrls(parsed);
+    if (merged.changed) {
+      localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(merged.data));
+    }
+  } catch (error) {
+    console.warn("[information.js] Failed to parse trachtData for URL migration.", error);
   }
 }
 
@@ -213,6 +269,53 @@ function loadTrachtData(key) {
         return [];
     }
     return JSON.parse(stored);
+}
+
+function mergeMissingUrls(trachtData) {
+    if (!Array.isArray(trachtData)) {
+        return { data: [], changed: false };
+    }
+    const normalizePlantName = (name) => (typeof name === "string" ? name.trim() : "");
+    const urlByPlant = new Map();
+    defaultTrachtData.forEach((row) => {
+        if (row && typeof row.plant === "string" && typeof row.url === "string" && row.url.trim()) {
+            urlByPlant.set(normalizePlantName(row.plant), row.url);
+        }
+    });
+    let changed = false;
+    const data = trachtData.map((row) => {
+        if (!row || typeof row !== "object") {
+            return row;
+        }
+        const key = normalizePlantName(row.plant);
+        if (row.url == null && urlByPlant.has(key)) {
+            changed = true;
+            return { ...row, url: urlByPlant.get(key) };
+        }
+        return row;
+    });
+    return { data, changed };
+}
+
+function buildPlantLabel(row) {
+    if (!row) {
+        return "";
+    }
+    const plant = row.plant || "";
+    let url = typeof row.url === "string" ? row.url.trim() : "";
+    if (!url && row && !Object.prototype.hasOwnProperty.call(row, "url")) {
+        const fallback = DEFAULT_URL_BY_PLANT.get(plant.trim());
+        if (typeof fallback === "string") {
+            url = fallback.trim();
+        }
+    }
+    if (window.debugImkerInfo && plant === "Kornelkirsche") {
+        console.log("[imker-info] Kornelkirsche link url", url, "ownUrl", Object.prototype.hasOwnProperty.call(row, "url"));
+    }
+    if (!url) {
+        return plant;
+    }
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${plant}</a>`;
 }
 
 function computeDatesForList(list, curve, dayNow) {

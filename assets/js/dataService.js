@@ -62,7 +62,7 @@ function computeCacheKey(type, lat, lon, yearOrRange) {
  * @param {Date} end - End date.
  * @returns {Promise<Object>} - The fetched historical data.
  */
-export async function fetchHistoricalData(lat, lon, start, end, cacheStore = null) {
+export async function fetchHistoricalData(lat, lon, start, end, cacheStore = null, allowForecastFallback = true) {
     // Validate Date objects
     if (!isValidDate(start) || !isValidDate(end)) {
         throw new Error("Invalid start or end date provided.");
@@ -132,6 +132,14 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
         return data;
     } catch (error) {
         console.error(`[DEBUG dataService.js] Error fetching historical data: ${error.message}`);
+        if (allowForecastFallback) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (end >= today) {
+                console.warn("[DEBUG dataService.js] Falling back to forecast data for recent dates.");
+                return fetchRecentData(lat, lon, start, end, cacheStore);
+            }
+        }
         throw error;
     }
 }

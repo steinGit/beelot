@@ -107,10 +107,13 @@ function updateZeitraumSelect() {
 let plotUpdater = null;
 // Also track the multi-year toggle
 let gtsYearRange = 1;
+let gtsRange20Active = false;
 let gtsColorScheme = "queen";
 let standortSyncEnabled = false;
 const STANDORT_SYNC_KEY = "beelotStandortSync";
 const STANDORT_SYNC_CONTROL_ID = "standort-sync-control";
+const REGULAR_GTS_RANGES = new Set([1, 5, 10]);
+const GTS_RANGE_20 = 20;
 
 function loadStandortSyncState() {
   const stored = localStorage.getItem(STANDORT_SYNC_KEY);
@@ -129,6 +132,7 @@ function getSyncPayload() {
     selectedDate: datumInput.value,
     zeitraum: zeitraumSelect.value,
     gtsYearRange: gtsYearRange,
+    gtsRange20Active: gtsRange20Active,
     gtsColorScheme: gtsColorScheme,
     gtsPlotVisible: gtsPlotContainer.classList.contains("visible"),
     tempPlotVisible: tempPlotContainer.classList.contains("visible")
@@ -141,6 +145,7 @@ function applySyncToAllLocations(payload) {
       current.ui.selectedDate = payload.selectedDate;
       current.ui.zeitraum = payload.zeitraum;
       current.ui.gtsYearRange = payload.gtsYearRange;
+      current.ui.gtsRange20Active = payload.gtsRange20Active;
       current.ui.gtsColorScheme = payload.gtsColorScheme;
       current.ui.gtsPlotVisible = payload.gtsPlotVisible;
       current.ui.tempPlotVisible = payload.tempPlotVisible;
@@ -148,8 +153,40 @@ function applySyncToAllLocations(payload) {
   });
 }
 
-function updateColorSchemeAvailability(rangeValue) {
-  const lockToQueen = rangeValue === 1;
+function normalizeRegularGtsRange(rangeValue) {
+  return REGULAR_GTS_RANGES.has(rangeValue) ? rangeValue : 1;
+}
+
+function getEffectiveGtsYearRange() {
+  if (gtsColorScheme === "temperature" && gtsRange20Active) {
+    return GTS_RANGE_20;
+  }
+  return gtsYearRange;
+}
+
+function updateGtsRangeVisibility() {
+  const range20Label = document.getElementById("gts-range-20-label");
+  if (!range20Label) {
+    return;
+  }
+  range20Label.style.display = gtsColorScheme === "temperature" ? "flex" : "none";
+}
+
+function updateGtsRangeSelection() {
+  const effectiveRange = getEffectiveGtsYearRange();
+  window.gtsYearRange = effectiveRange;
+  gtsRangeInputs.forEach((input) => {
+    const value = parseInt(input.value, 10);
+    if (value === GTS_RANGE_20) {
+      input.checked = gtsColorScheme === "temperature" && gtsRange20Active;
+      return;
+    }
+    input.checked = value === gtsYearRange;
+  });
+}
+
+function updateColorSchemeAvailability(rangeValue, isTwentyActive = false) {
+  const lockToQueen = rangeValue === 1 && !isTwentyActive;
   gtsColorInputs.forEach((input) => {
     if (input.value === "queen") {
       input.disabled = false;
@@ -288,13 +325,8 @@ function applyLocationState(location) {
     locationNameOutput.textContent = "Standortname wird angezeigt...";
   }
 
-  gtsYearRange = location.ui.gtsYearRange || 1;
-  window.gtsYearRange = gtsYearRange;
-  if (gtsRangeInputs.length > 0) {
-    gtsRangeInputs.forEach((input) => {
-      input.checked = parseInt(input.value, 10) === gtsYearRange;
-    });
-  }
+  gtsYearRange = normalizeRegularGtsRange(parseInt(location.ui.gtsYearRange, 10));
+  gtsRange20Active = Boolean(location.ui.gtsRange20Active);
 
   gtsColorScheme = location.ui.gtsColorScheme || "queen";
   window.gtsColorScheme = gtsColorScheme;
@@ -303,7 +335,12 @@ function applyLocationState(location) {
       input.checked = input.value === gtsColorScheme;
     });
   }
-  updateColorSchemeAvailability(gtsYearRange);
+  updateGtsRangeVisibility();
+  updateGtsRangeSelection();
+  updateColorSchemeAvailability(
+    getEffectiveGtsYearRange(),
+    gtsColorScheme === "temperature" && gtsRange20Active
+  );
 
   setPlotVisibility(location.ui.gtsPlotVisible, location.ui.tempPlotVisible);
 
@@ -311,9 +348,27 @@ function applyLocationState(location) {
     locationPanel.setAttribute("aria-labelledby", `location-tab-${location.id}`);
   }
 
+  updateLegendLocationLabel();
+}
+
+function updateLegendLocationLabel() {
   const legendLabel = document.getElementById("legend-location-label");
-  if (legendLabel) {
-    legendLabel.textContent = `${location.name}:`;
+  if (!legendLabel) {
+    return;
+  }
+  const locations = getLocationsInOrder();
+  if (locations.length <= 1) {
+    legendLabel.textContent = "";
+    legendLabel.style.display = "none";
+    return;
+  }
+  const activeLocation = getActiveLocation();
+  if (activeLocation) {
+    legendLabel.textContent = `${activeLocation.name}:`;
+  }
+  legendLabel.style.display = "block";
+  if (typeof window.attachTabTooltips === "function") {
+    window.attachTabTooltips();
   }
 }
 
@@ -439,9 +494,8 @@ function renderLocationTabs() {
   }
 
   const legendLabel = document.getElementById("legend-location-label");
-  const activeLocation = getActiveLocation();
-  if (legendLabel && activeLocation) {
-    legendLabel.textContent = `${activeLocation.name}:`;
+  if (legendLabel) {
+    updateLegendLocationLabel();
   }
 
   updateStandortSyncVisibility();
@@ -541,6 +595,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateStandortSyncVisibility();
 
   standortSyncEnabled = loadStandortSyncState();
+  window.standortSyncEnabled = standortSyncEnabled;
   if (standortSyncToggle) {
     standortSyncToggle.checked = standortSyncEnabled;
   }
@@ -586,6 +641,7 @@ function setupEventListeners() {
   if (standortSyncToggle) {
     standortSyncToggle.addEventListener("change", () => {
       standortSyncEnabled = standortSyncToggle.checked;
+      window.standortSyncEnabled = standortSyncEnabled;
       persistStandortSyncState();
       if (standortSyncEnabled) {
         applySyncToAllLocations(getSyncPayload());
@@ -644,13 +700,16 @@ function setupEventListeners() {
   });
 
   const tabTooltipText = "Mit den Pfeiltasten ← und → kannst du zwischen den Standorten wechseln – ideal zum Vergleichen.";
-  const tabTooltip = document.createElement("div");
-  tabTooltip.id = "location-tab-tooltip";
-  tabTooltip.className = "tooltip";
-  tabTooltip.setAttribute("role", "tooltip");
-  tabTooltip.setAttribute("aria-hidden", "true");
-  tabTooltip.textContent = tabTooltipText;
-  document.body.appendChild(tabTooltip);
+  let tabTooltip = document.getElementById("location-tab-tooltip");
+  if (!tabTooltip) {
+    tabTooltip = document.createElement("div");
+    tabTooltip.id = "location-tab-tooltip";
+    tabTooltip.className = "tooltip";
+    tabTooltip.setAttribute("role", "tooltip");
+    tabTooltip.setAttribute("aria-hidden", "true");
+    tabTooltip.textContent = tabTooltipText;
+    document.body.appendChild(tabTooltip);
+  }
   let tabTooltipTimer = null;
 
   const showTabTooltip = (target) => {
@@ -701,12 +760,23 @@ function setupEventListeners() {
       tab.dataset.tooltipBound = "true";
       bindTabTooltip(tab);
     });
+    const legendLabel = document.getElementById("legend-location-label");
+    if (legendLabel && legendLabel.style.display !== "none") {
+      if (legendLabel.dataset.tooltipBound !== "true") {
+        legendLabel.dataset.tooltipBound = "true";
+        bindTabTooltip(legendLabel);
+      }
+    }
   };
 
-  const observer = new MutationObserver(() => {
-    attachTabTooltips();
-  });
-  observer.observe(document.getElementById("location-tabs"), { childList: true });
+  const tabsRoot = document.getElementById("location-tabs");
+  if (tabsRoot) {
+    const observer = new MutationObserver(() => {
+      attachTabTooltips();
+    });
+    observer.observe(tabsRoot, { childList: true });
+  }
+  window.attachTabTooltips = attachTabTooltips;
   attachTabTooltips();
 
   const modalAccept = document.getElementById("confirm-modal-accept");
@@ -727,10 +797,26 @@ function setupEventListeners() {
       if (!input.checked) {
         return;
       }
-      gtsYearRange = parseInt(input.value, 10);
-      window.gtsYearRange = gtsYearRange;
-      updateActiveLocationUiState({ gtsYearRange });
-      updateColorSchemeAvailability(gtsYearRange);
+      const selectedValue = parseInt(input.value, 10);
+      if (selectedValue === GTS_RANGE_20) {
+        if (gtsColorScheme !== "temperature") {
+          gtsRange20Active = false;
+          updateGtsRangeSelection();
+          return;
+        }
+        gtsRange20Active = true;
+        updateActiveLocationUiState({ gtsRange20Active });
+      } else {
+        gtsYearRange = normalizeRegularGtsRange(selectedValue);
+        gtsRange20Active = false;
+        updateActiveLocationUiState({ gtsYearRange, gtsRange20Active });
+      }
+      updateGtsRangeVisibility();
+      updateGtsRangeSelection();
+      updateColorSchemeAvailability(
+        getEffectiveGtsYearRange(),
+        gtsColorScheme === "temperature" && gtsRange20Active
+      );
       if (plotUpdater) {
         plotUpdater.run();
       }
@@ -742,12 +828,18 @@ function setupEventListeners() {
       if (!input.checked) {
         return;
       }
-      if (gtsYearRange === 1) {
+      if (getEffectiveGtsYearRange() === 1) {
         return;
       }
       gtsColorScheme = input.value;
       window.gtsColorScheme = gtsColorScheme;
       updateActiveLocationUiState({ gtsColorScheme });
+      updateGtsRangeVisibility();
+      updateGtsRangeSelection();
+      updateColorSchemeAvailability(
+        getEffectiveGtsYearRange(),
+        gtsColorScheme === "temperature" && gtsRange20Active
+      );
       if (plotUpdater) {
         plotUpdater.run();
       }
@@ -812,16 +904,19 @@ function setupEventListeners() {
 
   // Allow + and - keys for date increment/decrement
   document.addEventListener('keydown', (event) => {
-    if (event.key === "+" || event.code === "NumpadAdd") {
-      datumPlusBtn.click();
-    } else if (event.key === "-" || event.code === "NumpadSubtract") {
-      datumMinusBtn.click();
-    }
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       const activeElement = document.activeElement;
-      if (activeElement && (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA")) {
+      const isEditable = activeElement && (
+        (activeElement.tagName === "INPUT" &&
+          (activeElement.type === "text" || activeElement.type === "number" || activeElement.type === "date")) ||
+        activeElement.tagName === "TEXTAREA" ||
+        activeElement.isContentEditable
+      );
+      if (isEditable) {
         return;
       }
+      event.preventDefault();
+      event.stopPropagation();
       const locations = getLocationsInOrder();
       if (locations.length <= 1) {
         return;
@@ -834,6 +929,12 @@ function setupEventListeners() {
       const offset = event.key === "ArrowLeft" ? -1 : 1;
       const nextIndex = (currentIndex + offset + locations.length) % locations.length;
       switchLocation(locations[nextIndex].id);
+      return;
+    }
+    if (event.key === "+" || event.code === "NumpadAdd") {
+      datumPlusBtn.click();
+    } else if (event.key === "-" || event.code === "NumpadSubtract") {
+      datumMinusBtn.click();
     }
   });
 

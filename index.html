@@ -148,7 +148,7 @@
           <h2>
             <button id="toggle-gts-plot">Diagramm (GTS) anzeigen</button>
           </h2>
-          <div id="legend-location-label" class="legend-location-label"></div>
+          <div id="legend-location-label" class="legend-location-label" tabindex="0"></div>
           <div class="plot-container" id="gts-plot-container">
             <div class="input-group">
               <label for="zeitraum">Darstellungs Zeitraum:</label>
@@ -172,6 +172,10 @@
               <label>
                 <input type="radio" name="gts-range" value="10" />
                 die letzten 10 Jahre
+              </label>
+              <label id="gts-range-20-label" class="gts-range-20">
+                <input type="radio" name="gts-range" value="20" />
+                die letzten 20 Jahre
               </label>
             </fieldset>
             <fieldset class="gts-color-group gts-control-group">

@@ -101,6 +101,10 @@
     cursor: pointer;
 }
 
+.gts-range-20 {
+    display: none;
+}
+
 .gts-color-group {
     border: 0;
     margin: 8px 0 0;

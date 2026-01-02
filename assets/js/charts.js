@@ -1,6 +1,7 @@
 // --- FILE: /home/fridtjofstein/privat/beelot/assets/js/charts.js ---
 
 import { formatDayMonth } from './utils.js';
+import { createChart } from './chartManager.js';
 
 /**
  * @module charts
@@ -91,7 +92,7 @@ const getColorForIndex = (yearIndex, totalYears, year, scheme) => {
  * Plot a single GTS dataset (the existing approach).
  * E.g. filteredResults => array of { date, gts }.
  */
-export function plotData(results, verbose = false) {
+export function plotData(results, verbose = false, yRange = null) {
     if (verbose) {
         console.log("[charts.js] plotData() called with results:", results);
     }
@@ -116,8 +117,8 @@ export function plotData(results, verbose = false) {
     // Determine background color based on the year color
     const bgColor = colorToRgba(yearColor, 0.2);
 
-    const ctx = document.getElementById('plot-canvas').getContext('2d');
-    const chartGTS = new Chart(ctx, {
+    const canvas = document.getElementById('plot-canvas');
+    const chartGTS = createChart(canvas, {
         type: 'line',
         data: {
             labels: labels,
@@ -139,6 +140,8 @@ export function plotData(results, verbose = false) {
             scales: {
                 y: {
                     beginAtZero: false,
+                    min: yRange ? yRange.min : undefined,
+                    max: yRange ? yRange.max : undefined,
                     title: {
                         display: true,
                         text: 'Grünland-Temperatur-Summe (°C)'
@@ -179,7 +182,7 @@ export function plotData(results, verbose = false) {
 /**
  * Plot daily temps.
  */
-export function plotDailyTemps(dates, temps, verbose = false) {
+export function plotDailyTemps(dates, temps, verbose = false, yRange = null) {
     if (verbose) {
         console.log("[charts.js] plotDailyTemps() called with dates:", dates);
         console.log("[charts.js] plotDailyTemps() called with temps:", temps);
@@ -193,8 +196,8 @@ export function plotDailyTemps(dates, temps, verbose = false) {
         yearLabel = String(lastDate.getFullYear());
     }
 
-    const ctx = document.getElementById('temp-plot').getContext('2d');
-    const chartTemp = new Chart(ctx, {
+    const canvas = document.getElementById('temp-plot');
+    const chartTemp = createChart(canvas, {
         type: 'line',
         data: {
             labels: labels,
@@ -216,6 +219,8 @@ export function plotDailyTemps(dates, temps, verbose = false) {
             scales: {
                 y: {
                     beginAtZero: false,
+                    min: yRange ? yRange.min : undefined,
+                    max: yRange ? yRange.max : undefined,
                     title: {
                         display: true,
                         text: 'Tagesmitteltemperatur (°C)'
@@ -261,23 +266,40 @@ export function plotDailyTemps(dates, temps, verbose = false) {
  *    ...
  * ]
  */
-export function plotMultipleYearData(multiYearData) {
-    const ctx = document.getElementById('plot-canvas').getContext('2d');
+export function plotMultipleYearData(multiYearData, yRange = null) {
+    const canvas = document.getElementById('plot-canvas');
 
     const years = multiYearData.map(item => item.year);
     const newestYear = Math.max(...years);
     const POINTS_THRESHOLD = 100;
     const scheme = window.gtsColorScheme || "queen";
+    const getLastFiniteValue = (values) => {
+        for (let i = values.length - 1; i >= 0; i--) {
+            const value = Number(values[i]);
+            if (Number.isFinite(value)) {
+                return value;
+            }
+        }
+        return null;
+    };
 
     const getPointRadius = (length) => (length > POINTS_THRESHOLD ? 0 : 4);
     const getPointHoverRadius = (length) => (length > POINTS_THRESHOLD ? 0 : 6);
 
     // Build multiple Chart.js datasets
     let temperatureColors = null;
+    let temperatureValues = null;
     if (scheme === "temperature") {
+        temperatureValues = new Map();
+        multiYearData.forEach((item) => {
+            const lastValue = getLastFiniteValue(item.gtsValues);
+            if (lastValue !== null) {
+                temperatureValues.set(item.year, lastValue);
+            }
+        });
         const sortedByGts = [...multiYearData].sort((a, b) => {
-            const aLast = a.gtsValues[a.gtsValues.length - 1] || 0;
-            const bLast = b.gtsValues[b.gtsValues.length - 1] || 0;
+            const aLast = temperatureValues.get(a.year) ?? 0;
+            const bLast = temperatureValues.get(b.year) ?? 0;
             return aLast - bLast;
         });
         temperatureColors = new Map();
@@ -316,7 +338,7 @@ export function plotMultipleYearData(multiYearData) {
 
     // console.log("[charts.js] plotMultipleYearData() masterLabels = ", masterLabels);
 
-    const chartGTS = new Chart(ctx, {
+    const chartGTS = createChart(canvas, {
         type: 'line',
         data: {
             labels: masterLabels,
@@ -339,6 +361,8 @@ export function plotMultipleYearData(multiYearData) {
                 },
                 y: {
                     beginAtZero: false,
+                    min: yRange ? yRange.min : undefined,
+                    max: yRange ? yRange.max : undefined,
                     title: {
                         display: true,
                         text: 'Grünland-Temperatur-Summe (°C)'
@@ -353,7 +377,34 @@ export function plotMultipleYearData(multiYearData) {
                 },
                 legend: {
                     display: true,
-                    position: 'top'
+                    position: 'top',
+                    labels: scheme === "temperature"
+                        ? {
+                            generateLabels: (chart) => {
+                                const defaultGenerator = Chart?.defaults?.plugins?.legend?.labels?.generateLabels;
+                                const labels = typeof defaultGenerator === "function"
+                                    ? defaultGenerator(chart)
+                                    : chart.data.datasets.map((dataset, datasetIndex) => ({
+                                        text: dataset.label,
+                                        fillStyle: dataset.borderColor,
+                                        strokeStyle: dataset.borderColor,
+                                        hidden: !chart.isDatasetVisible(datasetIndex),
+                                        datasetIndex
+                                    }));
+
+                                return labels.sort((a, b) => {
+                                    const aYear = Number(chart.data.datasets[a.datasetIndex].label);
+                                    const bYear = Number(chart.data.datasets[b.datasetIndex].label);
+                                    const aValue = temperatureValues?.get(aYear);
+                                    const bValue = temperatureValues?.get(bYear);
+                                    if (!Number.isFinite(aValue) || !Number.isFinite(bValue)) {
+                                        return 0;
+                                    }
+                                    return bValue - aValue;
+                                });
+                            }
+                        }
+                        : undefined
                 }
             },
             interaction: {

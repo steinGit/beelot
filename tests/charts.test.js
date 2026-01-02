@@ -7,6 +7,7 @@ beforeAll(() => {
             this.destroy = jest.fn();
         }
     };
+    global.Chart.getChart = jest.fn(() => null);
 });
 
 describe('beekeeperColor', () => {

@@ -13,15 +13,18 @@ import {
   getSelectedEndDate,
   build5YearData,
   buildYearData,
+  buildFullYearData,
   computeDateRange
 } from './logic.js';
 import { updateHinweisSection } from './information.js';
 import { formatDateLocal, isValidDate } from './utils.js';
 import { LocationNameFromGPS } from './location_name_from_gps.js'; // Import the new class
+import { destroyAllCharts } from './chartManager.js';
 import {
   createLocationNameCacheStore,
   createWeatherCacheStore,
   getLocationById,
+  getLocationsInOrder,
   updateLocation
 } from './locationStore.js';
 
@@ -97,6 +100,7 @@ export class PlotUpdater {
    */
   async run() {
     try {
+      destroyAllCharts();
       const location = this.getLocation();
       if (!location) {
         console.warn("[PlotUpdater] => Missing active location.");
@@ -170,7 +174,7 @@ export class PlotUpdater {
       await this.step14CreateGTSChart(lat, lon, plotStartDate, endDate, filteredResults);
 
       // Step 15) Temp chart creation
-      this.step15CreateTemperatureChart();
+      this.step15CreateTemperatureChart(endDate);
 
       // Step 16) Update hints
       await this.step16UpdateHinweisSection(gtsResults, endDate);
@@ -188,6 +192,10 @@ export class PlotUpdater {
       });
 
     } catch (err) {
+      if (err && typeof err.message === "string" && err.message.includes("Canvas is already in use")) {
+        console.warn("[PlotUpdater] Chart reuse warning:", err.message);
+        return;
+      }
       console.log("[PlotUpdater] => Caught error:", err);
       this.ergebnisTextEl.textContent = "Ein Fehler ist aufgetreten. Bitte versuche es später erneut.";
       if (this.hinweisSection) {
@@ -340,13 +348,31 @@ export class PlotUpdater {
       }
     };
 
-    const histData = await fetchHistoricalData(
-      lat,
-      lon,
-      fetchStartDate,
-      endDate,
-      this.weatherCacheStore
-    );
+    let histData = null;
+    try {
+      histData = await fetchHistoricalData(
+        lat,
+        lon,
+        fetchStartDate,
+        endDate,
+        this.weatherCacheStore
+      );
+    } catch (error) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (endDate >= today) {
+        console.warn("[PlotUpdater] Falling back to forecast data for recent dates.");
+        histData = await fetchRecentData(
+          lat,
+          lon,
+          fetchStartDate,
+          endDate,
+          this.weatherCacheStore
+        );
+      } else {
+        throw error;
+      }
+    }
 
     if (histData && histData.daily && histData.daily.time.length > 0) {
       addToMap(histData.daily.time, histData.daily.temperature_2m_mean, true);
@@ -552,30 +578,60 @@ export class PlotUpdater {
 
     const yearRange = window.gtsYearRange || 1;
     if (yearRange > 1) {
-      const multiYearData = await buildYearData(
-        lat,
-        lon,
-        plotStartDate,
-        endDate,
-        filteredResults,
-        yearRange,
-        this.weatherCacheStore
-      );
-      this.chartGTS = plotMultipleYearData(multiYearData);
+      let multiYearData;
+      if (yearRange === 20 && window.gtsColorScheme === "temperature") {
+        // Use the last 20 full calendar years relative to the current year.
+        const lastFullYear = new Date().getFullYear() - 1;
+        multiYearData = await buildFullYearData(
+          lat,
+          lon,
+          lastFullYear,
+          yearRange,
+          plotStartDate,
+          endDate,
+          this.weatherCacheStore
+        );
+      } else {
+        multiYearData = await buildYearData(
+          lat,
+          lon,
+          plotStartDate,
+          endDate,
+          filteredResults,
+          yearRange,
+          this.weatherCacheStore
+        );
+      }
+      const gtsStats = this.computeStatsFromMultiYear(multiYearData);
+      this.storeAxisStats("gts", endDate, gtsStats);
+      const yRange = window.standortSyncEnabled
+        ? this.computeGlobalYRange("gts", this.buildGtsViewKey(endDate))
+        : null;
+      this.chartGTS = plotMultipleYearData(multiYearData, yRange);
     } else {
-      this.chartGTS = plotData(filteredResults);
+      const gtsStats = this.computeStatsFromValues(filteredResults.map((item) => item.gts));
+      this.storeAxisStats("gts", endDate, gtsStats);
+      const yRange = window.standortSyncEnabled
+        ? this.computeGlobalYRange("gts", this.buildGtsViewKey(endDate))
+        : null;
+      this.chartGTS = plotData(filteredResults, false, yRange);
     }
   }
 
   /**
    * Step 15: Create the Temperature chart.
    */
-  step15CreateTemperatureChart() {
+  step15CreateTemperatureChart(endDate) {
     if (this.tempPlotContainer.style.display === "none") {
       console.log("[PlotUpdater] => tempPlotContainer hidden => skipping temp chart.");
       return;
     }
-    this.chartTemp = plotDailyTemps(this.filteredTempsDates, this.filteredTempsData, false);
+    const tempStats = this.computeStatsFromValues(this.filteredTempsData);
+    this.storeAxisStats("temp", endDate, tempStats);
+    const yRange = window.standortSyncEnabled
+      ? this.computeGlobalYRange("temp", this.buildTempViewKey(endDate))
+      : null;
+    this.chartTemp = plotDailyTemps(this.filteredTempsDates, this.filteredTempsData, false, yRange);
   }
 
   /**
@@ -585,5 +641,91 @@ export class PlotUpdater {
    */
   async step16UpdateHinweisSection(gtsResults, endDate) {
     await updateHinweisSection(gtsResults, endDate);
+  }
+
+  buildGtsViewKey(endDate) {
+    const dateKey = formatDateLocal(endDate);
+    return `${dateKey}|${this.zeitraumSelect.value}|${window.gtsYearRange || 1}`;
+  }
+
+  buildTempViewKey(endDate) {
+    const dateKey = endDate ? formatDateLocal(endDate) : (this.datumInput.value || "");
+    return `${dateKey}|${this.zeitraumSelect.value}`;
+  }
+
+  computeStatsFromValues(values) {
+    let min = Infinity;
+    let max = -Infinity;
+    let count = 0;
+    values.forEach((value) => {
+      if (!Number.isFinite(value)) {
+        return;
+      }
+      min = Math.min(min, value);
+      max = Math.max(max, value);
+      count += 1;
+    });
+    if (count === 0) {
+      return null;
+    }
+    return { min, max, count };
+  }
+
+  computeStatsFromMultiYear(multiYearData) {
+    const allValues = [];
+    multiYearData.forEach((entry) => {
+      if (Array.isArray(entry.gtsValues)) {
+        allValues.push(...entry.gtsValues);
+      }
+    });
+    return this.computeStatsFromValues(allValues);
+  }
+
+  storeAxisStats(chartType, endDate, stats) {
+    if (!stats) {
+      return;
+    }
+    const key = chartType === "gts" ? this.buildGtsViewKey(endDate) : this.buildTempViewKey();
+    updateLocation(this.locationId, (current) => {
+      if (!current.calculations.axisStats) {
+        current.calculations.axisStats = {};
+      }
+      current.calculations.axisStats[chartType] = {
+        key,
+        min: stats.min,
+        max: stats.max,
+        count: stats.count
+      };
+    });
+  }
+
+  computeGlobalYRange(chartType, viewKey) {
+    const locations = getLocationsInOrder();
+    let min = Infinity;
+    let max = -Infinity;
+    let totalCount = 0;
+
+    locations.forEach((location) => {
+      const stats = location.calculations.axisStats && location.calculations.axisStats[chartType];
+      if (!stats || stats.key !== viewKey) {
+        return;
+      }
+      if (!Number.isFinite(stats.min) || !Number.isFinite(stats.max)) {
+        return;
+      }
+      min = Math.min(min, stats.min);
+      max = Math.max(max, stats.max);
+      totalCount += stats.count || 0;
+    });
+
+    if (!Number.isFinite(min) || !Number.isFinite(max) || totalCount === 0) {
+      return null;
+    }
+    const numericMin = Number(min);
+    const numericMax = Number(max);
+    const roundedMin = Math.floor(numericMin / 10) * 10;
+    const roundedMax = Math.ceil(numericMax / 10) * 10;
+    console.log("[axis-sync]", chartType, "globalMin", roundedMin, "globalMax", roundedMax, "nValues", totalCount);
+    return { min: roundedMin, max: roundedMax };
   }
 }

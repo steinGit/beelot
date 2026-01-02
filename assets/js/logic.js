@@ -327,3 +327,53 @@ export async function build5YearData(
         cacheStore
     );
 }
+
+/**
+ * Builds data for full calendar years using only fetchGTSForYear.
+ * @param {number} lat - Latitude.
+ * @param {number} lon - Longitude.
+ * @param {number} endYear - The last full year to include.
+ * @param {number} yearsCount - Number of years to include.
+ * @param {Object|null} cacheStore - Optional cache store.
+ * @returns {Promise<Array<Object>>} - Array of yearly data objects.
+ */
+export async function buildFullYearData(
+    lat,
+    lon,
+    endYear,
+    yearsCount,
+    baseStartDate,
+    baseEndDate,
+    cacheStore = null
+) {
+    const baseStartDateForYear = createLocalStartOfDay(
+        endYear,
+        baseStartDate.getMonth(),
+        baseStartDate.getDate()
+    );
+    const baseEndDateForYear = createLocalStartOfDay(
+        endYear,
+        baseEndDate.getMonth(),
+        baseEndDate.getDate()
+    );
+    const allResults = [];
+
+    for (let y = endYear; y > endYear - yearsCount; y--) {
+        try {
+            const yearly = await fetchGTSForYear(
+                lat,
+                lon,
+                y,
+                baseStartDate,
+                baseEndDateForYear,
+                false,
+                cacheStore
+            );
+            allResults.push(yearly);
+        } catch (err) {
+            console.warn(`[buildFullYearData] Error year=${y}`, err);
+        }
+    }
+
+    return allResults;
+}

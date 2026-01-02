@@ -12,6 +12,7 @@ function buildDefaultUiState() {
     selectedDate: "",
     zeitraum: "ytd",
     gtsYearRange: 1,
+    gtsRange20Active: false,
     gtsColorScheme: "queen",
     gtsPlotVisible: false,
     tempPlotVisible: false,
@@ -96,6 +97,9 @@ function ensureLocationShape(location) {
   normalized.calculations = normalized.calculations || buildDefaultCalculations();
   normalized.calculations.temps = normalized.calculations.temps || { dates: [], values: [] };
   normalized.ui = normalized.ui || buildDefaultUiState();
+  if (typeof normalized.ui.gtsRange20Active !== "boolean") {
+    normalized.ui.gtsRange20Active = false;
+  }
   normalized.ui.map = normalized.ui.map || { lastPos: null, lastZoom: null };
   return normalized;
 }
