@@ -612,32 +612,6 @@ document.addEventListener('DOMContentLoaded', () => {
  * Attach event listeners (only if DOM elements exist).
  */
 function setupEventListeners() {
-  const braveHintEl = document.getElementById("brave-color-hint");
-  const isBrave = () => {
-    if (typeof navigator === "undefined") {
-      return false;
-    }
-    const braveObj = navigator.brave;
-    if (braveObj && typeof braveObj.isBrave === "function") {
-      try {
-        braveObj.isBrave().then((result) => {
-          if (braveHintEl) {
-            braveHintEl.textContent = result
-              ? "Farben können im Browser Brave teilweise verfälscht dargestellt werden."
-              : "";
-          }
-        });
-        return true;
-      } catch (error) {
-        return false;
-      }
-    }
-    return false;
-  };
-  if (braveHintEl) {
-    isBrave();
-  }
-
   if (standortSyncToggle) {
     standortSyncToggle.addEventListener("change", () => {
       standortSyncEnabled = standortSyncToggle.checked;

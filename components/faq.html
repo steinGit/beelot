@@ -44,15 +44,16 @@
                 <img src="assets/img/tabs01.png" "Initiales Standort Reiter Bild" style="height: 40px; width: auto;">
                 <br>
                 Du kannst mehrere Standorte gleichzeitig verwalten. Jeder ist unabhängig von den anderen.<br>
-                Mit "+" kann ein neuer Standort angelegt werden.<br>
-                Mit "-" wird der aktive Standort gelöscht.<br>
+                Mit einem Klick auf den "+" Reiter kann ein neuer Standort angelegt werden.<br>
+                Mit einem Klick auf den "-" wird der aktive Standort gelöscht.<br>
+                Der letzte verbleibende Standort kann nicht gelöscht werden.<br>
                 Mit Doppelklick auf einen Standort Reiter Name kann dieser geändert werden:
                 <br>
                 <img src="assets/img/tabs02.png" "Name ändern." style="height: 50px; width: auto;">
                 <br>
                 Sinnvolle Namen schaffen Klarheit:
                 <br>
-                <img src="assets/img/tabs03.png" "Klare Bezeichnungen." style="height: 40px; width: auto;">
+                <img src="assets/img/tabs03.png" "Klare Bezeichnungen." style="height: 50px; width: auto;">
                 <br><br>
                 <b>Hinweis:</b><br>
                 Jeder Standort ist eine eigene „Karteikarte“ mit einem fest zugewiesenen Ort und einer eigenen Grünland-Temperatur-Summe.
@@ -69,28 +70,30 @@
                 <br>
                 <img src="assets/img/usage_map2.png" "Bestätigung Bild" style="width: 300px; height: auto;">
               <li style="margin-bottom: 20px;">
-                Jetzt bekommst Du die Grünland-Temperatur-Summe angezeigt. Leider am 1.1. eines jeden Jahres nicht 😉
+                Jetzt bekommst Du die Grünland-Temperatur-Summe angezeigt und
+                es werden, wenn imkerliche Informationen vorliegen, selbige auch aufgelistet.
+                Die Trachtpflanzen sind anklickbar für tiefergehende Information.
+                <br>
+                <img src="assets/img/imkerliche_info.png" "Imkerliche Information" style="width: 300px; height: auto;">
+                <br>
               </li>
               <li style="margin-bottom: 20px;">
-                Es werden, wenn imkerliche Informationen vorliegen, selbige auch angezeigt.
-              </li>
-              <li style="margin-bottom: 20px;">
-                In dem Simulation Bereich kannst du auch vergangene Tage anschauen.
+                In dem Visualisierungs Bereich kannst du auch vergangene Tage anschauen.
                 <p>
                   Zum Beispiel: "Was hätte mir Beelot am 9. April 2024 angezeigt."
                 </p>
-                Dazu das Datum auswählen (Hinweis: Monat/Tag/Jahr):
+                Dazu das Datum auswählen:
                 <br>
-                <img src="assets/img/usage_date1.png" "Datum Auswahl Bild" style="width: 300px; height: auto;">
+                <img src="assets/img/date_selection.png" "Datum Auswahl Bild" style="width: 300px; height: auto;">
                 <br>
                 Entsprechend werden dann die Grünland-Temperatur-Summe und die imkerlichen Hinweise angezeigt.
                 <br>
-                <img src="assets/img/usage_info.png" "Information Bild" style="width: 600px; height: auto;">
+                Wenn mehr als 1 Standort existiert, dann wird automatisch die Möglichkeit des "Standort-Sync" angeboten. Das bedeutet, dass ein Datumswechsel dann auf allen Standorten mitgezogen wird. Das erleichtert auch das visuelle vergleichen von Kurven (Tip: Cursor Taste rechts und links ermöglicht das Wechseln der Standorte reihum).
               </li>
               <li style="margin-bottom: 20px;">
                 Die Diagramme sind am Anfang ausgeblendet. Sie können angezeigt werden. Einfach den Knopf anklicken.
                 <br>
-                Die Kurvenfarben entsprechen den Königinnen-Farben des jeweiligen Jahres.
+                Die Kurvenfarben entsprechen als Default den Königinnen-Farben des jeweiligen Jahres.
                 <br>
                 <img src="assets/img/usage_curve1.png" "Einzelkurve GTS Bild" style="width: 600px; height: auto;">
                 <br>
@@ -100,14 +103,19 @@
                 <br>
                 Die letzten 5 Jahre sind einblendbar.
                 <br>
-                <img src="assets/img/usage_curve_5years.png" "Mehrfachkurve GTS Bild der letzten 5 Jahre" style="width: 600px; height: auto;">
+                <!-- <img src="assets/img/usage_curve_5years.png" "Mehrfachkurve GTS Bild der letzten 5 Jahre" style="width: 600px; height: auto;"> -->
+                <img src="assets/img/curve_queen_sorting.png" "Mehrfachkurve GTS Bild der letzten 10 Jahre" style="width: 600px; height: auto;">
                 <br>
-                Und auch einzeln abwählbar. Zum Beispiel, wenn man nur 2 Kurven vergleichen möchte.
+                Es lassen sich auch andere Farbschemata einstellen, zum Beispiel die Temperatur (abhängig vom rechten GTS Wert der Kurve).
+                <br>
+                <img src="assets/img/curve_temp_sorting.png" "Mehrfachkurve GTS Bild " style="width: 600px; height: auto;">
+                <br>
+                Kurven sind einzeln abwählbar. Zum Beispiel, wenn man nur 2 Kurven vergleichen möchte.
                 <br>
                 <img src="assets/img/usage_curve_selective.png" "Mehrfachkurve GTS Bild der letzten 5 Jahre" style="width: 600px; height: auto;">
               </li>
               <li style="margin-bottom: 20px;">
-                Weiter unten kann der Temperatur Verlauf angezeigt werden. Allerdings in der aktuellen Version 0.1 nur für das ausgewählte Jahr.
+                Weiter unten kann der Temperatur Verlauf angezeigt werden. Allerdings in der aktuellen Version 0.2 nur für das ausgewählte Jahr.
                 <br>
                 <img src="assets/img/usage_curve2.png" "Temperaturverlauf Bild" style="width: 600px; height: auto;">
               </li>
@@ -398,15 +406,6 @@
               </p>
               <p>
                 Lösung: Das Datum für den nächsten Tag über die Datum Einstellung direkt auswählen.
-              </p>
-            </details>
-            <details>
-              <summary>Brave Browser</summary>
-              <p>
-                Farbschemata bei der Visualisierung funktionieren nicht korrekt.
-              </p>
-              <p>
-                Lösung: Benutze den Firefox oder Chrome Browser.
               </p>
             </details>
             <details>

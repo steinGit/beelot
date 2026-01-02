@@ -13,25 +13,13 @@ const DEFAULT_URL_BY_PLANT = new Map(
 );
 
 export async function updateHinweisSection(gtsResults, endDate) {
-    const debugImkerInfo = window.debugImkerInfo === true
-        || localStorage.getItem("debugImkerInfo") === "true";
-    if (debugImkerInfo) {
-        console.log("[imker-info] updateHinweisSection start", {
-            gtsCount: Array.isArray(gtsResults) ? gtsResults.length : 0,
-            endDate: endDate ? endDate.toISOString() : null
-        });
-    }
     // STEP 0A) If localStorage has no "trachtData", set it to default.
     ensureTrachtDataInLocalStorage();
 
     // 0B) Grab the <section> element
     const hinweisSection = document.querySelector(".hinweis-section");
     if (!hinweisSection) {
-        console.log("[information.js] .hinweis-section not found in DOM => cannot update.");
         return;
-    }
-    if (debugImkerInfo) {
-        console.log("[imker-info] hinweisSection found");
     }
 
     // 1) Convert gtsResults => C(day)
@@ -46,7 +34,10 @@ export async function updateHinweisSection(gtsResults, endDate) {
     }
 
     gtsResults.forEach(item => {
-        const dObj = new Date(item.date);
+        const dObj = parseLocalDateString(item.date);
+        if (!dObj) {
+            return;
+        }
         const dIndex = dayOfYear(dObj);
         if (dIndex >= 1 && dIndex < D_C.length) {
             D_C[dIndex] = item.gts;
@@ -93,31 +84,11 @@ export async function updateHinweisSection(gtsResults, endDate) {
 
     const TSUM_current = D_E[n] || 0;
     const TSUM_max = D_E[m] || TSUM_current;
-    if (debugImkerInfo) {
-        console.log("[imker-info] TSUM_current/max", TSUM_current, TSUM_max);
-    }
 
     // 3) Load Tracht data => relevant_list
     const rawTrachtData = loadTrachtData("trachtData");
     const merged = mergeMissingUrls(rawTrachtData);
     let trachtData = merged.data;
-    if (debugImkerInfo) {
-        console.log("[imker-info] trachtData loaded", {
-            rawCount: Array.isArray(rawTrachtData) ? rawTrachtData.length : 0,
-            mergedCount: Array.isArray(trachtData) ? trachtData.length : 0,
-            mergedChanged: merged.changed
-        });
-        const rawSample = Array.isArray(rawTrachtData)
-            ? rawTrachtData.find(row => row && row.plant === "Kornelkirsche")
-            : null;
-        const mergedSample = Array.isArray(trachtData)
-            ? trachtData.find(row => row && row.plant === "Kornelkirsche")
-            : null;
-        console.log("[imker-info] Kornelkirsche entry (raw)", rawSample);
-        console.log("[imker-info] Kornelkirsche entry (merged)", mergedSample);
-        console.log("[imker-info] URL migration applied", merged.changed);
-        console.log("[imker-info] active count", trachtData.filter(row => row && row.active).length);
-    }
     trachtData = trachtData.filter(row => row.active);
 
     const relevant_list = trachtData
@@ -128,9 +99,6 @@ export async function updateHinweisSection(gtsResults, endDate) {
             url: row.url
         }))
         .sort((a, b) => a.TSUM_start - b.TSUM_start);
-    if (debugImkerInfo) {
-        console.log("[imker-info] relevant_list size", relevant_list.length);
-    }
 
     // 4) forecast_list => items with TSUM_start > TSUM_current but <= TSUM_max
     let forecast_list = [];
@@ -138,7 +106,6 @@ export async function updateHinweisSection(gtsResults, endDate) {
         forecast_list = relevant_list.filter(
             row => row.TSUM_start > TSUM_current
         );
-        computeDatesForList(forecast_list, D_E, n, endDate);
     } else {
         console.log("[INFO] No forecast generated: within the first 5 days of the year.");
     }
@@ -364,9 +331,6 @@ export async function updateHinweisSection(gtsResults, endDate) {
     }
 
     hinweisSection.innerHTML = html;
-    if (debugImkerInfo) {
-        console.log("[imker-info] updateHinweisSection done");
-    }
 }
 
 // ------------------------------------------------
@@ -399,10 +363,13 @@ function isLeapYear(y) {
 }
 
 function dayOfYear(d) {
-    const start = new Date(d.getFullYear(), 0, 1);
-    const diff = d - start;
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const day = d.getDate();
+    const utcStart = Date.UTC(year, 0, 1);
+    const utcCurrent = Date.UTC(year, month, day);
     const oneDay = 24 * 60 * 60 * 1000;
-    return Math.floor(diff / oneDay) + 1;
+    return Math.floor((utcCurrent - utcStart) / oneDay) + 1;
 }
 
 function loadTrachtData(key) {
@@ -451,9 +418,6 @@ function buildPlantLabel(row) {
             url = fallback.trim();
         }
     }
-    if (window.debugImkerInfo && plant === "Kornelkirsche") {
-        console.log("[imker-info] Kornelkirsche link url", url, "ownUrl", Object.prototype.hasOwnProperty.call(row, "url"));
-    }
     if (!url) {
         return plant;
     }
@@ -461,7 +425,10 @@ function buildPlantLabel(row) {
 }
 
 function computeDatesForList(list, curve, dayNow, referenceDate) {
-    const referenceYear = referenceDate instanceof Date ? referenceDate.getFullYear() : new Date().getFullYear();
+    if (!(referenceDate instanceof Date)) {
+        return;
+    }
+    const referenceYear = referenceDate.getFullYear();
     for (const row of list) {
         const needed = row.TSUM_start;
         let foundDayIndex = null;
@@ -487,4 +454,21 @@ function transform_to_month_day(dayIndex, dayNow, year) {
     const dd = d.getDate();
     const mm = d.getMonth() + 1;
     return `${dd}.${mm}.`;
+}
+
+function parseLocalDateString(dateStr) {
+    if (typeof dateStr !== "string") {
+        return null;
+    }
+    const parts = dateStr.split("-");
+    if (parts.length !== 3) {
+        return null;
+    }
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+        return null;
+    }
+    return new Date(year, month, day, 0, 0, 0, 0);
 }
