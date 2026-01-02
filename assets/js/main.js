@@ -674,7 +674,7 @@ function setupEventListeners() {
     }
   });
 
-  const tabTooltipText = "Mit den Pfeiltasten ← und → kannst du zwischen den Standorten wechseln – ideal zum Vergleichen.";
+  const tabTooltipText = "Mit den Pfeiltasten ← und → kannst du zwischen den Standorten wechseln – ideal zum Vergleichen. Per Doppelklick kannst Du den Namen ändern.";
   let tabTooltip = document.getElementById("location-tab-tooltip");
   if (!tabTooltip) {
     tabTooltip = document.createElement("div");
