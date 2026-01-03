@@ -144,7 +144,7 @@ export function plotData(results, verbose = false, yRange = null) {
                     max: yRange ? yRange.max : undefined,
                     title: {
                         display: true,
-                        text: 'Grünland-Temperatur-Summe (°C)'
+                        text: 'Grünland-Temperatur-Summe (°Cd)'
                     }
                 },
                 x: {
@@ -365,7 +365,7 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
                     max: yRange ? yRange.max : undefined,
                     title: {
                         display: true,
-                        text: 'Grünland-Temperatur-Summe (°C)'
+                        text: 'Grünland-Temperatur-Summe (°Cd)'
                     }
                 }
             },

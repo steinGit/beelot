@@ -549,7 +549,8 @@ export class PlotUpdater {
       <span style="font-weight: normal; color: #202020;">Die <a href="components/faq.html" class="unstyled-link">Grünland-Temperatur-Summe</a> am </span>
       <span style="font-weight: ${dateWeight}; color: ${dateColor};">${formattedDate}</span>
       <span style="font-weight: normal; color: #202020;"> ${betragenStr} </span>
-      <span style="font-weight: bold; color: darkgreen;">${lastGTS.toFixed(1)}</span> °C
+      <span style="font-weight: bold; color: darkgreen;">${lastGTS.toFixed(1)}</span>
+      <span class="gts-unit-tooltip" title="Einheit der Grünland-Temperatur-Summe: Grad-Tage (°C·d)">°Cd</span>
       <span id="gts-year-comparison"></span>
     `;
   }
@@ -708,19 +709,28 @@ export class PlotUpdater {
       const deltaDays = currentDayIndex - dayIndex;
       const referenceYear = year;
       if (Math.abs(deltaDays) < 2) {
-        comparisons.push(`Wir liegen etwa gleich wie im Jahr ${referenceYear}.`);
+        comparisons.push({ year: referenceYear, relation: "equal" });
       } else if (deltaDays < 0) {
-        comparisons.push(`Wir sind dem Jahr ${referenceYear} um ${Math.abs(deltaDays)} Tage voraus.`);
+        comparisons.push({ year: referenceYear, relation: "faster", delta: Math.abs(deltaDays) });
       } else {
-        comparisons.push(`Wir hängen dem Jahr ${referenceYear} um ${deltaDays} Tage hinterher.`);
+        comparisons.push({ year: referenceYear, relation: "slower", delta: deltaDays });
       }
     }
 
     if (comparisons.length === 0) {
       return;
     }
-    const sentence = comparisons.join("<br>");
-    comparisonEl.innerHTML = `<br><span style="font-weight: normal; color: #202020;">${sentence}</span>`;
+    const orderedComparisons = comparisons.slice().sort((a, b) => a.year - b.year);
+    const parts = orderedComparisons.map((item, index) => {
+      const prefix = index === 0 ? "Gegenüber" : "gegenüber";
+      if (item.relation === "equal") {
+        return `${prefix} ${item.year} etwa gleich`;
+      }
+      const speedWord = item.relation === "faster" ? "schneller" : "langsamer";
+      return `${prefix} ${item.year} um ${item.delta} Tage ${speedWord}`;
+    });
+    const sentence = `Vegetationsentwicklung ${currentYear}:<br>${parts.join(",<br>")}.`;
+    comparisonEl.innerHTML = `<br><span class="gts-comparison">${sentence}</span>`;
   }
 
   getCachedMultiYearData(viewKey) {

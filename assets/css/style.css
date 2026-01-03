@@ -187,6 +187,19 @@ footer nav a:hover {
   white-space: nowrap;
 }
 
+.gts-comparison {
+  font-size: 0.85em;
+  color: #202020;
+  font-weight: normal;
+}
+
+.gts-unit-tooltip {
+  margin-left: 0.2em;
+  cursor: help;
+  color: #000000;
+  font-weight: normal;
+}
+
 #location-name {
   display: block;
   margin-top: 5px;
