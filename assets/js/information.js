@@ -212,7 +212,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
                     timelineRows,
                     `${group.relText} am ${group.dateText}:`,
                     `<span class="${className}">${prefix}${plantList}</span>`,
-                    `GTS = ${group.gtsValue}`,
+                    `${group.gtsValue}`,
                     style
                 );
             } else {
@@ -223,7 +223,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
                     timelineRows,
                     `${group.relText} am ${group.dateText}:`,
                     `<span class="${className}">${prefix}${plantList}</span>`,
-                    `GTS = ${group.gtsValue}`,
+                    `${group.gtsValue}`,
                     style
                 );
             }
@@ -244,7 +244,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
                 timelineRows,
                 `${group.relText} am ${group.dateText}:`,
                 `<span class="${className}">${prefix}${plantList}</span>`,
-                `GTS = ${group.gtsValue}`,
+                `${group.gtsValue}`,
                 style
             );
         });
@@ -294,7 +294,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
                     danachRows,
                     "",
                     `${labels}`,
-                    `bei GTS = ${gtsValue}`,
+                    `bei GTS = ${gtsValue} °Cd`,
                     style
                 );
             });
@@ -309,6 +309,11 @@ export async function updateHinweisSection(gtsResults, endDate) {
         html += `
           <table class="imker-info-table">
             <tbody>
+              <tr class="imker-info-header">
+                <td class="imker-col-time">Datum</td>
+                <td class="imker-col-content">Blütenstart / Empfehlung</td>
+                <td class="imker-col-gts">GTS [°Cd]</td>
+              </tr>
               ${timelineRows.join("\n")}
             </tbody>
           </table>

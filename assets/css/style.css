@@ -107,9 +107,12 @@ footer nav a:hover {
     color: #ff8000;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
     header, nav, main, footer {
-        padding: 5px;
+        padding-left: 2px;
+        padding-right: 2px;
+        padding-top: 6px;
+        padding-bottom: 6px;
     }
 
     nav a {
@@ -118,7 +121,7 @@ footer nav a:hover {
 
     .plot-container canvas {
         width: 100%;
-        max-width: 400px;
+        max-width: none;
         height: 300px;
     }
 }
@@ -167,11 +170,22 @@ footer nav a:hover {
 
 .imker-info-table {
   border-collapse: collapse;
+  margin-left: 0;
+  padding-left: 0;
 }
 
 .imker-info-table td {
   padding: 2px 10px;
   vertical-align: top;
+}
+
+.imker-info-table td:first-child {
+  padding-left: 0;
+}
+
+.imker-info-header td {
+  font-style: italic;
+  font-weight: normal;
 }
 
 .imker-col-time {
@@ -185,6 +199,7 @@ footer nav a:hover {
 
 .imker-col-gts {
   white-space: nowrap;
+  text-align: right;
 }
 
 .gts-comparison {
