@@ -359,12 +359,15 @@ function ensureTrachtDataInLocalStorage() {
   const TRACT_DATA_KEY = "trachtData";
   const stored = localStorage.getItem(TRACT_DATA_KEY);
   if (!stored) {
-    console.log("[information.js] No trachtData in localStorage => using defaults.");
     localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(defaultTrachtData));
     return;
   }
   try {
     const parsed = JSON.parse(stored);
+    if (!hasAnyUrl(parsed)) {
+      localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(defaultTrachtData));
+      return;
+    }
     const merged = mergeMissingUrls(parsed);
     if (merged.changed) {
       localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(merged.data));
@@ -423,6 +426,21 @@ function mergeMissingUrls(trachtData) {
         return row;
     });
     return { data, changed };
+}
+
+function hasAnyUrl(trachtData) {
+    if (!Array.isArray(trachtData)) {
+        return false;
+    }
+    return trachtData.some((row) => {
+        if (!row || typeof row !== "object") {
+            return false;
+        }
+        if (typeof row.url !== "string") {
+            return false;
+        }
+        return row.url.trim().length > 0;
+    });
 }
 
 function buildPlantLabel(row) {
