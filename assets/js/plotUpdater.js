@@ -590,13 +590,13 @@ export class PlotUpdater {
     const yearRange = window.gtsYearRange || 1;
     if (yearRange > 1) {
       let multiYearData;
+      const selectedYear = endDate.getFullYear();
       if (yearRange === 20 && window.gtsColorScheme === "temperature") {
-        // Use the last 20 full calendar years relative to the current year.
-        const lastFullYear = new Date().getFullYear() - 1;
+        // Use the selected year as anchor for the full-year range.
         multiYearData = await buildFullYearData(
           lat,
           lon,
-          lastFullYear,
+          selectedYear,
           yearRange,
           plotStartDate,
           endDate,

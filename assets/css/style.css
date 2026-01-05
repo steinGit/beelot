@@ -5,6 +5,11 @@ body {
     font-family: sans-serif;
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
+}
+
+*, *::before, *::after {
+    box-sizing: inherit;
 }
 
 header, nav, main, footer {
@@ -123,6 +128,44 @@ footer nav a:hover {
         width: 100%;
         max-width: none;
         height: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    header, nav, main, footer {
+        padding-left: 2px;
+        padding-right: 2px;
+    }
+
+    .location-panel,
+    .plot-section,
+    .eingabe-section,
+    .ergebnis-section,
+    .hinweis-section,
+    .plot-container,
+    .plot-wrapper,
+    .input-group,
+    fieldset.gts-control-group {
+        margin-left: 0;
+        margin-right: 0;
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .plot-container {
+        margin-top: 12px;
+        min-height: 220px;
+    }
+
+    .plot-wrapper {
+        width: 100%;
+    }
+
+    .plot-container canvas,
+    .plot-wrapper canvas {
+        display: block;
+        width: 100%;
+        height: auto;
     }
 }
 

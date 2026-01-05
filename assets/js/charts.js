@@ -22,6 +22,18 @@ export function beekeeperColor(year) {
     return colorMap[remainder];
 }
 
+const isMobileLayout = () => (
+    typeof window !== "undefined"
+    && typeof window.matchMedia === "function"
+    && window.matchMedia("(max-width: 480px)").matches
+);
+
+const isSmallMobileLayout = () => (
+    typeof window !== "undefined"
+    && typeof window.matchMedia === "function"
+    && window.matchMedia("(max-width: 360px)").matches
+);
+
 const OLDER_YEAR_PALETTE = [
     "rgb(180, 180, 255)",
     "rgb(130, 230, 130)",
@@ -113,6 +125,11 @@ export function plotData(results, verbose = false, yRange = null) {
     // Use the last date's year for color
     const endDate = new Date(results[results.length - 1].date);
     const yearColor = getColorForIndex(0, 1, endDate.getFullYear(), window.gtsColorScheme || "queen");
+    const isMobile = isMobileLayout();
+    const isSmallMobile = isSmallMobileLayout();
+    const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
+    const legendFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
+    const maxTicks = isSmallMobile ? 4 : (isMobile ? 6 : undefined);
 
     // Determine background color based on the year color
     const bgColor = colorToRgba(yearColor, 0.2);
@@ -145,6 +162,11 @@ export function plotData(results, verbose = false, yRange = null) {
                     title: {
                         display: true,
                         text: 'Grünland-Temperatur-Summe (°Cd)'
+                    },
+                    ticks: {
+                        font: {
+                            size: axisFontSize
+                        }
                     }
                 },
                 x: {
@@ -154,7 +176,12 @@ export function plotData(results, verbose = false, yRange = null) {
                     },
                     ticks: {
                         maxRotation: 0,
-                        minRotation: 0
+                        minRotation: 0,
+                        autoSkip: isMobile,
+                        maxTicksLimit: maxTicks,
+                        font: {
+                            size: axisFontSize
+                        }
                     }
                 }
             },
@@ -166,7 +193,12 @@ export function plotData(results, verbose = false, yRange = null) {
                 },
                 legend: {
                     display: true,
-                    position: 'top'
+                    position: isMobile ? 'bottom' : 'top',
+                    labels: {
+                        font: {
+                            size: legendFontSize
+                        }
+                    }
                 }
             },
             interaction: {
@@ -195,6 +227,11 @@ export function plotDailyTemps(dates, temps, verbose = false, yRange = null) {
         const lastDate = new Date(dates[dates.length - 1]);
         yearLabel = String(lastDate.getFullYear());
     }
+    const isMobile = isMobileLayout();
+    const isSmallMobile = isSmallMobileLayout();
+    const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
+    const legendFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
+    const maxTicks = isSmallMobile ? 4 : (isMobile ? 6 : undefined);
 
     const canvas = document.getElementById('temp-plot');
     const chartTemp = createChart(canvas, {
@@ -224,6 +261,11 @@ export function plotDailyTemps(dates, temps, verbose = false, yRange = null) {
                     title: {
                         display: true,
                         text: 'Tagesmitteltemperatur (°C)'
+                    },
+                    ticks: {
+                        font: {
+                            size: axisFontSize
+                        }
                     }
                 },
                 x: {
@@ -233,7 +275,12 @@ export function plotDailyTemps(dates, temps, verbose = false, yRange = null) {
                     },
                     ticks: {
                         maxRotation: 0,
-                        minRotation: 0
+                        minRotation: 0,
+                        autoSkip: isMobile,
+                        maxTicksLimit: maxTicks,
+                        font: {
+                            size: axisFontSize
+                        }
                     }
                 }
             },
@@ -245,7 +292,12 @@ export function plotDailyTemps(dates, temps, verbose = false, yRange = null) {
                 },
                 legend: {
                     display: true,
-                    position: 'top'
+                    position: isMobile ? 'bottom' : 'top',
+                    labels: {
+                        font: {
+                            size: legendFontSize
+                        }
+                    }
                 }
             },
             interaction: {
@@ -271,6 +323,11 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
 
     const years = multiYearData.map(item => item.year);
     const newestYear = Math.max(...years);
+    const isMobile = isMobileLayout();
+    const isSmallMobile = isSmallMobileLayout();
+    const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
+    const legendFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
+    const maxTicks = isSmallMobile ? 4 : (isMobile ? 6 : undefined);
     const POINTS_THRESHOLD = 100;
     const scheme = window.gtsColorScheme || "queen";
     const getLastFiniteValue = (values) => {
@@ -356,7 +413,12 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
                     },
                     ticks: {
                         maxRotation: 0,
-                        minRotation: 0
+                        minRotation: 0,
+                        autoSkip: isMobile,
+                        maxTicksLimit: maxTicks,
+                        font: {
+                            size: axisFontSize
+                        }
                     }
                 },
                 y: {
@@ -366,6 +428,11 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
                     title: {
                         display: true,
                         text: 'Grünland-Temperatur-Summe (°Cd)'
+                    },
+                    ticks: {
+                        font: {
+                            size: axisFontSize
+                        }
                     }
                 }
             },
@@ -377,7 +444,7 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
                 },
                 legend: {
                     display: true,
-                    position: 'top',
+                    position: isMobile ? 'bottom' : 'top',
                     labels: scheme === "temperature"
                         ? {
                             generateLabels: (chart) => {
@@ -402,9 +469,16 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
                                     }
                                     return bValue - aValue;
                                 });
+                            },
+                            font: {
+                                size: legendFontSize
                             }
                         }
-                        : undefined
+                        : {
+                            font: {
+                                size: legendFontSize
+                            }
+                        }
                 }
             },
             interaction: {

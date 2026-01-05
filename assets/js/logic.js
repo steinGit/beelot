@@ -346,26 +346,26 @@ export async function buildFullYearData(
     baseEndDate,
     cacheStore = null
 ) {
-    const baseStartDateForYear = createLocalStartOfDay(
-        endYear,
-        baseStartDate.getMonth(),
-        baseStartDate.getDate()
-    );
-    const baseEndDateForYear = createLocalStartOfDay(
-        endYear,
-        baseEndDate.getMonth(),
-        baseEndDate.getDate()
-    );
     const allResults = [];
 
     for (let y = endYear; y > endYear - yearsCount; y--) {
         try {
+            const yearPlotStart = createLocalStartOfDay(
+                y,
+                baseStartDate.getMonth(),
+                baseStartDate.getDate()
+            );
+            const yearPlotEnd = createLocalStartOfDay(
+                y,
+                baseEndDate.getMonth(),
+                baseEndDate.getDate()
+            );
             const yearly = await fetchGTSForYear(
                 lat,
                 lon,
                 y,
-                baseStartDate,
-                baseEndDateForYear,
+                yearPlotStart,
+                yearPlotEnd,
                 false,
                 cacheStore
             );
