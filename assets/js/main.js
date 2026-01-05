@@ -110,6 +110,7 @@ let gtsYearRange = 1;
 let gtsRange20Active = false;
 let gtsColorScheme = "queen";
 let standortSyncEnabled = false;
+let lastNarrowLayout = null;
 const STANDORT_SYNC_KEY = "beelotStandortSync";
 const STANDORT_SYNC_CONTROL_ID = "standort-sync-control";
 const REGULAR_GTS_RANGES = new Set([1, 5, 10]);
@@ -349,6 +350,7 @@ function applyLocationState(location) {
   }
 
   updateLegendLocationLabel();
+  updateMobileLabels();
 }
 
 function updateLegendLocationLabel() {
@@ -370,6 +372,80 @@ function updateLegendLocationLabel() {
   if (typeof window.attachTabTooltips === "function") {
     window.attachTabTooltips();
   }
+}
+
+function isNarrowLayout() {
+  return typeof window !== "undefined"
+    && typeof window.matchMedia === "function"
+    && window.matchMedia("(max-width: 480px)").matches;
+}
+
+function ensureLabelTextSpan(label) {
+  if (!label) {
+    return null;
+  }
+  let span = label.querySelector(".label-text");
+  if (!span) {
+    const textNodes = Array.from(label.childNodes)
+      .filter((node) => node.nodeType === Node.TEXT_NODE);
+    const combinedText = textNodes.map((node) => node.textContent).join(" ").trim();
+    textNodes.forEach((node) => label.removeChild(node));
+    span = document.createElement("span");
+    span.className = "label-text";
+    if (combinedText) {
+      span.dataset.fullText = combinedText;
+    }
+    label.appendChild(span);
+  }
+  return span;
+}
+
+function updateMobileLabels(force = false) {
+  const narrow = isNarrowLayout();
+  if (!force && lastNarrowLayout === narrow) {
+    return;
+  }
+  lastNarrowLayout = narrow;
+
+  const rangeLabels = document.querySelectorAll(".gts-range-group label");
+  rangeLabels.forEach((label) => {
+    const input = label.querySelector("input");
+    if (!input) {
+      return;
+    }
+    const span = ensureLabelTextSpan(label);
+    if (!span) {
+      return;
+    }
+    const fullText = span.dataset.fullText || span.textContent.trim();
+    span.dataset.fullText = fullText;
+    if (!narrow) {
+      span.textContent = fullText;
+      return;
+    }
+    const shortMap = {
+      "1": "1J",
+      "5": "5J",
+      "10": "10J",
+      "20": "20J"
+    };
+    span.textContent = shortMap[input.value] || fullText;
+  });
+
+  const colorLabelMap = {
+    "gts-queen-label": "Königin",
+    "gts-rainbow-label": "Regenb.",
+    "gts-temp-label": "Temp"
+  };
+  Object.entries(colorLabelMap).forEach(([id, shortText]) => {
+    const span = document.getElementById(id);
+    if (!span) {
+      return;
+    }
+    const fullText = span.dataset.fullText || span.textContent.trim();
+    span.dataset.fullText = fullText;
+    span.textContent = narrow ? shortText : fullText;
+  });
 }
 
 function updateStandortSyncVisibility() {
@@ -534,6 +610,7 @@ function switchLocation(locationId) {
     plotUpdater.setLocationId(locationId);
     plotUpdater.run();
   }
+  updateMobileLabels();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -606,12 +683,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Now set up event listeners
   setupEventListeners();
+  updateMobileLabels(true);
 });
 
 /**
  * Attach event listeners (only if DOM elements exist).
  */
 function setupEventListeners() {
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    if (resizeTimer) {
+      clearTimeout(resizeTimer);
+    }
+    resizeTimer = window.setTimeout(() => {
+      updateMobileLabels();
+      const gtsCanvas = document.getElementById("plot-canvas");
+      const tempCanvas = document.getElementById("temp-plot");
+      const gtsChart = gtsCanvas ? Chart.getChart(gtsCanvas) : null;
+      const tempChart = tempCanvas ? Chart.getChart(tempCanvas) : null;
+      if (gtsChart) {
+        requestAnimationFrame(() => {
+          gtsChart.resize();
+          gtsChart.update("none");
+        });
+      }
+      if (tempChart) {
+        requestAnimationFrame(() => {
+          tempChart.resize();
+          tempChart.update("none");
+        });
+      }
+    }, 120);
+  });
+
   if (standortSyncToggle) {
     standortSyncToggle.addEventListener("change", () => {
       standortSyncEnabled = standortSyncToggle.checked;

@@ -138,6 +138,7 @@ footer nav a:hover {
     }
 
     .location-panel,
+    .standort-section,
     .plot-section,
     .eingabe-section,
     .ergebnis-section,
@@ -148,24 +149,43 @@ footer nav a:hover {
     fieldset.gts-control-group {
         margin-left: 0;
         margin-right: 0;
-        padding-left: 0;
-        padding-right: 0;
+        padding-left: 2px;
+        padding-right: 2px;
     }
 
     .plot-container {
         margin-top: 12px;
-        min-height: 220px;
     }
 
     .plot-wrapper {
         width: 100%;
+        height: 320px;
+    }
+
+    #temp-plot-container {
+        height: 320px;
     }
 
     .plot-container canvas,
     .plot-wrapper canvas {
         display: block;
         width: 100%;
-        height: auto;
+        height: 100%;
+    }
+
+    fieldset.gts-control-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 10px;
+        padding: 4px;
+    }
+
+    fieldset.gts-control-group label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.85rem;
+        margin: 0;
     }
 }
 

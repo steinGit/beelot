@@ -4,6 +4,7 @@
  */
 
 const chartMap = new Map();
+const DEBUG_UI = false;
 
 export function destroyChart(canvas) {
   if (!canvas) {
@@ -27,10 +28,29 @@ export function createChart(canvas, config) {
     return null;
   }
   destroyChart(canvas);
+  if (DEBUG_UI) {
+    const container = canvas.parentElement;
+    console.debug("[ui] chart container size", {
+      canvasId: canvas.id,
+      containerWidth: container ? container.clientWidth : null,
+      containerHeight: container ? container.clientHeight : null
+    });
+  }
   console.log("[chart] creating", canvas.id);
   const ctx = canvas.getContext("2d");
   const chart = new Chart(ctx, config);
   chartMap.set(canvas.id, chart);
+  requestAnimationFrame(() => {
+    chart.resize();
+    chart.update("none");
+    if (DEBUG_UI) {
+      console.debug("[ui] chart canvas size", {
+        canvasId: canvas.id,
+        canvasWidth: canvas.clientWidth,
+        canvasHeight: canvas.clientHeight
+      });
+    }
+  });
   return chart;
 }
 
