@@ -265,6 +265,20 @@ footer nav a:hover {
   text-align: right;
 }
 
+.imker-time-short {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .imker-time-full {
+    display: none;
+  }
+
+  .imker-time-short {
+    display: inline;
+  }
+}
+
 .gts-comparison {
   font-size: 0.85em;
   color: #202020;

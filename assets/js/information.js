@@ -131,6 +131,12 @@ export async function updateHinweisSection(gtsResults, endDate) {
             </tr>`
         );
     };
+    const buildTimeCell = (fullText, shortText) => {
+        if (!shortText) {
+            return fullText;
+        }
+        return `<span class="imker-time-full">${fullText}</span><span class="imker-time-short">${shortText}</span>`;
+    };
 
     // 6) Build HTML
     let html = "<h2>Imkerliche Information</h2>\n";
@@ -206,11 +212,15 @@ export async function updateHinweisSection(gtsResults, endDate) {
             const plantList = group.plants.join(", ");
             const prefix = group.isRecommendation ? recommendationPrefix : "";
             const className = group.isRecommendation ? "imker-empfehlung-inline" : "";
+            const timeHtml = buildTimeCell(
+                `${group.relText} am ${group.dateText}:`,
+                `${group.dateText}:`
+            );
             if (group.relText === "Heute") {
                 const style = "font-weight: bold; color: #ff8020;";
                 pushRow(
                     timelineRows,
-                    `${group.relText} am ${group.dateText}:`,
+                    timeHtml,
                     `<span class="${className}">${prefix}${plantList}</span>`,
                     `${group.gtsValue}`,
                     style
@@ -221,7 +231,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
                     : "color: #802020;";
                 pushRow(
                     timelineRows,
-                    `${group.relText} am ${group.dateText}:`,
+                    timeHtml,
                     `<span class="${className}">${prefix}${plantList}</span>`,
                     `${group.gtsValue}`,
                     style
@@ -240,9 +250,13 @@ export async function updateHinweisSection(gtsResults, endDate) {
             const prefix = group.isRecommendation ? recommendationPrefix : "";
             const className = group.isRecommendation ? "imker-empfehlung-inline" : "";
             const style = "font-weight: bold; color: #206020;";
+            const timeHtml = buildTimeCell(
+                `${group.relText} am ${group.dateText}:`,
+                `${group.dateText}:`
+            );
             pushRow(
                 timelineRows,
-                `${group.relText} am ${group.dateText}:`,
+                timeHtml,
                 `<span class="${className}">${prefix}${plantList}</span>`,
                 `${group.gtsValue}`,
                 style
