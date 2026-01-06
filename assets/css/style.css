@@ -285,6 +285,11 @@ footer nav a:hover {
   font-weight: normal;
 }
 
+.gts-comparison-spacer {
+  display: block;
+  height: 0.5em;
+}
+
 .gts-unit-tooltip {
   margin-left: 0.2em;
   cursor: help;

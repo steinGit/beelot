@@ -717,20 +717,197 @@ export class PlotUpdater {
       }
     }
 
-    if (comparisons.length === 0) {
+    let comparisonHtml = "";
+    if (comparisons.length > 0) {
+      const orderedComparisons = comparisons.slice().sort((a, b) => a.year - b.year);
+      const parts = orderedComparisons.map((item, index) => {
+        const prefix = index === 0 ? "Gegenüber" : "gegenüber";
+        if (item.relation === "equal") {
+          return `${prefix} ${item.year} etwa gleich`;
+        }
+        const speedWord = item.relation === "faster" ? "schneller" : "langsamer";
+        return `${prefix} ${item.year} um ${item.delta} Tage ${speedWord}`;
+      });
+      const sentence = `Vegetationsentwicklung ${currentYear}:<br>${parts.join(",<br>")}.`;
+      comparisonHtml = `<span class="gts-comparison-spacer"></span><span class="gts-comparison">${sentence}</span>`;
+    }
+
+    const locations = getLocationsInOrder();
+    if (locations.length > 1) {
+      const currentLocation = getLocationById(this.locationId);
+      const candidates = locations.map((location) => {
+        const selectedDateStr = location.ui?.selectedDate;
+        const selectedDate = selectedDateStr
+          ? this.parseDateStringLocal(selectedDateStr)
+          : null;
+        const currentGts = this.findGtsValueForDate(location.calculations?.gtsResults, selectedDate);
+        return {
+          location,
+          selectedDate,
+          currentGts
+        };
+      }).filter((entry) => entry.selectedDate && Number.isFinite(entry.currentGts));
+
+      if (candidates.length > 1) {
+        const reference = candidates.reduce((best, entry) => {
+          if (!best || entry.currentGts > best.currentGts) {
+            return entry;
+          }
+          return best;
+        }, null);
+
+        if (reference && reference.location?.calculations?.gtsResults) {
+          const referenceName = reference.location.name || "Standort";
+          const referenceDate = reference.selectedDate;
+          const referenceCurve = reference.location.calculations.gtsResults;
+          const referenceStamp = this.getUtcDayStamp(referenceDate);
+
+          const deltaById = new Map();
+          candidates.forEach((entry) => {
+            const targetGts = entry.currentGts;
+            let matchDate = null;
+            for (const item of referenceCurve) {
+              if (!Number.isFinite(item.gts)) {
+                continue;
+              }
+              if (Number(item.gts) >= targetGts) {
+                matchDate = this.parseDateStringLocal(item.date);
+                break;
+              }
+            }
+            if (!matchDate) {
+              matchDate = referenceDate;
+            }
+            const deltaDays = Math.max(
+              0,
+              Math.round((referenceStamp - this.getUtcDayStamp(matchDate)) / 86400000)
+            );
+            deltaById.set(entry.location.id, deltaDays);
+          });
+
+          const comparisonsByKey = new Map();
+          const MIN_COMPARE_GTS = 10;
+          const GTS_EQUAL_EPSILON = 1.0;
+
+          const comparisonMap = new Map();
+          candidates.forEach((entry) => {
+            comparisonMap.set(entry.location.id, new Map());
+          });
+
+          for (let i = 0; i < candidates.length; i++) {
+            const left = candidates[i];
+            for (let j = i + 1; j < candidates.length; j++) {
+              const right = candidates[j];
+              if (!(left.currentGts > MIN_COMPARE_GTS && right.currentGts > MIN_COMPARE_GTS)) {
+                continue;
+              }
+              if (Math.abs(left.currentGts - right.currentGts) < GTS_EQUAL_EPSILON) {
+                comparisonMap.get(left.location.id).set(right.location.id, { relation: "gleich", days: 0 });
+                comparisonMap.get(right.location.id).set(left.location.id, { relation: "gleich", days: 0 });
+                continue;
+              }
+              const deltaLeft = deltaById.get(left.location.id);
+              const deltaRight = deltaById.get(right.location.id);
+              if (!Number.isFinite(deltaLeft) || !Number.isFinite(deltaRight)) {
+                continue;
+              }
+              const diff = Math.abs(deltaLeft - deltaRight);
+              if (deltaLeft < deltaRight) {
+                comparisonMap.get(left.location.id).set(right.location.id, { relation: "schneller", days: diff });
+                comparisonMap.get(right.location.id).set(left.location.id, { relation: "langsamer", days: diff });
+              } else {
+                comparisonMap.get(left.location.id).set(right.location.id, { relation: "langsamer", days: diff });
+                comparisonMap.get(right.location.id).set(left.location.id, { relation: "schneller", days: diff });
+              }
+            }
+          }
+
+          const gtsById = new Map(candidates.map((entry) => [entry.location.id, entry.currentGts]));
+          const groupedComparisons = [];
+
+          const appendToGroup = (relation, days, targetName, targetGts) => {
+            if (relation === "gleich") {
+              for (const group of groupedComparisons) {
+                if (group.relation !== "gleich" || group.days !== 0) {
+                  continue;
+                }
+                const isCompatible = group.targets.every((existing) =>
+                  Math.abs(existing.gts - targetGts) < GTS_EQUAL_EPSILON
+                );
+                if (isCompatible) {
+                  group.targets.push({ name: targetName, gts: targetGts });
+                  return;
+                }
+              }
+              groupedComparisons.push({
+                relation: "gleich",
+                days: 0,
+                targets: [{ name: targetName, gts: targetGts }]
+              });
+              return;
+            }
+            const key = `${relation}|${days}`;
+            if (!comparisonsByKey.has(key)) {
+              comparisonsByKey.set(key, {
+                relation,
+                days,
+                targets: []
+              });
+              groupedComparisons.push(comparisonsByKey.get(key));
+            }
+            comparisonsByKey.get(key).targets.push({ name: targetName, gts: targetGts });
+          };
+
+          locations.forEach((target) => {
+            if (!currentLocation || target.id === currentLocation.id) {
+              return;
+            }
+            const targetName = target.name || "Standort";
+            const currentComparisons = currentLocation
+              ? comparisonMap.get(currentLocation.id)
+              : null;
+            const comparison = currentComparisons ? currentComparisons.get(target.id) : null;
+            if (!comparison) {
+              return;
+            }
+            const targetGts = gtsById.get(target.id);
+            if (!Number.isFinite(targetGts)) {
+              return;
+            }
+            appendToGroup(comparison.relation, comparison.days, targetName, targetGts);
+          });
+
+          const lines = [];
+          const currentName = currentLocation ? currentLocation.name : "Standort";
+          groupedComparisons.forEach((group) => {
+            if (group.targets.length === 0) {
+              return;
+            }
+            if (group.relation === "gleich") {
+              const targets = group.targets.map((item) => item.name).join(" und ");
+              lines.push(`${currentName} ist gleich wie ${targets}.`);
+              return;
+            }
+            const targets = group.targets.map((item) => item.name).join(" und ");
+            lines.push(`${currentName} ist um ${group.days} Tage ${group.relation} als ${targets}.`);
+          });
+
+          if (lines.length > 0) {
+            if (!comparisonHtml) {
+              comparisonHtml = `<span class="gts-comparison-spacer"></span>`;
+            } else {
+              comparisonHtml += `<span class="gts-comparison-spacer"></span>`;
+            }
+            comparisonHtml += `<span class="gts-comparison">Vegetationsentwicklung der Standorte:<br>${lines.join("<br>")}</span>`;
+          }
+        }
+      }
+    }
+
+    if (!comparisonHtml) {
       return;
     }
-    const orderedComparisons = comparisons.slice().sort((a, b) => a.year - b.year);
-    const parts = orderedComparisons.map((item, index) => {
-      const prefix = index === 0 ? "Gegenüber" : "gegenüber";
-      if (item.relation === "equal") {
-        return `${prefix} ${item.year} etwa gleich`;
-      }
-      const speedWord = item.relation === "faster" ? "schneller" : "langsamer";
-      return `${prefix} ${item.year} um ${item.delta} Tage ${speedWord}`;
-    });
-    const sentence = `Vegetationsentwicklung ${currentYear}:<br>${parts.join(",<br>")}.`;
-    comparisonEl.innerHTML = `<br><span class="gts-comparison">${sentence}</span>`;
+    comparisonEl.innerHTML = `<br>${comparisonHtml}`;
   }
 
   getCachedMultiYearData(viewKey) {
@@ -817,6 +994,51 @@ export class PlotUpdater {
       return null;
     }
     return new Date(year, month - 1, day);
+  }
+
+  parseDateStringLocal(dateStr) {
+    if (typeof dateStr !== "string") {
+      return null;
+    }
+    const parts = dateStr.split("-");
+    if (parts.length !== 3) {
+      return null;
+    }
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+      return null;
+    }
+    return new Date(year, month, day, 0, 0, 0, 0);
+  }
+
+  getUtcDayStamp(dateObj) {
+    return Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+  }
+
+  findGtsValueForDate(gtsResults, selectedDate) {
+    if (!Array.isArray(gtsResults) || !(selectedDate instanceof Date)) {
+      return null;
+    }
+    const targetStamp = this.getUtcDayStamp(selectedDate);
+    let latestValue = null;
+    let latestStamp = null;
+    for (const item of gtsResults) {
+      const parsed = this.parseDateStringLocal(item.date);
+      if (!parsed) {
+        continue;
+      }
+      const stamp = this.getUtcDayStamp(parsed);
+      if (stamp === targetStamp) {
+        return Number(item.gts);
+      }
+      if (stamp <= targetStamp && (latestStamp === null || stamp > latestStamp)) {
+        latestStamp = stamp;
+        latestValue = Number(item.gts);
+      }
+    }
+    return Number.isFinite(latestValue) ? latestValue : null;
   }
 
   /**
