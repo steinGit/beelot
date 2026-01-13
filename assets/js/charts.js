@@ -11,13 +11,13 @@ import { createChart } from './chartManager.js';
 
 // Existing function to pick color for a given year
 export function beekeeperColor(year) {
-    const remainder = year % 5;
+    const remainder = ((year % 5) + 5) % 5;
     const colorMap = {
-        0: "blue",    // e.g. 2025 -> remainder=0 -> blue
-        1: "grey",    // e.g. 2026 -> remainder=1 -> grey
-        2: "#ddaa00", // e.g. 2027 -> remainder=2
-        3: "red",     // e.g. 2028 -> remainder=3
-        4: "green"    // e.g. 2029 -> remainder=4
+        0: "blue",              // YYYY % 5 == 0 -> BLUE
+        1: "rgb(180, 180, 180)", // YYYY % 5 == 1 -> WHITE (light gray)
+        2: "red",               // YYYY % 5 == 2 -> RED
+        3: "green",             // YYYY % 5 == 3 -> GREEN
+        4: "#ddaa00"            // YYYY % 5 == 4 -> YELLOW
     };
     return colorMap[remainder];
 }
@@ -33,14 +33,6 @@ const isSmallMobileLayout = () => (
     && typeof window.matchMedia === "function"
     && window.matchMedia("(max-width: 360px)").matches
 );
-
-const OLDER_YEAR_PALETTE = [
-    "rgb(180, 180, 255)",
-    "rgb(130, 230, 130)",
-    "rgb(255, 100, 100)",
-    "rgb(255, 230, 50)",
-    "rgb(180, 180, 180)"
-];
 
 const COLOR_MAP = {
     blue: [0, 0, 255],
@@ -61,6 +53,36 @@ const turboColor = (t) => {
     const g = 23.31 + tt * (557.33 + tt * (1225.33 + tt * (-3574.96 + tt * (1073.77 + tt * 707.56))));
     const b = 27.2 + tt * (3211.1 + tt * (-15327.97 + tt * (27814.0 + tt * (-22569.18 + tt * 6838.66))));
     return `rgb(${clamp(Math.round(r), 0, 255)}, ${clamp(Math.round(g), 0, 255)}, ${clamp(Math.round(b), 0, 255)})`;
+};
+
+const LIGHTEN_FACTOR = 0.65;
+
+const parseColorToRgb = (color) => {
+    if (color.startsWith("rgb(")) {
+        const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (!match) {
+            return null;
+        }
+        return [Number(match[1]), Number(match[2]), Number(match[3])];
+    }
+    if (color.startsWith("#") && color.length === 7) {
+        return [
+            parseInt(color.slice(1, 3), 16),
+            parseInt(color.slice(3, 5), 16),
+            parseInt(color.slice(5, 7), 16)
+        ];
+    }
+    return COLOR_MAP[color] ?? null;
+};
+
+const lightenColor = (color, factor) => {
+    const rgb = parseColorToRgb(color);
+    if (!rgb) {
+        return color;
+    }
+    const [r, g, b] = rgb;
+    const lighten = (value) => Math.round(value + (255 - value) * factor);
+    return `rgb(${lighten(r)}, ${lighten(g)}, ${lighten(b)})`;
 };
 
 const colorToRgba = (color, alpha) => {
@@ -86,11 +108,11 @@ const getTurboForIndex = (yearIndex, totalYears) => {
 };
 
 const getQueenForIndex = (yearIndex, year) => {
-    // TODO: Extend per-range styling if additional year ranges are added.
+    const baseColor = beekeeperColor(year);
     if (yearIndex >= 5) {
-        return OLDER_YEAR_PALETTE[clamp(yearIndex - 5, 0, OLDER_YEAR_PALETTE.length - 1)];
+        return lightenColor(baseColor, LIGHTEN_FACTOR);
     }
-    return beekeeperColor(year);
+    return baseColor;
 };
 
 const getColorForIndex = (yearIndex, totalYears, year, scheme) => {
