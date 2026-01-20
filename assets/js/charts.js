@@ -57,6 +57,71 @@ const turboColor = (t) => {
 
 const LIGHTEN_FACTOR = 0.65;
 
+const getCanvasWidth = (canvas) => {
+    if (!canvas) {
+        return 0;
+    }
+    return canvas.clientWidth || canvas.width || 0;
+};
+
+const getFontFamily = () => {
+    return Chart?.defaults?.font?.family || "sans-serif";
+};
+
+const estimateLabelWidth = (labels, fontSize, fontFamily, canvas) => {
+    const ctx = canvas ? canvas.getContext("2d") : null;
+    if (!ctx) {
+        return fontSize * 2;
+    }
+    const longestLabel = labels.reduce((longest, label) => {
+        if (typeof label !== "string") {
+            return longest;
+        }
+        return label.length > longest.length ? label : longest;
+    }, "");
+    const sample = longestLabel || "88.88";
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    const metrics = ctx.measureText(sample);
+    return metrics.width || fontSize * 2;
+};
+
+const computeTickStep = ({ labels, canvas, fontSize }) => {
+    if (!Array.isArray(labels) || labels.length === 0) {
+        return { step: 1, maxTicks: 2 };
+    }
+    const canvasWidth = getCanvasWidth(canvas);
+    if (canvasWidth <= 0) {
+        return { step: 1, maxTicks: Math.min(labels.length, 12) };
+    }
+    const fontFamily = getFontFamily();
+    const labelWidth = estimateLabelWidth(labels, fontSize, fontFamily, canvas);
+    const padding = Math.ceil(labelWidth * 0.35);
+    const approxTickWidth = Math.max(labelWidth + padding, Math.ceil(fontSize * 2.2));
+    const maxTicks = Math.max(2, Math.floor(canvasWidth / approxTickWidth));
+    const step = Math.max(1, Math.ceil(labels.length / maxTicks));
+    return { step, maxTicks };
+};
+
+const buildXAxisTickOptions = (labels, fontSize, canvas) => {
+    const { step, maxTicks } = computeTickStep({ labels, canvas, fontSize });
+    const lastIndex = labels.length - 1;
+    return {
+        maxRotation: 0,
+        minRotation: 0,
+        autoSkip: false,
+        maxTicksLimit: maxTicks,
+        font: {
+            size: fontSize
+        },
+        callback: (value, index) => {
+            if (index === 0 || index === lastIndex || index % step === 0) {
+                return labels[index] ?? value;
+            }
+            return "";
+        }
+    };
+};
+
 const parseColorToRgb = (color) => {
     if (color.startsWith("rgb(")) {
         const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
@@ -154,12 +219,12 @@ export function plotData(results, verbose = false, yRange = null) {
     const isSmallMobile = isSmallMobileLayout();
     const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
     const legendFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
-    const maxTicks = isSmallMobile ? 4 : (isMobile ? 6 : undefined);
 
     // Determine background color based on the year color
     const bgColor = colorToRgba(yearColor, 0.2);
 
     const canvas = document.getElementById('plot-canvas');
+    const xTickOptions = buildXAxisTickOptions(labels, axisFontSize, canvas);
     const chartGTS = createChart(canvas, {
         type: 'line',
         data: {
@@ -199,15 +264,7 @@ export function plotData(results, verbose = false, yRange = null) {
                         display: true,
                         text: 'Datum (Tag.Monat)'
                     },
-                    ticks: {
-                        maxRotation: 0,
-                        minRotation: 0,
-                        autoSkip: isMobile,
-                        maxTicksLimit: maxTicks,
-                        font: {
-                            size: axisFontSize
-                        }
-                    }
+                    ticks: xTickOptions
                 }
             },
             plugins: {
@@ -256,9 +313,9 @@ export function plotDailyTemps(dates, temps, verbose = false, yRange = null) {
     const isSmallMobile = isSmallMobileLayout();
     const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
     const legendFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
-    const maxTicks = isSmallMobile ? 4 : (isMobile ? 6 : undefined);
 
     const canvas = document.getElementById('temp-plot');
+    const xTickOptions = buildXAxisTickOptions(labels, axisFontSize, canvas);
     const chartTemp = createChart(canvas, {
         type: 'line',
         data: {
@@ -298,15 +355,7 @@ export function plotDailyTemps(dates, temps, verbose = false, yRange = null) {
                         display: true,
                         text: 'Datum (Tag.Monat)'
                     },
-                    ticks: {
-                        maxRotation: 0,
-                        minRotation: 0,
-                        autoSkip: isMobile,
-                        maxTicksLimit: maxTicks,
-                        font: {
-                            size: axisFontSize
-                        }
-                    }
+                    ticks: xTickOptions
                 }
             },
             plugins: {
@@ -352,7 +401,6 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
     const isSmallMobile = isSmallMobileLayout();
     const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
     const legendFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
-    const maxTicks = isSmallMobile ? 4 : (isMobile ? 6 : undefined);
     const POINTS_THRESHOLD = 100;
     const scheme = window.gtsColorScheme || "queen";
     const getLastFiniteValue = (values) => {
@@ -417,6 +465,7 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
     // Use a unified set of labels for the x-axis
     // Assuming all years have the same number of days and labels
     const masterLabels = multiYearData[0].labels;
+    const xTickOptions = buildXAxisTickOptions(masterLabels, axisFontSize, canvas);
 
     // console.log("[charts.js] plotMultipleYearData() masterLabels = ", masterLabels);
 
@@ -436,15 +485,7 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
                         display: true,
                         text: 'Datum (Tag.Monat)'
                     },
-                    ticks: {
-                        maxRotation: 0,
-                        minRotation: 0,
-                        autoSkip: isMobile,
-                        maxTicksLimit: maxTicks,
-                        font: {
-                            size: axisFontSize
-                        }
-                    }
+                    ticks: xTickOptions
                 },
                 y: {
                     beginAtZero: false,
