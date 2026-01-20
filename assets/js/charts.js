@@ -14,7 +14,7 @@ export function beekeeperColor(year) {
     const remainder = ((year % 5) + 5) % 5;
     const colorMap = {
         0: "blue",              // YYYY % 5 == 0 -> BLUE
-        1: "rgb(180, 180, 180)", // YYYY % 5 == 1 -> WHITE (light gray)
+        1: "rgb(150, 150, 150)", // YYYY % 5 == 1 -> WHITE (light gray)
         2: "red",               // YYYY % 5 == 2 -> RED
         3: "green",             // YYYY % 5 == 3 -> GREEN
         4: "#ddaa00"            // YYYY % 5 == 4 -> YELLOW
@@ -38,7 +38,7 @@ const COLOR_MAP = {
     blue: [0, 0, 255],
     red: [255, 0, 0],
     green: [0, 128, 0],
-    grey: [128, 128, 128],
+    grey: [150, 150, 150],
     "#ddaa00": [221, 170, 0]
 };
 
@@ -110,6 +110,9 @@ const getTurboForIndex = (yearIndex, totalYears) => {
 const getQueenForIndex = (yearIndex, year) => {
     const baseColor = beekeeperColor(year);
     if (yearIndex >= 5) {
+        if (baseColor === "rgb(150, 150, 150)") {
+            return "rgb(190, 190, 190)";
+        }
         return lightenColor(baseColor, LIGHTEN_FACTOR);
     }
     return baseColor;

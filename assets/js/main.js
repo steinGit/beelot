@@ -529,6 +529,7 @@ function renderLocationTabs() {
   addTab.className = "location-tab location-tab-add";
   addTab.role = "tab";
   addTab.id = "location-tab-add";
+  addTab.dataset.tooltipText = "Füge ein en weiteren Standort hinzu.";
   addTab.setAttribute("aria-selected", "false");
   addTab.setAttribute("tabindex", "-1");
   addTab.setAttribute("aria-controls", "location-panel");
@@ -545,6 +546,7 @@ function renderLocationTabs() {
     removeTab.className = "location-tab location-tab-remove";
     removeTab.role = "tab";
     removeTab.id = "location-tab-remove";
+    removeTab.dataset.tooltipText = "Entferne den aktuellen Standort.";
     removeTab.setAttribute("aria-selected", "false");
     removeTab.setAttribute("tabindex", "-1");
     removeTab.setAttribute("aria-controls", "location-panel");
@@ -795,6 +797,8 @@ function setupEventListeners() {
     if (!target) {
       return;
     }
+    const customText = target.dataset.tooltipText;
+    tabTooltip.textContent = customText || tabTooltipText;
     const rect = target.getBoundingClientRect();
     tabTooltip.style.top = `${window.scrollY + rect.top - tabTooltip.offsetHeight - 8}px`;
     tabTooltip.style.left = `${window.scrollX + rect.left}px`;
