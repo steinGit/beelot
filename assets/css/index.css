@@ -66,6 +66,14 @@
     width: 140px;
 }
 
+.location-name-compare {
+    font-style: italic;
+}
+
+.location-tab-compare {
+    margin-left: auto;
+}
+
 /* Tabs connect to the content card by matching the active tab bottom border to the card background. */
 .location-panel {
     border: 1px solid #ddd;

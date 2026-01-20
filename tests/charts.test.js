@@ -1,4 +1,4 @@
-import { beekeeperColor, plotData, plotMultipleYearData } from '../assets/js/charts';
+import { beekeeperColor, plotComparisonData, plotData, plotMultipleYearData } from '../assets/js/charts';
 
 let lastChartConfig = null;
 
@@ -20,10 +20,10 @@ beforeEach(() => {
 describe('beekeeperColor', () => {
     test('returns correct color for given years', () => {
         expect(beekeeperColor(2025)).toBe('blue');
-        expect(beekeeperColor(2026)).toBe('rgb(180, 180, 180)');
-        expect(beekeeperColor(2027)).toBe('red');
-        expect(beekeeperColor(2028)).toBe('green');
-        expect(beekeeperColor(2029)).toBe('#ddaa00');
+        expect(beekeeperColor(2026)).toBe('rgb(150, 150, 150)');
+        expect(beekeeperColor(2027)).toBe('#ddaa00');
+        expect(beekeeperColor(2028)).toBe('red');
+        expect(beekeeperColor(2029)).toBe('green');
         expect(beekeeperColor(2030)).toBe('blue');
     });
 });
@@ -52,6 +52,9 @@ describe('plotMultipleYearData', () => {
                 green: [0, 128, 0],
                 '#ddaa00': [221, 170, 0]
             };
+            if (color === 'rgb(150, 150, 150)') {
+                return 'rgb(190, 190, 190)';
+            }
             if (color.startsWith('rgb(')) {
                 const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
                 if (!match) {
@@ -89,5 +92,21 @@ describe('plotData', () => {
         const chart = plotData(results);
         expect(chart).not.toBeNull();
         expect(chart.destroy).toBeDefined(); // Ensures mock is working
+    });
+});
+
+describe('plotComparisonData', () => {
+    test('uses provided labels and colors', () => {
+        document.body.innerHTML = '<canvas id="plot-canvas"></canvas>';
+        const labels = ['01.01', '02.01'];
+        const series = [
+            { label: 'Standort A', values: [1, 2], color: 'red' },
+            { label: 'Standort B', values: [2, 3], color: 'green' }
+        ];
+        const chart = plotComparisonData(labels, series);
+        expect(chart).not.toBeNull();
+        expect(lastChartConfig.data.labels).toEqual(labels);
+        expect(lastChartConfig.data.datasets[0].borderColor).toBe('red');
+        expect(lastChartConfig.data.datasets[1].borderColor).toBe('green');
     });
 });

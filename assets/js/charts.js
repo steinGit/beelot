@@ -15,9 +15,9 @@ export function beekeeperColor(year) {
     const colorMap = {
         0: "blue",              // YYYY % 5 == 0 -> BLUE
         1: "rgb(150, 150, 150)", // YYYY % 5 == 1 -> WHITE (light gray)
-        2: "red",               // YYYY % 5 == 2 -> RED
-        3: "green",             // YYYY % 5 == 3 -> GREEN
-        4: "#ddaa00"            // YYYY % 5 == 4 -> YELLOW
+        2: "#ddaa00",           // YYYY % 5 == 2 -> YELLOW
+        3: "red",               // YYYY % 5 == 3 -> RED
+        4: "green"              // YYYY % 5 == 4 -> GREEN
     };
     return colorMap[remainder];
 }
@@ -70,7 +70,7 @@ const getFontFamily = () => {
 
 const estimateLabelWidth = (labels, fontSize, fontFamily, canvas) => {
     const ctx = canvas ? canvas.getContext("2d") : null;
-    if (!ctx) {
+    if (!ctx || typeof ctx.measureText !== "function") {
         return fontSize * 2;
     }
     const longestLabel = labels.reduce((longest, label) => {
@@ -277,6 +277,8 @@ export function plotData(results, verbose = false, yRange = null) {
                     display: true,
                     position: isMobile ? 'bottom' : 'top',
                     labels: {
+                        usePointStyle: true,
+                        pointStyle: 'line',
                         font: {
                             size: legendFontSize
                         }
@@ -555,4 +557,97 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
     });
 
     return chartGTS;
+}
+
+const COMPARISON_COLORS = ["red", "green", "blue", "magenta", "cyan", "orange"];
+
+export function plotComparisonData(labels, series, yRange = null) {
+    if (!Array.isArray(labels) || labels.length === 0) {
+        console.warn("[charts.js] plotComparisonData() called with empty labels.");
+        return null;
+    }
+    if (!Array.isArray(series) || series.length === 0) {
+        console.warn("[charts.js] plotComparisonData() called with empty series.");
+        return null;
+    }
+
+    const canvas = document.getElementById('plot-canvas');
+    const isMobile = isMobileLayout();
+    const isSmallMobile = isSmallMobileLayout();
+    const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
+    const legendFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
+    const xTickOptions = buildXAxisTickOptions(labels, axisFontSize, canvas);
+    const POINTS_THRESHOLD = 100;
+    const getPointRadius = (length) => (length > POINTS_THRESHOLD ? 0 : 4);
+    const getPointHoverRadius = (length) => (length > POINTS_THRESHOLD ? 0 : 6);
+
+    const datasets = series.map((entry) => {
+        const color = entry.color || COMPARISON_COLORS[0];
+        return {
+            label: entry.label,
+            data: entry.values,
+            borderColor: color,
+            backgroundColor: "transparent",
+            fill: false,
+            tension: 0.1,
+            pointRadius: getPointRadius(entry.values.length),
+            pointHoverRadius: getPointHoverRadius(entry.values.length)
+        };
+    });
+
+    return createChart(canvas, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
+        options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    min: yRange ? yRange.min : undefined,
+                    max: yRange ? yRange.max : undefined,
+                    title: {
+                        display: true,
+                        text: 'Grünland-Temperatur-Summe (°Cd)'
+                    },
+                    ticks: {
+                        font: {
+                            size: axisFontSize
+                        }
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Datum (Tag.Monat)'
+                    },
+                    ticks: xTickOptions
+                }
+            },
+            plugins: {
+                tooltip: {
+                    enabled: true,
+                    mode: 'index',
+                    intersect: false
+                },
+                legend: {
+                    display: true,
+                    position: isMobile ? 'bottom' : 'top',
+                    labels: {
+                        font: {
+                            size: legendFontSize
+                        }
+                    }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                intersect: false
+            }
+        }
+    });
 }
