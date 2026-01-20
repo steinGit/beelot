@@ -901,6 +901,11 @@ export class PlotUpdater {
               lines.push(`${currentName} ist gleichauf mit ${targets}.`);
               return;
             }
+            if (group.days === 0) {
+              const targets = group.targets.map((item) => item.name).join(" und ");
+              lines.push(`${currentName} ist mit ${targets} gleichauf.`);
+              return;
+            }
             const targets = group.targets.map((item) => item.name).join(" und ");
             lines.push(`${currentName} ist um ${group.days} Tage ${group.relation} als ${targets}.`);
           });
