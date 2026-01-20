@@ -6,7 +6,7 @@
  */
 
 import { plotData, plotDailyTemps, plotMultipleYearData } from './charts.js';
-import { fetchHistoricalData, fetchRecentData } from './dataService.js';
+import { fetchHistoricalData, fetchRecentData, isOpenMeteoError } from './dataService.js';
 import {
   calculateGTS,
   computeStartDate,
@@ -27,6 +27,8 @@ import {
   getLocationsInOrder,
   updateLocation
 } from './locationStore.js';
+
+const OFFLINE_TEXT = "Offline-Modus: Für diese Funktion ist eine Internetverbindung erforderlich.";
 
 /**
  * Helper to forcibly destroy any leftover chart using a given canvas ID.
@@ -191,6 +193,7 @@ export class PlotUpdater {
           dates: [...this.filteredTempsDates],
           values: [...this.filteredTempsData]
         };
+        current.calculations.lastGtsKey = `${formatDateLocal(endDate)}|${this.zeitraumSelect.value}`;
         if (this.hinweisSection) {
           current.calculations.hinweisHtml = this.hinweisSection.innerHTML;
         }
@@ -201,12 +204,22 @@ export class PlotUpdater {
         console.warn("[PlotUpdater] Chart reuse warning:", err.message);
         return;
       }
+      if (isOpenMeteoError(err)) {
+        this.showOfflineMessage();
+        return;
+      }
       console.log("[PlotUpdater] => Caught error:", err);
       this.ergebnisTextEl.textContent = "Ein Fehler ist aufgetreten. Bitte versuche es später erneut.";
       if (this.hinweisSection) {
         this.hinweisSection.innerHTML = `<h2>Imkerliche Information</h2>
           <p style="color: red;">Es ist ein Fehler aufgetreten: ${err.message}</p>`;
       }
+    }
+  }
+
+  showOfflineMessage() {
+    if (this.ergebnisTextEl) {
+      this.ergebnisTextEl.innerHTML = `<span style="color: #b00000;">${OFFLINE_TEXT}</span>`;
     }
   }
 
@@ -885,7 +898,7 @@ export class PlotUpdater {
             }
             if (group.relation === "gleich") {
               const targets = group.targets.map((item) => item.name).join(" und ");
-              lines.push(`${currentName} ist gleich wie ${targets}.`);
+              lines.push(`${currentName} ist gleichauf mit ${targets}.`);
               return;
             }
             const targets = group.targets.map((item) => item.name).join(" und ");

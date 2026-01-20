@@ -29,7 +29,7 @@ import {
 import { PlotUpdater } from './plotUpdater.js';
 import { plotComparisonData } from './charts.js';
 import { calculateGTS } from './logic.js';
-import { fetchHistoricalData, fetchRecentData } from './dataService.js';
+import { fetchHistoricalData, fetchRecentData, isOpenMeteoError } from './dataService.js';
 import { formatDateLocal, formatDayMonth } from './utils.js';
 import {
   createLocationEntry,
@@ -117,11 +117,13 @@ let gtsColorScheme = "queen";
 let standortSyncEnabled = false;
 let lastNarrowLayout = null;
 let comparisonActive = false;
+let offlineStatusActive = false;
 const STANDORT_SYNC_KEY = "beelotStandortSync";
 const STANDORT_SYNC_CONTROL_ID = "standort-sync-control";
 const REGULAR_GTS_RANGES = new Set([1, 5, 10]);
 const GTS_RANGE_20 = 20;
-const COMPARISON_COLORS = ["red", "green", "blue", "magenta", "cyan", "orange"];
+const COMPARISON_COLORS = ["red", "orange", "gold", "green", "cyan", "blue", "magenta"];
+const OFFLINE_TEXT = "Offline-Modus: Für diese Funktion ist eine Internetverbindung erforderlich.";
 
 function loadStandortSyncState() {
   const stored = localStorage.getItem(STANDORT_SYNC_KEY);
@@ -302,6 +304,29 @@ function updateAllLocationsUiState(partial) {
   });
 }
 
+function showOfflineStatusMessage() {
+  offlineStatusActive = true;
+  const ergebnisTextEl = document.getElementById("ergebnis-text");
+  if (ergebnisTextEl) {
+    ergebnisTextEl.innerHTML = `<span style="color: #b00000;">${OFFLINE_TEXT}</span>`;
+  }
+  const ergebnisSection = document.querySelector(".ergebnis-section");
+  if (ergebnisSection && comparisonActive) {
+    ergebnisSection.style.display = "";
+  }
+}
+
+function clearOfflineStatusMessage() {
+  if (!offlineStatusActive) {
+    return;
+  }
+  offlineStatusActive = false;
+  const ergebnisSection = document.querySelector(".ergebnis-section");
+  if (ergebnisSection && comparisonActive) {
+    ergebnisSection.style.display = "none";
+  }
+}
+
 function setComparisonMode(enabled) {
   const sections = [
     document.querySelector(".eingabe-section"),
@@ -309,9 +334,14 @@ function setComparisonMode(enabled) {
     document.querySelector(".hinweis-section")
   ];
   sections.forEach((section) => {
-    if (section) {
-      section.style.display = enabled ? "none" : "";
+    if (!section) {
+      return;
     }
+    if (section.classList.contains("ergebnis-section")) {
+      section.style.display = enabled && !offlineStatusActive ? "none" : "";
+      return;
+    }
+    section.style.display = enabled ? "none" : "";
   });
 
   const tempToggle = document.getElementById("toggle-temp-plot");
@@ -447,7 +477,7 @@ async function fetchAllDataForRange(lat, lon, fetchStartDate, endDate, recentSta
   return { allDates: sortedDates, allTemps: sortedTemps };
 }
 
-async function buildComparisonSeriesForLocation(location, endDate, selection) {
+async function buildComparisonSeriesForLocation(location, endDate, selection, updateStore = false) {
   if (!location || !location.coordinates) {
     return null;
   }
@@ -486,6 +516,14 @@ async function buildComparisonSeriesForLocation(location, endDate, selection) {
     return null;
   }
 
+  if (updateStore) {
+    updateLocation(location.id, (current) => {
+      current.calculations.gtsResults = gtsResults;
+      current.calculations.filteredResults = filteredResults;
+      current.calculations.lastGtsKey = `${formatDateLocal(endDate)}|${selection}`;
+    });
+  }
+
   return {
     locationId: location.id,
     label: location.name,
@@ -498,45 +536,84 @@ async function renderComparisonPlot() {
   if (!comparisonActive) {
     return;
   }
+  try {
+    const endDate = parseDateInput(datumInput.value);
+    if (!(endDate instanceof Date)) {
+      return;
+    }
+    const selection = zeitraumSelect.value;
+    const locations = getLocationsInOrder();
+    const seriesResults = await Promise.all(
+      locations.map((location) => buildComparisonSeriesForLocation(location, endDate, selection, true))
+    );
+
+    const normalized = seriesResults.filter(Boolean);
+    if (normalized.length === 0) {
+      return;
+    }
+
+    const colorByLocation = new Map();
+    locations.forEach((location, index) => {
+      colorByLocation.set(location.id, COMPARISON_COLORS[index % COMPARISON_COLORS.length]);
+    });
+
+    const masterLabels = normalized[0].labels;
+    const masterLabelIndex = new Map(masterLabels.map((label, idx) => [label, idx]));
+    const series = normalized.map((entry) => {
+      const values = new Array(masterLabels.length).fill(null);
+      entry.labels.forEach((label, idx) => {
+        const masterIndex = masterLabelIndex.get(label);
+        if (masterIndex === undefined) {
+          return;
+        }
+        values[masterIndex] = entry.values[idx];
+      });
+      return {
+        label: entry.label,
+        values,
+        color: colorByLocation.get(entry.locationId) || COMPARISON_COLORS[0]
+      };
+    });
+
+    plotComparisonData(masterLabels, series, null);
+    clearOfflineStatusMessage();
+  } catch (error) {
+    if (isOpenMeteoError(error)) {
+      showOfflineStatusMessage();
+      return;
+    }
+    console.error("[comparison] Failed to build comparison plot.", error);
+  }
+}
+
+async function refreshAllLocationCalculations() {
   const endDate = parseDateInput(datumInput.value);
   if (!(endDate instanceof Date)) {
     return;
   }
   const selection = zeitraumSelect.value;
+  const key = `${formatDateLocal(endDate)}|${selection}`;
   const locations = getLocationsInOrder();
-  const seriesResults = await Promise.all(
-    locations.map((location) => buildComparisonSeriesForLocation(location, endDate, selection))
-  );
-
-  const normalized = seriesResults.filter(Boolean);
-  if (normalized.length === 0) {
-    return;
+  try {
+    await Promise.all(
+      locations.map(async (location) => {
+        if (!location.coordinates) {
+          return;
+        }
+        if (location.calculations && location.calculations.lastGtsKey === key) {
+          return;
+        }
+        await buildComparisonSeriesForLocation(location, endDate, selection, true);
+      })
+    );
+    clearOfflineStatusMessage();
+  } catch (error) {
+    if (isOpenMeteoError(error)) {
+      showOfflineStatusMessage();
+      return;
+    }
+    console.error("[gts-refresh] Failed to refresh location data.", error);
   }
-
-  const colorByLocation = new Map();
-  locations.forEach((location, index) => {
-    colorByLocation.set(location.id, COMPARISON_COLORS[index % COMPARISON_COLORS.length]);
-  });
-
-  const masterLabels = normalized[0].labels;
-  const masterLabelIndex = new Map(masterLabels.map((label, idx) => [label, idx]));
-  const series = normalized.map((entry) => {
-    const values = new Array(masterLabels.length).fill(null);
-    entry.labels.forEach((label, idx) => {
-      const masterIndex = masterLabelIndex.get(label);
-      if (masterIndex === undefined) {
-        return;
-      }
-      values[masterIndex] = entry.values[idx];
-    });
-    return {
-      label: entry.label,
-      values,
-      color: colorByLocation.get(entry.locationId) || COMPARISON_COLORS[0]
-    };
-  });
-
-  plotComparisonData(masterLabels, series, null);
 }
 
 function setPlotVisibility(showGts, showTemp) {
@@ -974,6 +1051,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // IMPORTANT: Regardless of whether we have a last location or not, run the logic once
   // so that the Imkerliche Information is immediately computed.
   plotUpdater.run();
+  if (getLocationsInOrder().length > 1) {
+    refreshAllLocationCalculations();
+  }
 
   // 3) The version placeholder logic is done in index.html now.
 
@@ -1033,6 +1113,9 @@ function setupEventListeners() {
       persistStandortSyncState();
       if (standortSyncEnabled) {
         applySyncToAllLocations(getSyncPayload());
+        if (getLocationsInOrder().length > 1) {
+          refreshAllLocationCalculations();
+        }
       }
       if (comparisonActive) {
         renderComparisonPlot();
@@ -1248,6 +1331,9 @@ function setupEventListeners() {
       zeitraum: zeitraumSelect.value
     });
     plotUpdater.run();
+    if (getLocationsInOrder().length > 1) {
+      refreshAllLocationCalculations();
+    }
   });
 
   zeitraumSelect.addEventListener('change', () => {
@@ -1258,6 +1344,9 @@ function setupEventListeners() {
     }
     updateActiveLocationUiState({ zeitraum: zeitraumSelect.value });
     plotUpdater.run();
+    if (getLocationsInOrder().length > 1) {
+      refreshAllLocationCalculations();
+    }
   });
 
   datumInput.addEventListener('change', () => {
@@ -1275,10 +1364,16 @@ function setupEventListeners() {
       zeitraum: zeitraumSelect.value
     });
     plotUpdater.run();
+    if (getLocationsInOrder().length > 1) {
+      refreshAllLocationCalculations();
+    }
   });
 
   berechnenBtn.addEventListener('click', () => {
     plotUpdater.run();
+    if (getLocationsInOrder().length > 1) {
+      refreshAllLocationCalculations();
+    }
   });
 
   datumPlusBtn.addEventListener('click', () => {
@@ -1303,6 +1398,9 @@ function setupEventListeners() {
       zeitraum: zeitraumSelect.value
     });
     plotUpdater.run();
+    if (getLocationsInOrder().length > 1) {
+      refreshAllLocationCalculations();
+    }
   });
 
   datumMinusBtn.addEventListener('click', () => {
@@ -1323,6 +1421,9 @@ function setupEventListeners() {
       zeitraum: zeitraumSelect.value
     });
     plotUpdater.run();
+    if (getLocationsInOrder().length > 1) {
+      refreshAllLocationCalculations();
+    }
   });
 
   // Allow + and - keys for date increment/decrement
@@ -1378,6 +1479,9 @@ function setupEventListeners() {
       zeitraum: zeitraumSelect.value
     });
     plotUpdater.run();
+    if (getLocationsInOrder().length > 1) {
+      refreshAllLocationCalculations();
+    }
   });
 
   toggleGtsPlotBtn.addEventListener("click", () => {
