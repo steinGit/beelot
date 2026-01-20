@@ -7,6 +7,27 @@
 
 import { formatDateLocal, isValidDate } from './utils.js';
 
+export class OpenMeteoError extends Error {
+    constructor(message, cause = null) {
+        super(message);
+        this.name = "OpenMeteoError";
+        this.isOpenMeteoError = true;
+        if (cause) {
+            this.cause = cause;
+        }
+    }
+}
+
+export function isOpenMeteoError(error) {
+    return Boolean(error && error.isOpenMeteoError);
+}
+
+function ensureDailyData(data, context) {
+    if (!data || !data.daily || !Array.isArray(data.daily.time)) {
+        throw new OpenMeteoError(`Invalid Open-Meteo response${context ? ` (${context})` : ""}.`);
+    }
+}
+
 /**
  * Retrieves cached data from a cache store or localStorage based on the provided key.
  * @param {string} key - The key to retrieve.
@@ -85,6 +106,7 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
         const yearKey = computeCacheKey('historical', lat, lon, startYear);
         const cachedYearData = getCachedData(yearKey, cacheStore);
         if (cachedYearData) {
+            ensureDailyData(cachedYearData, "historical-cache");
             console.log(`[DEBUG dataService.js] Cached full-year data found for ${yearKey}.`);
             return extractDateRangeFromYearData(cachedYearData, start, end);
         }
@@ -110,6 +132,7 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
     );
     const cachedData = getCachedData(cacheKey, cacheStore);
     if (cachedData) {
+        ensureDailyData(cachedData, "historical-cache");
         console.log(`[DEBUG dataService.js] Historical data loaded from cache (key=${cacheKey}).`);
         return cachedData;
     }
@@ -125,9 +148,10 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
     try {
         const response = await fetch(url);
         if (!response.ok) {
-            throw new Error(`Error fetching historical data: ${response.status} ${response.statusText}`);
+            throw new OpenMeteoError(`Open-Meteo error: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
+        ensureDailyData(data, "historical");
         setCachedData(cacheKey, data, cacheStore);
         return data;
     } catch (error) {
@@ -140,7 +164,10 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
                 return fetchRecentData(lat, lon, start, end, cacheStore);
             }
         }
-        throw error;
+        if (isOpenMeteoError(error)) {
+            throw error;
+        }
+        throw new OpenMeteoError("Open-Meteo request failed.", error);
     }
 }
 
@@ -162,12 +189,17 @@ async function fetchHistoricalYear(lat, lon, start, end, cacheStore) {
     try {
         const response = await fetch(url);
         if (!response.ok) {
-            throw new Error(`Error fetching full-year data: ${response.status} ${response.statusText}`);
+            throw new OpenMeteoError(`Open-Meteo error: ${response.status} ${response.statusText}`);
         }
-        return await response.json();
+        const data = await response.json();
+        ensureDailyData(data, "historical-year");
+        return data;
     } catch (error) {
         console.error(`[DEBUG dataService.js] Error fetching full-year data: ${error.message}`);
-        throw error;
+        if (isOpenMeteoError(error)) {
+            throw error;
+        }
+        throw new OpenMeteoError("Open-Meteo request failed.", error);
     }
 }
 
@@ -210,6 +242,7 @@ export async function fetchRecentData(lat, lon, start, end, cacheStore = null) {
     const cacheKey = computeCacheKey('recent', lat, lon, `${formatDateLocal(start)}_${formatDateLocal(end)}`);
     const cachedData = getCachedData(cacheKey, cacheStore);
     if (cachedData) {
+        ensureDailyData(cachedData, "recent-cache");
         console.log(`[DEBUG dataService.js] Recent data loaded from cache (key=${cacheKey}).`);
         return cachedData;
     }
@@ -223,14 +256,18 @@ export async function fetchRecentData(lat, lon, start, end, cacheStore = null) {
     try {
         const response = await fetch(url);
         if (!response.ok) {
-            throw new Error(`Error fetching recent data: ${response.status} ${response.statusText}`);
+            throw new OpenMeteoError(`Open-Meteo error: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
+        ensureDailyData(data, "recent");
         setCachedData(cacheKey, data, cacheStore);
         return data;
     } catch (error) {
         console.error(`[DEBUG dataService.js] Error fetching recent data: ${error.message}`);
-        throw error;
+        if (isOpenMeteoError(error)) {
+            throw error;
+        }
+        throw new OpenMeteoError("Open-Meteo request failed.", error);
     }
 }

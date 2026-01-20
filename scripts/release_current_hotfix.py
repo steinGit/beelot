@@ -89,6 +89,31 @@ def ensure_beelot_directory() -> None:
         error_exit("You must run this script from the ../beelot directory.")
 
 
+def get_current_branch() -> str:
+    """
+    Return the current git branch name.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        error_exit(f"Unable to determine current branch.\n{exc}")
+    return result.stdout.strip()
+
+
+def ensure_main_branch() -> None:
+    """
+    Ensure the current git branch is 'main'.
+    """
+    current_branch = get_current_branch()
+    if current_branch != "main":
+        error_exit(f"Current branch is '{current_branch}'. Switch to 'main' first.")
+
+
 def read_version_file(version_file: Path) -> str:
     """
     Read and extract the version string from a version.js file.
@@ -177,6 +202,7 @@ def main(argv: Sequence[str]) -> None:
     args = parse_args(argv)
 
     ensure_beelot_directory()
+    ensure_main_branch()
 
     version_file = Path("assets/js/version.js")
 

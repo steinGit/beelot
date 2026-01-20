@@ -11,13 +11,13 @@ import { createChart } from './chartManager.js';
 
 // Existing function to pick color for a given year
 export function beekeeperColor(year) {
-    const remainder = year % 5;
+    const remainder = ((year % 5) + 5) % 5;
     const colorMap = {
-        0: "blue",    // e.g. 2025 -> remainder=0 -> blue
-        1: "grey",    // e.g. 2026 -> remainder=1 -> grey
-        2: "#ddaa00", // e.g. 2027 -> remainder=2
-        3: "red",     // e.g. 2028 -> remainder=3
-        4: "green"    // e.g. 2029 -> remainder=4
+        0: "blue",              // YYYY % 5 == 0 -> BLUE
+        1: "rgb(150, 150, 150)", // YYYY % 5 == 1 -> WHITE (light gray)
+        2: "#ddaa00",           // YYYY % 5 == 2 -> YELLOW
+        3: "red",               // YYYY % 5 == 3 -> RED
+        4: "green"              // YYYY % 5 == 4 -> GREEN
     };
     return colorMap[remainder];
 }
@@ -34,19 +34,11 @@ const isSmallMobileLayout = () => (
     && window.matchMedia("(max-width: 360px)").matches
 );
 
-const OLDER_YEAR_PALETTE = [
-    "rgb(180, 180, 255)",
-    "rgb(130, 230, 130)",
-    "rgb(255, 100, 100)",
-    "rgb(255, 230, 50)",
-    "rgb(180, 180, 180)"
-];
-
 const COLOR_MAP = {
     blue: [0, 0, 255],
     red: [255, 0, 0],
     green: [0, 128, 0],
-    grey: [128, 128, 128],
+    grey: [150, 150, 150],
     "#ddaa00": [221, 170, 0]
 };
 
@@ -61,6 +53,101 @@ const turboColor = (t) => {
     const g = 23.31 + tt * (557.33 + tt * (1225.33 + tt * (-3574.96 + tt * (1073.77 + tt * 707.56))));
     const b = 27.2 + tt * (3211.1 + tt * (-15327.97 + tt * (27814.0 + tt * (-22569.18 + tt * 6838.66))));
     return `rgb(${clamp(Math.round(r), 0, 255)}, ${clamp(Math.round(g), 0, 255)}, ${clamp(Math.round(b), 0, 255)})`;
+};
+
+const LIGHTEN_FACTOR = 0.65;
+
+const getCanvasWidth = (canvas) => {
+    if (!canvas) {
+        return 0;
+    }
+    return canvas.clientWidth || canvas.width || 0;
+};
+
+const getFontFamily = () => {
+    return Chart?.defaults?.font?.family || "sans-serif";
+};
+
+const estimateLabelWidth = (labels, fontSize, fontFamily, canvas) => {
+    const ctx = canvas ? canvas.getContext("2d") : null;
+    if (!ctx || typeof ctx.measureText !== "function") {
+        return fontSize * 2;
+    }
+    const longestLabel = labels.reduce((longest, label) => {
+        if (typeof label !== "string") {
+            return longest;
+        }
+        return label.length > longest.length ? label : longest;
+    }, "");
+    const sample = longestLabel || "88.88";
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    const metrics = ctx.measureText(sample);
+    return metrics.width || fontSize * 2;
+};
+
+const computeTickStep = ({ labels, canvas, fontSize }) => {
+    if (!Array.isArray(labels) || labels.length === 0) {
+        return { step: 1, maxTicks: 2 };
+    }
+    const canvasWidth = getCanvasWidth(canvas);
+    if (canvasWidth <= 0) {
+        return { step: 1, maxTicks: Math.min(labels.length, 12) };
+    }
+    const fontFamily = getFontFamily();
+    const labelWidth = estimateLabelWidth(labels, fontSize, fontFamily, canvas);
+    const padding = Math.ceil(labelWidth * 0.35);
+    const approxTickWidth = Math.max(labelWidth + padding, Math.ceil(fontSize * 2.2));
+    const maxTicks = Math.max(2, Math.floor(canvasWidth / approxTickWidth));
+    const step = Math.max(1, Math.ceil(labels.length / maxTicks));
+    return { step, maxTicks };
+};
+
+const buildXAxisTickOptions = (labels, fontSize, canvas) => {
+    const { step, maxTicks } = computeTickStep({ labels, canvas, fontSize });
+    const lastIndex = labels.length - 1;
+    return {
+        maxRotation: 0,
+        minRotation: 0,
+        autoSkip: false,
+        maxTicksLimit: maxTicks,
+        font: {
+            size: fontSize
+        },
+        callback: (value, index) => {
+            if (index === 0 || index === lastIndex || index % step === 0) {
+                return labels[index] ?? value;
+            }
+            return "";
+        }
+    };
+};
+
+const parseColorToRgb = (color) => {
+    if (color.startsWith("rgb(")) {
+        const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (!match) {
+            return null;
+        }
+        return [Number(match[1]), Number(match[2]), Number(match[3])];
+    }
+    if (color.startsWith("#") && color.length === 7) {
+        return [
+            parseInt(color.slice(1, 3), 16),
+            parseInt(color.slice(3, 5), 16),
+            parseInt(color.slice(5, 7), 16)
+        ];
+    }
+    return COLOR_MAP[color] ?? null;
+};
+
+const lightenColor = (color, factor) => {
+    const rgb = parseColorToRgb(color);
+    if (!rgb) {
+        return color;
+    }
+    const [r, g, b] = rgb;
+    const lighten = (value) => Math.round(value + (255 - value) * factor);
+    return `rgb(${lighten(r)}, ${lighten(g)}, ${lighten(b)})`;
 };
 
 const colorToRgba = (color, alpha) => {
@@ -86,11 +173,14 @@ const getTurboForIndex = (yearIndex, totalYears) => {
 };
 
 const getQueenForIndex = (yearIndex, year) => {
-    // TODO: Extend per-range styling if additional year ranges are added.
+    const baseColor = beekeeperColor(year);
     if (yearIndex >= 5) {
-        return OLDER_YEAR_PALETTE[clamp(yearIndex - 5, 0, OLDER_YEAR_PALETTE.length - 1)];
+        if (baseColor === "rgb(150, 150, 150)") {
+            return "rgb(190, 190, 190)";
+        }
+        return lightenColor(baseColor, LIGHTEN_FACTOR);
     }
-    return beekeeperColor(year);
+    return baseColor;
 };
 
 const getColorForIndex = (yearIndex, totalYears, year, scheme) => {
@@ -129,12 +219,12 @@ export function plotData(results, verbose = false, yRange = null) {
     const isSmallMobile = isSmallMobileLayout();
     const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
     const legendFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
-    const maxTicks = isSmallMobile ? 4 : (isMobile ? 6 : undefined);
 
     // Determine background color based on the year color
     const bgColor = colorToRgba(yearColor, 0.2);
 
     const canvas = document.getElementById('plot-canvas');
+    const xTickOptions = buildXAxisTickOptions(labels, axisFontSize, canvas);
     const chartGTS = createChart(canvas, {
         type: 'line',
         data: {
@@ -174,15 +264,7 @@ export function plotData(results, verbose = false, yRange = null) {
                         display: true,
                         text: 'Datum (Tag.Monat)'
                     },
-                    ticks: {
-                        maxRotation: 0,
-                        minRotation: 0,
-                        autoSkip: isMobile,
-                        maxTicksLimit: maxTicks,
-                        font: {
-                            size: axisFontSize
-                        }
-                    }
+                    ticks: xTickOptions
                 }
             },
             plugins: {
@@ -195,6 +277,8 @@ export function plotData(results, verbose = false, yRange = null) {
                     display: true,
                     position: isMobile ? 'bottom' : 'top',
                     labels: {
+                        usePointStyle: true,
+                        pointStyle: 'line',
                         font: {
                             size: legendFontSize
                         }
@@ -231,9 +315,9 @@ export function plotDailyTemps(dates, temps, verbose = false, yRange = null) {
     const isSmallMobile = isSmallMobileLayout();
     const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
     const legendFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
-    const maxTicks = isSmallMobile ? 4 : (isMobile ? 6 : undefined);
 
     const canvas = document.getElementById('temp-plot');
+    const xTickOptions = buildXAxisTickOptions(labels, axisFontSize, canvas);
     const chartTemp = createChart(canvas, {
         type: 'line',
         data: {
@@ -273,15 +357,7 @@ export function plotDailyTemps(dates, temps, verbose = false, yRange = null) {
                         display: true,
                         text: 'Datum (Tag.Monat)'
                     },
-                    ticks: {
-                        maxRotation: 0,
-                        minRotation: 0,
-                        autoSkip: isMobile,
-                        maxTicksLimit: maxTicks,
-                        font: {
-                            size: axisFontSize
-                        }
-                    }
+                    ticks: xTickOptions
                 }
             },
             plugins: {
@@ -327,7 +403,6 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
     const isSmallMobile = isSmallMobileLayout();
     const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
     const legendFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
-    const maxTicks = isSmallMobile ? 4 : (isMobile ? 6 : undefined);
     const POINTS_THRESHOLD = 100;
     const scheme = window.gtsColorScheme || "queen";
     const getLastFiniteValue = (values) => {
@@ -392,6 +467,7 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
     // Use a unified set of labels for the x-axis
     // Assuming all years have the same number of days and labels
     const masterLabels = multiYearData[0].labels;
+    const xTickOptions = buildXAxisTickOptions(masterLabels, axisFontSize, canvas);
 
     // console.log("[charts.js] plotMultipleYearData() masterLabels = ", masterLabels);
 
@@ -411,15 +487,7 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
                         display: true,
                         text: 'Datum (Tag.Monat)'
                     },
-                    ticks: {
-                        maxRotation: 0,
-                        minRotation: 0,
-                        autoSkip: isMobile,
-                        maxTicksLimit: maxTicks,
-                        font: {
-                            size: axisFontSize
-                        }
-                    }
+                    ticks: xTickOptions
                 },
                 y: {
                     beginAtZero: false,
@@ -489,4 +557,97 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
     });
 
     return chartGTS;
+}
+
+const COMPARISON_COLORS = ["red", "green", "blue", "magenta", "cyan", "orange"];
+
+export function plotComparisonData(labels, series, yRange = null) {
+    if (!Array.isArray(labels) || labels.length === 0) {
+        console.warn("[charts.js] plotComparisonData() called with empty labels.");
+        return null;
+    }
+    if (!Array.isArray(series) || series.length === 0) {
+        console.warn("[charts.js] plotComparisonData() called with empty series.");
+        return null;
+    }
+
+    const canvas = document.getElementById('plot-canvas');
+    const isMobile = isMobileLayout();
+    const isSmallMobile = isSmallMobileLayout();
+    const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
+    const legendFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
+    const xTickOptions = buildXAxisTickOptions(labels, axisFontSize, canvas);
+    const POINTS_THRESHOLD = 100;
+    const getPointRadius = (length) => (length > POINTS_THRESHOLD ? 0 : 4);
+    const getPointHoverRadius = (length) => (length > POINTS_THRESHOLD ? 0 : 6);
+
+    const datasets = series.map((entry) => {
+        const color = entry.color || COMPARISON_COLORS[0];
+        return {
+            label: entry.label,
+            data: entry.values,
+            borderColor: color,
+            backgroundColor: "transparent",
+            fill: false,
+            tension: 0.1,
+            pointRadius: getPointRadius(entry.values.length),
+            pointHoverRadius: getPointHoverRadius(entry.values.length)
+        };
+    });
+
+    return createChart(canvas, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
+        options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    min: yRange ? yRange.min : undefined,
+                    max: yRange ? yRange.max : undefined,
+                    title: {
+                        display: true,
+                        text: 'Grünland-Temperatur-Summe (°Cd)'
+                    },
+                    ticks: {
+                        font: {
+                            size: axisFontSize
+                        }
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Datum (Tag.Monat)'
+                    },
+                    ticks: xTickOptions
+                }
+            },
+            plugins: {
+                tooltip: {
+                    enabled: true,
+                    mode: 'index',
+                    intersect: false
+                },
+                legend: {
+                    display: true,
+                    position: isMobile ? 'bottom' : 'top',
+                    labels: {
+                        font: {
+                            size: legendFontSize
+                        }
+                    }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                intersect: false
+            }
+        }
+    });
 }

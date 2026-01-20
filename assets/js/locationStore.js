@@ -32,7 +32,8 @@ function buildDefaultCalculations() {
       values: []
     },
     hinweisHtml: "",
-    locationLabel: ""
+    locationLabel: "",
+    lastGtsKey: ""
   };
 }
 

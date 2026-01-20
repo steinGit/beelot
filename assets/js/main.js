@@ -27,8 +27,13 @@ import {
 } from './ui.js';
 
 import { PlotUpdater } from './plotUpdater.js';
+import { plotComparisonData } from './charts.js';
+import { calculateGTS } from './logic.js';
+import { fetchHistoricalData, fetchRecentData, isOpenMeteoError } from './dataService.js';
+import { formatDateLocal, formatDayMonth } from './utils.js';
 import {
   createLocationEntry,
+  createWeatherCacheStore,
   deleteLocationEntry,
   formatCoordinates,
   getActiveLocation,
@@ -111,10 +116,14 @@ let gtsRange20Active = false;
 let gtsColorScheme = "queen";
 let standortSyncEnabled = false;
 let lastNarrowLayout = null;
+let comparisonActive = false;
+let offlineStatusActive = false;
 const STANDORT_SYNC_KEY = "beelotStandortSync";
 const STANDORT_SYNC_CONTROL_ID = "standort-sync-control";
 const REGULAR_GTS_RANGES = new Set([1, 5, 10]);
 const GTS_RANGE_20 = 20;
+const COMPARISON_COLORS = ["red", "orange", "gold", "green", "cyan", "blue", "magenta"];
+const OFFLINE_TEXT = "Offline-Modus: Für diese Funktion ist eine Internetverbindung erforderlich.";
 
 function loadStandortSyncState() {
   const stored = localStorage.getItem(STANDORT_SYNC_KEY);
@@ -277,6 +286,333 @@ function updateActiveLocationUiState(partial) {
 
   if (standortSyncEnabled) {
     applySyncToAllLocations(getSyncPayload());
+  }
+}
+
+function updateAllLocationsUiState(partial) {
+  getLocationsInOrder().forEach((location) => {
+    updateLocation(location.id, (current) => {
+      current.ui = {
+        ...current.ui,
+        ...partial,
+        map: {
+          ...current.ui.map,
+          ...(partial.map || {})
+        }
+      };
+    });
+  });
+}
+
+function showOfflineStatusMessage() {
+  offlineStatusActive = true;
+  const ergebnisTextEl = document.getElementById("ergebnis-text");
+  if (ergebnisTextEl) {
+    ergebnisTextEl.innerHTML = `<span style="color: #b00000;">${OFFLINE_TEXT}</span>`;
+  }
+  const ergebnisSection = document.querySelector(".ergebnis-section");
+  if (ergebnisSection && comparisonActive) {
+    ergebnisSection.style.display = "";
+  }
+}
+
+function clearOfflineStatusMessage() {
+  if (!offlineStatusActive) {
+    return;
+  }
+  offlineStatusActive = false;
+  const ergebnisSection = document.querySelector(".ergebnis-section");
+  if (ergebnisSection && comparisonActive) {
+    ergebnisSection.style.display = "none";
+  }
+}
+
+function setComparisonMode(enabled) {
+  const sections = [
+    document.querySelector(".eingabe-section"),
+    document.querySelector(".ergebnis-section"),
+    document.querySelector(".hinweis-section")
+  ];
+  sections.forEach((section) => {
+    if (!section) {
+      return;
+    }
+    if (section.classList.contains("ergebnis-section")) {
+      section.style.display = enabled && !offlineStatusActive ? "none" : "";
+      return;
+    }
+    section.style.display = enabled ? "none" : "";
+  });
+
+  const tempToggle = document.getElementById("toggle-temp-plot");
+  if (tempToggle) {
+    tempToggle.style.display = enabled ? "none" : "";
+  }
+
+  if (tempPlotContainer) {
+    tempPlotContainer.style.display = enabled ? "none" : "";
+    tempPlotContainer.classList.toggle("visible", !enabled && tempPlotContainer.classList.contains("visible"));
+  }
+
+  const gtsRangeFieldset = document.querySelector(".gts-range-group");
+  if (gtsRangeFieldset) {
+    gtsRangeFieldset.style.display = enabled ? "none" : "";
+  }
+
+  const gtsColorFieldset = document.querySelector(".gts-color-group");
+  if (gtsColorFieldset) {
+    gtsColorFieldset.style.display = enabled ? "none" : "";
+  }
+
+  const legendLabel = document.getElementById("legend-location-label");
+  if (legendLabel) {
+    legendLabel.style.display = enabled ? "none" : "";
+  }
+
+  if (toggleGtsPlotBtn) {
+    toggleGtsPlotBtn.style.display = enabled ? "none" : "";
+  }
+  if (gtsPlotContainer) {
+    gtsPlotContainer.classList.toggle("visible", enabled || gtsPlotContainer.classList.contains("visible"));
+  }
+}
+
+function parseDateInput(value) {
+  if (!value) {
+    return null;
+  }
+  const parts = value.split("-");
+  if (parts.length !== 3) {
+    return null;
+  }
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return null;
+  }
+  return new Date(year, month, day, 0, 0, 0, 0);
+}
+
+function computeStartDateFromSelection(endDate, selection) {
+  const startDate = new Date(endDate);
+  if (selection === "7") {
+    startDate.setDate(endDate.getDate() - 7 + 1);
+  } else if (selection === "14") {
+    startDate.setDate(endDate.getDate() - 14 + 1);
+  } else if (selection === "28") {
+    startDate.setDate(endDate.getDate() - 28 + 1);
+  } else {
+    startDate.setMonth(0);
+    startDate.setDate(1);
+  }
+  return startDate;
+}
+
+async function fetchAllDataForRange(lat, lon, fetchStartDate, endDate, recentStartDate, cacheStore) {
+  const dataByDate = {};
+  const addToMap = (dates, temps, overwrite) => {
+    if (!dates || !temps) {
+      return;
+    }
+    for (let i = 0; i < dates.length; i++) {
+      const dateKey = dates[i];
+      if (!overwrite && Object.prototype.hasOwnProperty.call(dataByDate, dateKey)) {
+        continue;
+      }
+      dataByDate[dateKey] = temps[i];
+    }
+  };
+
+  let histData = null;
+  try {
+    histData = await fetchHistoricalData(
+      lat,
+      lon,
+      fetchStartDate,
+      endDate,
+      cacheStore
+    );
+  } catch (error) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (endDate >= today) {
+      histData = await fetchRecentData(
+        lat,
+        lon,
+        fetchStartDate,
+        endDate,
+        cacheStore
+      );
+    } else {
+      throw error;
+    }
+  }
+
+  if (histData && histData.daily && histData.daily.time.length > 0) {
+    addToMap(histData.daily.time, histData.daily.temperature_2m_mean, true);
+
+    const lastHistDateStr = histData.daily.time[histData.daily.time.length - 1];
+    const endDateStr = formatDateLocal(endDate);
+    if (lastHistDateStr < endDateStr) {
+      const lastHistDate = new Date(lastHistDateStr);
+      const recentStart = new Date(lastHistDate);
+      recentStart.setDate(recentStart.getDate() + 1);
+      const recentData = await fetchRecentData(
+        lat,
+        lon,
+        recentStart,
+        endDate,
+        cacheStore
+      );
+      if (recentData && recentData.daily) {
+        addToMap(recentData.daily.time, recentData.daily.temperature_2m_mean, false);
+      }
+    }
+  }
+
+  const allDates = Object.keys(dataByDate);
+  const sortedDates = allDates.sort((a, b) => new Date(a) - new Date(b));
+  const sortedTemps = sortedDates.map(d => dataByDate[d]);
+  return { allDates: sortedDates, allTemps: sortedTemps };
+}
+
+async function buildComparisonSeriesForLocation(location, endDate, selection, updateStore = false) {
+  if (!location || !location.coordinates) {
+    return null;
+  }
+  const plotStartDate = computeStartDateFromSelection(endDate, selection);
+  const fetchStartDate = new Date(endDate.getFullYear(), 0, 1, 0, 0, 0, 0);
+  let recentStartDate;
+  if (endDate.getTime() - fetchStartDate.getTime() <= 30 * 86400000) {
+    recentStartDate = new Date(fetchStartDate);
+  } else {
+    recentStartDate = new Date(endDate);
+    recentStartDate.setDate(recentStartDate.getDate() - 30);
+  }
+
+  const cacheStore = createWeatherCacheStore(location.id);
+  const { allDates, allTemps } = await fetchAllDataForRange(
+    location.coordinates.lat,
+    location.coordinates.lon,
+    fetchStartDate,
+    endDate,
+    recentStartDate,
+    cacheStore
+  );
+
+  if (!allDates.length) {
+    return null;
+  }
+
+  const gtsResults = calculateGTS(allDates, allTemps);
+  const endOfDay = new Date(endDate);
+  endOfDay.setHours(23, 59, 59, 999);
+  const filteredResults = gtsResults.filter((entry) => {
+    const d = new Date(entry.date);
+    return d >= plotStartDate && d <= endOfDay;
+  });
+  if (filteredResults.length === 0) {
+    return null;
+  }
+
+  if (updateStore) {
+    updateLocation(location.id, (current) => {
+      current.calculations.gtsResults = gtsResults;
+      current.calculations.filteredResults = filteredResults;
+      current.calculations.lastGtsKey = `${formatDateLocal(endDate)}|${selection}`;
+    });
+  }
+
+  return {
+    locationId: location.id,
+    label: location.name,
+    labels: filteredResults.map((entry) => formatDayMonth(entry.date)),
+    values: filteredResults.map((entry) => entry.gts)
+  };
+}
+
+async function renderComparisonPlot() {
+  if (!comparisonActive) {
+    return;
+  }
+  try {
+    const endDate = parseDateInput(datumInput.value);
+    if (!(endDate instanceof Date)) {
+      return;
+    }
+    const selection = zeitraumSelect.value;
+    const locations = getLocationsInOrder();
+    const seriesResults = await Promise.all(
+      locations.map((location) => buildComparisonSeriesForLocation(location, endDate, selection, true))
+    );
+
+    const normalized = seriesResults.filter(Boolean);
+    if (normalized.length === 0) {
+      return;
+    }
+
+    const colorByLocation = new Map();
+    locations.forEach((location, index) => {
+      colorByLocation.set(location.id, COMPARISON_COLORS[index % COMPARISON_COLORS.length]);
+    });
+
+    const masterLabels = normalized[0].labels;
+    const masterLabelIndex = new Map(masterLabels.map((label, idx) => [label, idx]));
+    const series = normalized.map((entry) => {
+      const values = new Array(masterLabels.length).fill(null);
+      entry.labels.forEach((label, idx) => {
+        const masterIndex = masterLabelIndex.get(label);
+        if (masterIndex === undefined) {
+          return;
+        }
+        values[masterIndex] = entry.values[idx];
+      });
+      return {
+        label: entry.label,
+        values,
+        color: colorByLocation.get(entry.locationId) || COMPARISON_COLORS[0]
+      };
+    });
+
+    plotComparisonData(masterLabels, series, null);
+    clearOfflineStatusMessage();
+  } catch (error) {
+    if (isOpenMeteoError(error)) {
+      showOfflineStatusMessage();
+      return;
+    }
+    console.error("[comparison] Failed to build comparison plot.", error);
+  }
+}
+
+async function refreshAllLocationCalculations() {
+  const endDate = parseDateInput(datumInput.value);
+  if (!(endDate instanceof Date)) {
+    return;
+  }
+  const selection = zeitraumSelect.value;
+  const key = `${formatDateLocal(endDate)}|${selection}`;
+  const locations = getLocationsInOrder();
+  try {
+    await Promise.all(
+      locations.map(async (location) => {
+        if (!location.coordinates) {
+          return;
+        }
+        if (location.calculations && location.calculations.lastGtsKey === key) {
+          return;
+        }
+        await buildComparisonSeriesForLocation(location, endDate, selection, true);
+      })
+    );
+    clearOfflineStatusMessage();
+  } catch (error) {
+    if (isOpenMeteoError(error)) {
+      showOfflineStatusMessage();
+      return;
+    }
+    console.error("[gts-refresh] Failed to refresh location data.", error);
   }
 }
 
@@ -487,6 +823,23 @@ function startEditingLocationName(locationId, nameElement) {
   });
 }
 
+function activateComparisonTab() {
+  if (comparisonActive) {
+    return;
+  }
+  comparisonActive = true;
+  const activeLocation = getActiveLocation();
+  if (activeLocation) {
+    applyLocationState(activeLocation);
+  }
+  setComparisonMode(true);
+  renderLocationTabs();
+  if (locationPanel) {
+    locationPanel.setAttribute("aria-labelledby", "location-tab-compare");
+  }
+  renderComparisonPlot();
+}
+
 function renderLocationTabs() {
   if (!locationTabsContainer) {
     return;
@@ -496,15 +849,21 @@ function renderLocationTabs() {
   const locations = getLocationsInOrder();
   const activeId = getActiveLocationId();
 
+  if (locations.length < 2 && comparisonActive) {
+    comparisonActive = false;
+    setComparisonMode(false);
+  }
+
   locations.forEach((location) => {
     const tab = document.createElement("button");
     tab.type = "button";
-    tab.className = `location-tab${location.id === activeId ? " active" : ""}`;
+    const isActiveLocation = !comparisonActive && location.id === activeId;
+    tab.className = `location-tab${isActiveLocation ? " active" : ""}`;
     tab.dataset.locationId = location.id;
     tab.role = "tab";
     tab.id = `location-tab-${location.id}`;
-    tab.setAttribute("aria-selected", location.id === activeId ? "true" : "false");
-    tab.setAttribute("tabindex", location.id === activeId ? "0" : "-1");
+    tab.setAttribute("aria-selected", isActiveLocation ? "true" : "false");
+    tab.setAttribute("tabindex", isActiveLocation ? "0" : "-1");
     tab.setAttribute("aria-controls", "location-panel");
 
     const nameSpan = document.createElement("span");
@@ -529,6 +888,7 @@ function renderLocationTabs() {
   addTab.className = "location-tab location-tab-add";
   addTab.role = "tab";
   addTab.id = "location-tab-add";
+  addTab.dataset.tooltipText = "Füge ein en weiteren Standort hinzu.";
   addTab.setAttribute("aria-selected", "false");
   addTab.setAttribute("tabindex", "-1");
   addTab.setAttribute("aria-controls", "location-panel");
@@ -545,6 +905,7 @@ function renderLocationTabs() {
     removeTab.className = "location-tab location-tab-remove";
     removeTab.role = "tab";
     removeTab.id = "location-tab-remove";
+    removeTab.dataset.tooltipText = "Entferne den aktuellen Standort.";
     removeTab.setAttribute("aria-selected", "false");
     removeTab.setAttribute("tabindex", "-1");
     removeTab.setAttribute("aria-controls", "location-panel");
@@ -569,6 +930,28 @@ function renderLocationTabs() {
     locationTabsContainer.appendChild(removeTab);
   }
 
+  if (locations.length >= 2) {
+    const compareTab = document.createElement("button");
+    compareTab.type = "button";
+    compareTab.className = `location-tab location-tab-compare${comparisonActive ? " active" : ""}`;
+    compareTab.role = "tab";
+    compareTab.id = "location-tab-compare";
+    compareTab.setAttribute("aria-selected", comparisonActive ? "true" : "false");
+    compareTab.setAttribute("tabindex", comparisonActive ? "0" : "-1");
+    compareTab.setAttribute("aria-controls", "location-panel");
+    compareTab.dataset.tooltipText = "Vergleichsansicht";
+
+    const compareLabel = document.createElement("span");
+    compareLabel.className = "location-name location-name-compare";
+    compareLabel.textContent = "Vergleich";
+    compareTab.appendChild(compareLabel);
+    compareTab.addEventListener("click", () => {
+      activateComparisonTab();
+    });
+
+    locationTabsContainer.appendChild(compareTab);
+  }
+
   const legendLabel = document.getElementById("legend-location-label");
   if (legendLabel) {
     updateLegendLocationLabel();
@@ -580,6 +963,10 @@ function renderLocationTabs() {
 function switchLocation(locationId) {
   if (locationId === getActiveLocationId()) {
     return;
+  }
+  if (comparisonActive) {
+    comparisonActive = false;
+    setComparisonMode(false);
   }
   const currentLocation = getActiveLocation();
   if (currentLocation) {
@@ -664,6 +1051,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // IMPORTANT: Regardless of whether we have a last location or not, run the logic once
   // so that the Imkerliche Information is immediately computed.
   plotUpdater.run();
+  if (getLocationsInOrder().length > 1) {
+    refreshAllLocationCalculations();
+  }
 
   // 3) The version placeholder logic is done in index.html now.
 
@@ -723,6 +1113,12 @@ function setupEventListeners() {
       persistStandortSyncState();
       if (standortSyncEnabled) {
         applySyncToAllLocations(getSyncPayload());
+        if (getLocationsInOrder().length > 1) {
+          refreshAllLocationCalculations();
+        }
+      }
+      if (comparisonActive) {
+        renderComparisonPlot();
       }
     });
   }
@@ -795,6 +1191,8 @@ function setupEventListeners() {
     if (!target) {
       return;
     }
+    const customText = target.dataset.tooltipText;
+    tabTooltip.textContent = customText || tabTooltipText;
     const rect = target.getBoundingClientRect();
     tabTooltip.style.top = `${window.scrollY + rect.top - tabTooltip.offsetHeight - 8}px`;
     tabTooltip.style.left = `${window.scrollX + rect.left}px`;
@@ -933,24 +1331,49 @@ function setupEventListeners() {
       zeitraum: zeitraumSelect.value
     });
     plotUpdater.run();
+    if (getLocationsInOrder().length > 1) {
+      refreshAllLocationCalculations();
+    }
   });
 
   zeitraumSelect.addEventListener('change', () => {
+    if (comparisonActive) {
+      updateAllLocationsUiState({ zeitraum: zeitraumSelect.value });
+      renderComparisonPlot();
+      return;
+    }
     updateActiveLocationUiState({ zeitraum: zeitraumSelect.value });
     plotUpdater.run();
+    if (getLocationsInOrder().length > 1) {
+      refreshAllLocationCalculations();
+    }
   });
 
   datumInput.addEventListener('change', () => {
     updateZeitraumSelect();
+    if (comparisonActive) {
+      updateAllLocationsUiState({
+        selectedDate: datumInput.value,
+        zeitraum: zeitraumSelect.value
+      });
+      renderComparisonPlot();
+      return;
+    }
     updateActiveLocationUiState({
       selectedDate: datumInput.value,
       zeitraum: zeitraumSelect.value
     });
     plotUpdater.run();
+    if (getLocationsInOrder().length > 1) {
+      refreshAllLocationCalculations();
+    }
   });
 
   berechnenBtn.addEventListener('click', () => {
     plotUpdater.run();
+    if (getLocationsInOrder().length > 1) {
+      refreshAllLocationCalculations();
+    }
   });
 
   datumPlusBtn.addEventListener('click', () => {
@@ -962,11 +1385,22 @@ function setupEventListeners() {
     }
     datumInput.value = current.toISOString().split('T')[0];
     updateZeitraumSelect();
+    if (comparisonActive) {
+      updateAllLocationsUiState({
+        selectedDate: datumInput.value,
+        zeitraum: zeitraumSelect.value
+      });
+      renderComparisonPlot();
+      return;
+    }
     updateActiveLocationUiState({
       selectedDate: datumInput.value,
       zeitraum: zeitraumSelect.value
     });
     plotUpdater.run();
+    if (getLocationsInOrder().length > 1) {
+      refreshAllLocationCalculations();
+    }
   });
 
   datumMinusBtn.addEventListener('click', () => {
@@ -974,11 +1408,22 @@ function setupEventListeners() {
     current.setDate(current.getDate() - 1);
     datumInput.value = current.toISOString().split('T')[0];
     updateZeitraumSelect();
+    if (comparisonActive) {
+      updateAllLocationsUiState({
+        selectedDate: datumInput.value,
+        zeitraum: zeitraumSelect.value
+      });
+      renderComparisonPlot();
+      return;
+    }
     updateActiveLocationUiState({
       selectedDate: datumInput.value,
       zeitraum: zeitraumSelect.value
     });
     plotUpdater.run();
+    if (getLocationsInOrder().length > 1) {
+      refreshAllLocationCalculations();
+    }
   });
 
   // Allow + and - keys for date increment/decrement
@@ -1021,11 +1466,22 @@ function setupEventListeners() {
     const newToday = getLocalTodayString();
     datumInput.value = newToday;
     updateZeitraumSelect();
+    if (comparisonActive) {
+      updateAllLocationsUiState({
+        selectedDate: datumInput.value,
+        zeitraum: zeitraumSelect.value
+      });
+      renderComparisonPlot();
+      return;
+    }
     updateActiveLocationUiState({
       selectedDate: datumInput.value,
       zeitraum: zeitraumSelect.value
     });
     plotUpdater.run();
+    if (getLocationsInOrder().length > 1) {
+      refreshAllLocationCalculations();
+    }
   });
 
   toggleGtsPlotBtn.addEventListener("click", () => {
