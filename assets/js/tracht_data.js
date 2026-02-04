@@ -6,6 +6,7 @@ export const defaultTrachtData = [
 
     { active: true, TS_start: 400, TS_end: 400, plant: "Empfehlung: Honigräume aufsetzen"},
 
+    { active: true, TS_start: 18,  TS_end: 18,  plant: "Wohlriechende Heckenkirsche", url: "https://www.naturadb.de/pflanzen/lonicera-fragrantissima/" },
     { active: true, TS_start: 35,  TS_end: 70,  plant: "Schneeglöckchen", url: "https://www.naturadb.de/pflanzen/galanthus-nivalis/" },
     { active: true, TS_start: 35,  TS_end: 70,  plant: "Winterlinge", url: "https://www.naturadb.de/pflanzen/eranthis-hyemalis/" },
     { active: true, TS_start: 65,  TS_end: 120, plant: "Krokos", url: "https://www.naturadb.de/pflanzen/crocus-tommasinianus/" },
@@ -108,8 +109,6 @@ export const defaultTrachtData = [
     { active: true, TS_start: 820, TS_end: 820, plant: "Robinie", url: "https://www.naturadb.de/pflanzen/robinia-pseudoacacia/" },
     { active: true, TS_start: 830, TS_end: 830, plant: "Hartriegel", url: "https://www.naturadb.de/pflanzen/cornus-sanguinea/" },
     { active: true, TS_start: 840, TS_end: 840, plant: "Holunder", url: "https://www.naturadb.de/pflanzen/sambucus-nigra/" },
-    { active: true, TS_start: 850, TS_end: 850, plant: "Robinie", url: "https://www.naturadb.de/pflanzen/robinia-pseudoacacia/" },
-
     { active: true, TS_start: 850, TS_end: 850, plant: "Strauchbasilikum", url: "https://www.naturadb.de/pflanzen/ocimum-basilicum-african-blue/" },
     { active: true, TS_start: 860, TS_end: 860, plant: "Spargel Blüte", url: "https://www.naturadb.de/pflanzen/asparagus-officinalis/" },
 
@@ -324,5 +323,4 @@ export const defaultTrachtData = [
 //    { active: true, TS_start: 830, TS_end: 830, plant: "Hartriegel", url: "https://de.wikipedia.org/wiki/Hartriegel/" },
 //    { active: true, TS_start: 840, TS_end: 840, plant: "Holunder", url: "https://de.wikipedia.org/wiki/Holunder/" },
 //    { active: true, TS_start: 850, TS_end: 850, plant: "Robinie", url: "https://de.wikipedia.org/wiki/Gewöhnliche_Robinie/" },
-
 
