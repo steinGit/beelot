@@ -694,6 +694,11 @@ function updateLegendLocationLabel() {
   if (!legendLabel) {
     return;
   }
+  if (comparisonActive) {
+    legendLabel.textContent = "";
+    legendLabel.style.display = "none";
+    return;
+  }
   const locations = getLocationsInOrder();
   if (locations.length <= 1) {
     legendLabel.textContent = "";
