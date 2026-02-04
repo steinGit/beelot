@@ -1,2 +1,2 @@
 // assets/js/version.js
-export const VERSION = "0.2.4";
+export const VERSION = "0.2.5";
