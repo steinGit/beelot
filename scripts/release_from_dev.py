@@ -46,8 +46,9 @@ def print_success(message: str) -> None:
 
 def usage() -> str:
     return (
-        "release_from_dev.py [--dryrun]\n\n"
+        "release_from_dev.py [--apply | --dryrun]\n\n"
         "Examples:\n"
+        "  ./release_from_dev.py --apply\n"
         "  ./release_from_dev.py --dryrun\n"
         "  ./release_from_dev.py -h\n"
         "  ./release_from_dev.py -?\n"
@@ -55,16 +56,6 @@ def usage() -> str:
 
 
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
-    if len(argv) == 0:
-        parser = argparse.ArgumentParser(
-            description="Release from dev into main with tagging.",
-            usage=usage(),
-            add_help=False,
-        )
-        parser.add_argument("-h", "--help", "-?", action="help")
-        parser.print_help()
-        sys.exit(0)
-
     parser = argparse.ArgumentParser(
         description="Release from dev into main with tagging.",
         usage=usage(),
@@ -72,11 +63,23 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     )
     parser.add_argument("-h", "--help", "-?", action="help")
     parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Apply changes (required for real release).",
+    )
+    parser.add_argument(
         "--dryrun",
         action="store_true",
         help="Print commands without executing them.",
     )
-    return parser.parse_args(argv)
+    if len(argv) == 0:
+        parser.print_help()
+        sys.exit(0)
+    args = parser.parse_args(argv)
+    if not args.apply and not args.dryrun:
+        parser.print_help()
+        sys.exit(0)
+    return args
 
 
 def ensure_beelot_directory() -> None:
