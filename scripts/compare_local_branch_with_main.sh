@@ -87,6 +87,10 @@ if [[ -z "$CURRENT_BRANCH" ]]; then
   print_error "Detached HEAD state detected. Please checkout a branch first."
   exit 1
 fi
+if [[ "$CURRENT_BRANCH" == "$MAIN_BRANCH" ]]; then
+  print_warn "Current branch is ${MAIN_BRANCH}. Comparison would be identical."
+  exit 0
+fi
 
 if ! git show-ref --verify --quiet "refs/heads/${MAIN_BRANCH}"; then
   print_error "Missing local branch: ${MAIN_BRANCH}"
