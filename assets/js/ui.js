@@ -136,7 +136,6 @@ window.initOrUpdateMap = () => {
  * Saves the currently selected map location back to #ort + localStorage
  */
 window.saveMapSelection = () => {
-  console.log("[DEBUG] saveMapSelection() => if user selectedLatLng=", selectedLatLng);
   if (selectedLatLng) {
     const locString = formatCoordinates(selectedLatLng.lat, selectedLatLng.lng);
     ortInput.value = locString;

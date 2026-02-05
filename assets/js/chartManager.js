@@ -12,13 +12,11 @@ export function destroyChart(canvas) {
   }
   const existing = chartMap.get(canvas.id);
   if (existing) {
-    console.log("[chart] destroying", existing?.id);
     existing.destroy();
     chartMap.set(canvas.id, null);
   }
   const chartOnCanvas = Chart.getChart(canvas);
   if (chartOnCanvas) {
-    console.log("[chart] destroying", chartOnCanvas?.id);
     chartOnCanvas.destroy();
   }
 }
@@ -36,7 +34,6 @@ export function createChart(canvas, config) {
       containerHeight: container ? container.clientHeight : null
     });
   }
-  console.log("[chart] creating", canvas.id);
   const ctx = canvas.getContext("2d");
   const chart = new Chart(ctx, config);
   chartMap.set(canvas.id, chart);
@@ -57,7 +54,6 @@ export function createChart(canvas, config) {
 export function destroyAllCharts() {
   chartMap.forEach((chart) => {
     if (chart) {
-      console.log("[chart] destroying", chart?.id);
       chart.destroy();
     }
   });
@@ -69,7 +65,6 @@ export function destroyAllCharts() {
     }
     const existing = Chart.getChart(canvas);
     if (existing) {
-      console.log("[chart] destroying", existing?.id);
       existing.destroy();
     }
   });

@@ -33,6 +33,7 @@ import { fetchHistoricalData, fetchRecentData, isOpenMeteoError } from './dataSe
 import { formatDateLocal, formatDayMonth } from './utils.js';
 import { getNextTabTarget } from './locationTabNavigation.js';
 import { createTooltipGate } from './tooltipFrequency.js';
+import { shouldSwitchLocation } from './locationSwitching.js';
 import {
   createLocationEntry,
   createWeatherCacheStore,
@@ -969,7 +970,11 @@ function renderLocationTabs() {
 }
 
 function switchLocation(locationId) {
-  if (locationId === getActiveLocationId()) {
+  if (!shouldSwitchLocation({
+    currentId: getActiveLocationId(),
+    targetId: locationId,
+    comparisonActive
+  })) {
     return;
   }
   if (comparisonActive) {
@@ -1034,7 +1039,6 @@ document.addEventListener('DOMContentLoaded', () => {
     !locationPanel ||
     !ergebnisTextEl
   ) {
-    console.log("[main.js] Not all index elements exist => skipping main logic on this page.");
     return;
   }
 

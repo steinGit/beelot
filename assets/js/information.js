@@ -107,7 +107,6 @@ export async function updateHinweisSection(gtsResults, endDate) {
             row => row.TSUM_start > TSUM_current
         );
     } else {
-        console.log("[INFO] No forecast generated: within the first 5 days of the year.");
     }
 
     // 5) rearview_list => items in last R days => TSUM_start > D_E[n-R], TSUM_start <= TSUM_current

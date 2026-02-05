@@ -105,7 +105,6 @@ export class PlotUpdater {
       destroyAllCharts();
       const location = this.getLocation();
       if (!location) {
-        console.warn("[PlotUpdater] => Missing active location.");
         return;
       }
       // Step 1) Validate lat/lon input
@@ -156,14 +155,6 @@ export class PlotUpdater {
         console.log("[GTS DEBUG] filteredResults tail", filteredResults.slice(-7));
       }
 
-      if (this.verbose)
-      {
-        console.log(">> plotUpdater: GTS Results", gtsResults);
-        console.log(">> plotUpdater: plotStartDate=", plotStartDate);
-        console.log(">> plotUpdater: endDate      =", endDate);
-        console.log(">> plotUpdater: Filtered GTS Results:", filteredResults);
-      }
-
       // Step 10) If empty, bail
       if (!this.step10CheckIfEmpty(filteredResults, endDate)) return;
 
@@ -201,14 +192,12 @@ export class PlotUpdater {
 
     } catch (err) {
       if (err && typeof err.message === "string" && err.message.includes("Canvas is already in use")) {
-        console.warn("[PlotUpdater] Chart reuse warning:", err.message);
         return;
       }
       if (isOpenMeteoError(err)) {
         this.showOfflineMessage();
         return;
       }
-      console.log("[PlotUpdater] => Caught error:", err);
       this.ergebnisTextEl.textContent = "Ein Fehler ist aufgetreten. Bitte versuche es später erneut.";
       if (this.hinweisSection) {
         this.hinweisSection.innerHTML = `<h2>Imkerliche Information</h2>
@@ -348,10 +337,6 @@ export class PlotUpdater {
    * @returns {Promise<Object>} - An object containing allDates and allTemps arrays.
    */
   async step7FetchAllData(lat, lon, fetchStartDate, endDate, recentStartDate, differenceInDays) {
-    if (this.verbose)
-    {
-        console.log("[PlotUpdater] step7FetchAllData() =>", formatDateLocal(fetchStartDate), "->", formatDateLocal(endDate));
-    }
     const dataByDate = {};
     const addToMap = (dates, temps, overwrite) => {
       if (!dates || !temps) {
@@ -379,7 +364,6 @@ export class PlotUpdater {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       if (endDate >= today) {
-        console.warn("[PlotUpdater] Falling back to forecast data for recent dates.");
         histData = await fetchRecentData(
           lat,
           lon,
@@ -481,11 +465,6 @@ export class PlotUpdater {
           da für eine "Summe" noch keine Daten zur Verfügung stehen 😉.
         </span>
       `;
-
-      if (this.verbose)
-      {
-        console.log("[PlotUpdater] => No data to sum. Returning early.");
-      }
 
       if (this.chartGTS) {
         this.chartGTS.destroy();
@@ -604,7 +583,6 @@ export class PlotUpdater {
   async step14CreateGTSChart(lat, lon, plotStartDate, endDate, filteredResults) {
     const viewKey = this.buildGtsViewKey(endDate);
     if (this.gtsPlotContainer.style.display === "none") {
-      console.log("[PlotUpdater] => GTS container hidden => skipping chart creation.");
       this.lastMultiYearData = this.getCachedMultiYearData(viewKey);
       return;
     }
@@ -1073,7 +1051,6 @@ export class PlotUpdater {
    */
   step15CreateTemperatureChart(endDate) {
     if (this.tempPlotContainer.style.display === "none") {
-      console.log("[PlotUpdater] => tempPlotContainer hidden => skipping temp chart.");
       return;
     }
     const tempStats = this.computeStatsFromValues(this.filteredTempsData);
@@ -1175,7 +1152,6 @@ export class PlotUpdater {
     const numericMax = Number(max);
     const roundedMin = Math.floor(numericMin / 10) * 10;
     const roundedMax = Math.ceil(numericMax / 10) * 10;
-    console.log("[axis-sync]", chartType, "globalMin", roundedMin, "globalMax", roundedMax, "nValues", totalCount);
     return { min: roundedMin, max: roundedMax };
   }
 }

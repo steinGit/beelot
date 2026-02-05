@@ -28,9 +28,6 @@ function createLocalStartOfDay(year, month, day) {
 export function getSelectedEndDate() {
     const datumInput = document.getElementById('datum');
     const ortVal = document.getElementById('ort').value || "";
-    if (!ortVal.includes("Lat") || !ortVal.includes("Lon")) {
-        console.warn("[DEBUG logic.js] getSelectedEndDate() => Invalid ort value:", ortVal);
-    }
 
     const parts = datumInput.value.split('-');
     const y = parseInt(parts[0], 10);
@@ -93,13 +90,6 @@ export function computeStartDate(endDate) {
  * @returns {Array<Object>} - Array of objects with 'date' and 'gts' properties.
  */
 export function calculateGTS(dates, values, verbose = false) {
-    if (verbose) {
-      console.log(`
-        const dates = ${JSON.stringify(dates, null, 2)};
-        const values = ${JSON.stringify(values, null, 2)};
-    `);
-    }
-
     let cumulativeSum = 0;
     const results = [];
 
@@ -146,12 +136,6 @@ export async function fetchGTSForYear(
     verbose = false,
     cacheStore = null
 ) {
-    if (verbose) {
-        console.log("[DEBUG logic.js] fetchGTSForYear() => year=", year,
-                    " baseStartDate=", formatDateLocal(baseStartDate),
-                    " baseEndDate=", formatDateLocal(baseEndDate));
-    }
-
     // A) Define the fetch range: January 1st to the same month/day as baseEndDate + 1 day
     const yearStart = createLocalStartOfDay(year, 0, 1);
     const yearEnd = new Date(year, baseEndDate.getMonth(), baseEndDate.getDate(), 0, 0, 0, 0);
@@ -168,7 +152,6 @@ export async function fetchGTSForYear(
     // B) Fetch historical data from yearStart to yearEnd
     const histData = await fetchHistoricalData(lat, lon, yearStart, yearEnd, cacheStore);
     if (!histData || !histData.daily) {
-        console.warn("[DEBUG logic.js] no daily data found for year=", year);
         return { year, labels: [], gtsValues: [] };
     }
     const allDates = histData.daily.time;

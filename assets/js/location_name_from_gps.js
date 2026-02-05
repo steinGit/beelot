@@ -17,7 +17,7 @@ export class LocationNameFromGPS {
     this.apiUrl = options.apiUrl || 'https://nominatim.openstreetmap.org/reverse';
     this.email = options.email || 'your-email@example.com'; // Replace with your actual email
     this.cachePrecision = options.cachePrecision || 4; // Default precision
-    this.verbose = true; // Hardwired to true as per request
+    this.verbose = options.verbose === true;
     this.cacheStore = options.cacheStore || null;
   }
 

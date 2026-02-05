@@ -195,10 +195,6 @@ const getColorForIndex = (yearIndex, totalYears, year, scheme) => {
  * E.g. filteredResults => array of { date, gts }.
  */
 export function plotData(results, verbose = false, yRange = null) {
-    if (verbose) {
-        console.log("[charts.js] plotData() called with results:", results);
-    }
-
     if (!results || results.length === 0) {
         console.warn("[charts.js] plotData() aufgerufen mit leeren Ergebnissen.");
         return null;
@@ -299,11 +295,6 @@ export function plotData(results, verbose = false, yRange = null) {
  * Plot daily temps.
  */
 export function plotDailyTemps(dates, temps, verbose = false, yRange = null) {
-    if (verbose) {
-        console.log("[charts.js] plotDailyTemps() called with dates:", dates);
-        console.log("[charts.js] plotDailyTemps() called with temps:", temps);
-    }
-
     const labels = dates.map(dStr => formatDayMonth(dStr));
 
     let yearLabel = '';
