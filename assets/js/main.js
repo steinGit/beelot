@@ -31,6 +31,8 @@ import { plotComparisonData } from './charts.js';
 import { calculateGTS } from './logic.js';
 import { fetchHistoricalData, fetchRecentData, isOpenMeteoError } from './dataService.js';
 import { formatDateLocal, formatDayMonth } from './utils.js';
+import { getNextTabTarget } from './locationTabNavigation.js';
+import { createTooltipGate } from './tooltipFrequency.js';
 import {
   createLocationEntry,
   createWeatherCacheStore,
@@ -110,6 +112,7 @@ function updateZeitraumSelect() {
 
 // We'll hold a reference to our PlotUpdater instance here
 let plotUpdater = null;
+let ergebnisTextEl = null;
 // Also track the multi-year toggle
 let gtsYearRange = 1;
 let gtsRange20Active = false;
@@ -1008,6 +1011,7 @@ function switchLocation(locationId) {
 document.addEventListener('DOMContentLoaded', () => {
   // First, check if we're on a page that actually has these elements
   // (i.e. the index/home page). If not, skip the rest to avoid errors.
+  ergebnisTextEl = document.getElementById('ergebnis-text');
   if (
     !datumInput ||
     !ortInput ||
@@ -1027,7 +1031,8 @@ document.addEventListener('DOMContentLoaded', () => {
     gtsColorInputs.length === 0 ||
     !locationNameOutput ||
     !locationTabsContainer ||
-    !locationPanel
+    !locationPanel ||
+    !ergebnisTextEl
   ) {
     console.log("[main.js] Not all index elements exist => skipping main logic on this page.");
     return;
@@ -1040,7 +1045,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ortInput,
     datumInput,
     zeitraumSelect,
-    ergebnisTextEl: document.getElementById('ergebnis-text'),
+    ergebnisTextEl,
     hinweisSection: document.querySelector('.hinweis-section'),
     gtsPlotContainer,
     tempPlotContainer,
@@ -1180,6 +1185,11 @@ function setupEventListeners() {
   });
 
   const tabTooltipText = "Mit den Pfeiltasten ← und → kannst du zwischen den Standorten wechseln – ideal zum Vergleichen. Per Doppelklick kannst Du den Namen ändern.";
+  const tabTooltipGate = createTooltipGate({
+    key: "beelotTabTooltipCount",
+    every: 10,
+    storage: window.localStorage
+  });
   let tabTooltip = document.getElementById("location-tab-tooltip");
   if (!tabTooltip) {
     tabTooltip = document.createElement("div");
@@ -1208,6 +1218,9 @@ function setupEventListeners() {
   const scheduleTabTooltip = (event) => {
     if (tabTooltipTimer) {
       clearTimeout(tabTooltipTimer);
+    }
+    if (!tabTooltipGate.shouldShow()) {
+      return;
     }
     const target = event.currentTarget;
     tabTooltipTimer = window.setTimeout(() => showTabTooltip(target), 300);
@@ -1450,14 +1463,21 @@ function setupEventListeners() {
       if (locations.length <= 1) {
         return;
       }
-      const activeId = getActiveLocationId();
-      const currentIndex = locations.findIndex((location) => location.id === activeId);
-      if (currentIndex === -1) {
+      const offset = event.key === "ArrowLeft" ? -1 : 1;
+      const target = getNextTabTarget({
+        locations,
+        activeLocationId: getActiveLocationId(),
+        comparisonActive,
+        offset
+      });
+      if (!target) {
         return;
       }
-      const offset = event.key === "ArrowLeft" ? -1 : 1;
-      const nextIndex = (currentIndex + offset + locations.length) % locations.length;
-      switchLocation(locations[nextIndex].id);
+      if (target.type === "compare") {
+        activateComparisonTab();
+        return;
+      }
+      switchLocation(target.id);
       return;
     }
     if (event.key === "+" || event.code === "NumpadAdd") {
@@ -1486,6 +1506,13 @@ function setupEventListeners() {
     plotUpdater.run();
     if (getLocationsInOrder().length > 1) {
       refreshAllLocationCalculations();
+    }
+  });
+
+  ergebnisTextEl.addEventListener('click', (event) => {
+    const target = event.target;
+    if (target && target.id === "ergebnis-heute") {
+      datumHeuteBtn.click();
     }
   });
 

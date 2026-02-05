@@ -206,7 +206,10 @@ export async function updateHinweisSection(gtsResults, endDate) {
             if (absDays === 0) {
                 return "Heute";
             }
-            return `vor ${absDays} Tagen`;
+            if (absDays === 1) {
+                return "Gestern";
+            }
+            return `Vor ${absDays} Tagen`;
         });
         rearviewGroups.forEach((group) => {
             const plantList = group.plants.join(", ");
@@ -244,7 +247,13 @@ export async function updateHinweisSection(gtsResults, endDate) {
     const n_forecasts = forecast_list.length
     if (n_forecasts > 0) {
         // We have some forecast items => do NOT show the “Danach:” part
-        const forecastGroups = groupEntries(forecast_list, (row) => `in ${row.days} Tagen`);
+        const forecastGroups = groupEntries(forecast_list, (row) => {
+            const days = Number(row.days);
+            if (Number.isFinite(days) && days === 1) {
+                return "Morgen";
+            }
+            return `In ${row.days} Tagen`;
+        });
         forecastGroups.forEach((group) => {
             const plantList = group.plants.join(", ");
             const prefix = group.isRecommendation ? recommendationPrefix : "";

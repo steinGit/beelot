@@ -547,16 +547,24 @@ export class PlotUpdater {
     this.currentGtsValue = lastGTS;
     this.currentEndDate = endDate;
 
+    const isToday = formatDateLocal(endDate) === localTodayStr;
     let dateColor = "#802020";
     let dateWeight = "bold";
     let betragenStr = "beträgt";
 
-    if (formatDateLocal(endDate) === localTodayStr) {
+    if (isToday) {
       dateColor = "#206020";
       betragenStr = "beträgt";
     } else {
       betragenStr = "betrug";
     }
+
+    const heuteButtonHtml = isToday
+      ? ""
+      : `
+        <br />
+        <button id="ergebnis-heute" type="button">heute</button>
+      `;
 
     this.ergebnisTextEl.innerHTML = `
       <span style="font-weight: normal; color: #202020;">Die <a href="components/faq.html" class="unstyled-link">Grünland-Temperatur-Summe</a> am </span>
@@ -564,6 +572,7 @@ export class PlotUpdater {
       <span style="font-weight: normal; color: #202020;"> ${betragenStr} </span>
       <span style="font-weight: bold; color: darkgreen;">${lastGTS.toFixed(1)}</span>
       <span class="gts-unit-tooltip" title="Einheit der Grünland-Temperatur-Summe: Grad-Tage (°C·d)">°Cd</span>
+      ${heuteButtonHtml}
       <span id="gts-year-comparison"></span>
     `;
   }
@@ -741,7 +750,7 @@ export class PlotUpdater {
         const speedWord = item.relation === "faster" ? "schneller" : "langsamer";
         return `${prefix} ${item.year} um ${item.delta} Tage ${speedWord}`;
       });
-      const sentence = `Vegetationsentwicklung ${currentYear}:<br>${parts.join(",<br>")}.`;
+      const sentence = `<strong>Vegetationsentwicklung ${currentYear}:</strong><br>${parts.join(",<br>")}.`;
       comparisonHtml = `<span class="gts-comparison-spacer"></span><span class="gts-comparison">${sentence}</span>`;
     }
 
@@ -916,7 +925,7 @@ export class PlotUpdater {
             } else {
               comparisonHtml += `<span class="gts-comparison-spacer"></span>`;
             }
-            comparisonHtml += `<span class="gts-comparison">Vegetationsentwicklung der Standorte:<br>${lines.join("<br>")}</span>`;
+            comparisonHtml += `<span class="gts-comparison"><strong>Vegetationsentwicklung der Standorte:</strong><br>${lines.join("<br>")}</span>`;
           }
         }
       }
