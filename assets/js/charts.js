@@ -267,7 +267,15 @@ export function plotData(results, verbose = false, yRange = null) {
                 tooltip: {
                     enabled: true,
                     mode: 'index',
-                    intersect: false
+                    intersect: false,
+                    itemSort: (a, b) => {
+                        const aValue = Number(a.parsed?.y);
+                        const bValue = Number(b.parsed?.y);
+                        if (!Number.isFinite(aValue) || !Number.isFinite(bValue)) {
+                            return 0;
+                        }
+                        return bValue - aValue;
+                    }
                 },
                 legend: {
                     display: true,
@@ -355,7 +363,15 @@ export function plotDailyTemps(dates, temps, verbose = false, yRange = null) {
                 tooltip: {
                     enabled: true,
                     mode: 'index',
-                    intersect: false
+                    intersect: false,
+                    itemSort: (a, b) => {
+                        const aValue = Number(a.parsed?.y);
+                        const bValue = Number(b.parsed?.y);
+                        if (!Number.isFinite(aValue) || !Number.isFinite(bValue)) {
+                            return 0;
+                        }
+                        return bValue - aValue;
+                    }
                 },
                 legend: {
                     display: true,
@@ -499,7 +515,16 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
                 tooltip: {
                     enabled: true,
                     mode: 'index',
-                    intersect: false
+                    intersect: false,
+                    itemSort: (a, b) => {
+                        const aValue = Number(a.parsed?.y);
+                        const bValue = Number(b.parsed?.y);
+                        if (!Number.isFinite(aValue) || !Number.isFinite(bValue)) {
+                            return 0;
+                        }
+                        return bValue - aValue;
+                    },
+                    callbacks: {}
                 },
                 legend: {
                     display: true,
@@ -623,7 +648,16 @@ export function plotComparisonData(labels, series, yRange = null) {
                 tooltip: {
                     enabled: true,
                     mode: 'index',
-                    intersect: false
+                    intersect: false,
+                    itemSort: (a, b) => {
+                        const aValue = Number(a.parsed?.y);
+                        const bValue = Number(b.parsed?.y);
+                        if (!Number.isFinite(aValue) || !Number.isFinite(bValue)) {
+                            return 0;
+                        }
+                        return bValue - aValue;
+                    },
+                    callbacks: {}
                 },
                 legend: {
                     display: true,
