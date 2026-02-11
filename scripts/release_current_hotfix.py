@@ -21,6 +21,9 @@ from typing import Final, List, Sequence
 
 RED: Final[str] = "\033[31m"
 RESET: Final[str] = "\033[0m"
+VERSION_FILE: Final[Path] = Path("assets/js/version.js")
+PACKAGE_FILE: Final[Path] = Path("package.json")
+SYNC_SCRIPT: Final[Path] = Path("scripts/sync_versions.py")
 
 
 def error_exit(message: str, exit_code: int = 1) -> None:
@@ -49,8 +52,10 @@ def usage() -> str:
     """
     return (
         "release_current_hotfix.py [--dryrun]\n\n"
-        "Example:\n"
+        "Examples:\n"
+        "  ./release_current_hotfix.py\n"
         "  ./release_current_hotfix.py --dryrun\n"
+        "  ./release_current_hotfix.py -h\n"
     )
 
 
@@ -71,12 +76,17 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Release the current hotfix based on assets/js/version.js",
         usage=usage(),
+        add_help=False,
     )
+    parser.add_argument("-h", "--help", "-?", action="help")
     parser.add_argument(
         "--dryrun",
         action="store_true",
         help="Print commands without executing them.",
     )
+    if len(argv) == 0:
+        parser.print_help()
+        sys.exit(0)
     return parser.parse_args(argv)
 
 
@@ -190,6 +200,26 @@ def run_command(command: List[str], dryrun: bool) -> None:
         error_exit(f"Command failed: {printable}\n{exc}")
 
 
+def sync_versions(dryrun: bool) -> None:
+    """
+    Synchronize package.json version from assets/js/version.js.
+
+    Parameters
+    ----------
+    dryrun:
+        If True, print the command only.
+    """
+    command: List[str] = [
+        sys.executable,
+        str(SYNC_SCRIPT),
+        "--source",
+        "version-js",
+    ]
+    if dryrun:
+        command.append("--dryrun")
+    run_command(command, dryrun=dryrun)
+
+
 def main(argv: Sequence[str]) -> None:
     """
     Main entry point of the script.
@@ -204,10 +234,10 @@ def main(argv: Sequence[str]) -> None:
     ensure_beelot_directory()
     ensure_main_branch()
 
-    version_file = Path("assets/js/version.js")
+    sync_versions(dryrun=args.dryrun)
 
     try:
-        version = read_version_file(version_file)
+        version = read_version_file(VERSION_FILE)
     except Exception as exc:
         error_exit(str(exc))
 
@@ -216,7 +246,8 @@ def main(argv: Sequence[str]) -> None:
         return
 
     commands: List[List[str]] = [
-        ["git", "commit", "-m", f"chore: bump version to {version}", "."],
+        ["git", "add", str(VERSION_FILE), str(PACKAGE_FILE)],
+        ["git", "commit", "-m", f"chore: bump version to {version}"],
         ["git", "tag", "-a", f"v{version}", "-m", f"Hotfix release v{version}"],
         ["git", "push", "origin", "main"],
         ["git", "push", "origin", f"v{version}"],

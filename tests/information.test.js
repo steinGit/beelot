@@ -19,7 +19,7 @@ describe('updateHinweisSection', () => {
     ];
 
     const trachtData = [
-      { TS_start: 6, plant: "Testpflanze", url: "", active: true }
+      { TS_start: 6, plant: "Testpflanze", url: "https://example.com", active: true }
     ];
     localStorage.setItem("trachtData", JSON.stringify(trachtData));
 

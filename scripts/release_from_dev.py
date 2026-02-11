@@ -18,6 +18,8 @@ from typing import Final, List, Sequence
 
 
 VERSION_FILE: Final[Path] = Path("assets/js/version.js")
+PACKAGE_FILE: Final[Path] = Path("package.json")
+SYNC_SCRIPT: Final[Path] = Path("scripts/sync_versions.py")
 DEV_BRANCH: Final[str] = "dev"
 MAIN_BRANCH: Final[str] = "main"
 
@@ -105,6 +107,31 @@ def run_git_command(args: List[str], dryrun: bool) -> None:
         print(result.stdout.strip())
 
 
+def run_sync_versions(dryrun: bool) -> None:
+    """Synchronize package.json version from assets/js/version.js."""
+    command: List[str] = [
+        sys.executable,
+        str(SYNC_SCRIPT),
+        "--source",
+        "version-js",
+    ]
+    if dryrun:
+        command.append("--dryrun")
+    print_info("Running version sync script")
+    print_info(" ".join(command))
+    if dryrun:
+        return
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        if result.stdout.strip():
+            print(result.stdout.strip())
+        if result.stderr.strip():
+            print_error(result.stderr.strip())
+        raise RuntimeError("Version synchronization failed.")
+    if result.stdout.strip():
+        print(result.stdout.strip())
+
+
 def read_version_from_branch(branch: str) -> str:
     """Read version string from assets/js/version.js on a branch."""
     try:
@@ -169,6 +196,8 @@ def main(argv: Sequence[str]) -> None:
         print_info("Merging dev into main")
         run_git_command(["merge", DEV_BRANCH], args.dryrun)
 
+        run_sync_versions(args.dryrun)
+
         print_info("Committing version update if needed")
         result = subprocess.run(
             ["git", "status", "--porcelain"],
@@ -177,7 +206,7 @@ def main(argv: Sequence[str]) -> None:
             check=False,
         )
         if result.stdout.strip() and not args.dryrun:
-            run_git_command(["add", str(VERSION_FILE)], args.dryrun)
+            run_git_command(["add", str(VERSION_FILE), str(PACKAGE_FILE)], args.dryrun)
             run_git_command(["commit", "-m", f"Release version {version}"], args.dryrun)
         else:
             print_warning("No version file changes to commit")
