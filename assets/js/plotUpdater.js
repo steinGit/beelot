@@ -600,7 +600,8 @@ export class PlotUpdater {
           yearRange,
           plotStartDate,
           endDate,
-          this.weatherCacheStore
+          this.weatherCacheStore,
+          filteredResults
         );
       } else {
         multiYearData = await buildYearData(

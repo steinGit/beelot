@@ -312,12 +312,13 @@ export async function build5YearData(
 }
 
 /**
- * Builds data for full calendar years using only fetchGTSForYear.
+ * Builds data for full calendar years.
  * @param {number} lat - Latitude.
  * @param {number} lon - Longitude.
  * @param {number} endYear - The last full year to include.
  * @param {number} yearsCount - Number of years to include.
  * @param {Object|null} cacheStore - Optional cache store.
+ * @param {Array<Object>|null} data_current_year - Optional precomputed GTS for endYear.
  * @returns {Promise<Array<Object>>} - Array of yearly data objects.
  */
 export async function buildFullYearData(
@@ -327,7 +328,8 @@ export async function buildFullYearData(
     yearsCount,
     baseStartDate,
     baseEndDate,
-    cacheStore = null
+    cacheStore = null,
+    data_current_year = null
 ) {
     const allResults = [];
 
@@ -343,6 +345,25 @@ export async function buildFullYearData(
                 baseEndDate.getMonth(),
                 baseEndDate.getDate()
             );
+            if (y === endYear && Array.isArray(data_current_year)) {
+                const endOfDay = new Date(yearPlotEnd);
+                endOfDay.setHours(23, 59, 59, 999);
+                const displayedResults = data_current_year.filter((item) => {
+                    const d = new Date(item.date);
+                    return d >= yearPlotStart && d <= endOfDay;
+                });
+                const labels = displayedResults.map((item) => {
+                    const d = new Date(item.date);
+                    return `${d.getDate()}.${d.getMonth() + 1}`;
+                });
+                const gtsValues = displayedResults.map((item) => item.gts);
+                allResults.push({
+                    year: y,
+                    labels,
+                    gtsValues
+                });
+                continue;
+            }
             const yearly = await fetchGTSForYear(
                 lat,
                 lon,
