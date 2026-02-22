@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Release automation script for creating a release from dev branch.
 
-This script reads the release version from assets/js/version.js on dev,
-merges dev into main, commits the version update if needed, creates
+This script reads version values from assets/js/version.js and package.json on dev,
+uses the maximum of the two as the release version, merges dev into main,
+commits the version update if needed, creates
 an annotated git tag, pushes changes and tags, and finally merges
 main back into dev.
 """
@@ -10,11 +11,12 @@ main back into dev.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Final, List, Sequence
+from typing import Final, List, Sequence, Tuple
 
 
 VERSION_FILE: Final[Path] = Path("assets/js/version.js")
@@ -108,12 +110,12 @@ def run_git_command(args: List[str], dryrun: bool) -> None:
 
 
 def run_sync_versions(dryrun: bool) -> None:
-    """Synchronize package.json version from assets/js/version.js."""
+    """Synchronize both version files to the maximum version."""
     command: List[str] = [
         sys.executable,
         str(SYNC_SCRIPT),
         "--source",
-        "version-js",
+        "max",
     ]
     if dryrun:
         command.append("--dryrun")
@@ -132,10 +134,43 @@ def run_sync_versions(dryrun: bool) -> None:
         print(result.stdout.strip())
 
 
-def read_version_from_branch(branch: str) -> str:
-    """Read version string from assets/js/version.js on a branch."""
+def parse_version(
+    version: str,
+) -> Tuple[Tuple[int, int, int], Tuple[Tuple[int, object], ...], bool]:
+    match = re.match(
+        r"^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+([0-9A-Za-z.-]+))?$",
+        version,
+    )
+    if not match:
+        raise ValueError(f"Invalid version format: {version}")
+
+    major, minor, patch = (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+    prerelease = match.group(4)
+    if prerelease is None:
+        return (major, minor, patch), tuple(), True
+
+    parts = []
+    for item in prerelease.split("."):
+        if item.isdigit():
+            parts.append((0, int(item)))
+        else:
+            parts.append((1, item))
+
+    return (major, minor, patch), tuple(parts), False
+
+
+def max_version(version_a: str, version_b: str) -> str:
+    core_a, pre_a, is_release_a = parse_version(version_a)
+    core_b, pre_b, is_release_b = parse_version(version_b)
+    key_a = (core_a, is_release_a, pre_a)
+    key_b = (core_b, is_release_b, pre_b)
+    return version_a if key_a >= key_b else version_b
+
+
+def read_versions_from_branch(branch: str) -> Tuple[str, str]:
+    """Read version strings from assets/js/version.js and package.json on a branch."""
     try:
-        result = subprocess.run(
+        version_result = subprocess.run(
             ["git", "show", f"{branch}:{VERSION_FILE.as_posix()}"],
             capture_output=True,
             text=True,
@@ -146,12 +181,36 @@ def read_version_from_branch(branch: str) -> str:
             f"Failed to read {VERSION_FILE} from branch '{branch}': {exc}"
         ) from exc
 
-    content = result.stdout
-    match = re.search(r'export\s+const\s+VERSION\s*=\s*"([^"]+)"', content)
+    version_content = version_result.stdout
+    match = re.search(r'export\s+const\s+VERSION\s*=\s*"([^"]+)"', version_content)
     if not match:
         raise ValueError("No version string found in version.js")
+    version_js = match.group(1)
 
-    return match.group(1)
+    try:
+        package_result = subprocess.run(
+            ["git", "show", f"{branch}:{PACKAGE_FILE.as_posix()}"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            f"Failed to read {PACKAGE_FILE} from branch '{branch}': {exc}"
+        ) from exc
+
+    try:
+        package_json = json.loads(package_result.stdout)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"JSON parsing error in {PACKAGE_FILE} from branch '{branch}' at line {exc.lineno}, column {exc.colno}"
+        ) from exc
+
+    package_version = package_json.get("version")
+    if not isinstance(package_version, str) or not package_version.strip():
+        raise ValueError(f"Missing or invalid 'version' field in {PACKAGE_FILE}")
+
+    return version_js, package_version
 
 
 def ensure_clean_worktree(dryrun: bool) -> None:
@@ -173,7 +232,8 @@ def main(argv: Sequence[str]) -> None:
     try:
         args = parse_args(argv)
         ensure_beelot_directory()
-        version = read_version_from_branch(DEV_BRANCH)
+        version_js, package_version = read_versions_from_branch(DEV_BRANCH)
+        version = max_version(version_js, package_version)
     except Exception as exc:
         print_error(f"Error preparing release: {exc}")
         sys.exit(1)

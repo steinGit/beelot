@@ -39,3 +39,10 @@ Run
 npm install
 npm test
 ```
+
+## Release workflow
+
+- Releases are created via `scripts/release_from_dev.py`.
+- The release version is the maximum of `assets/js/version.js` and `package.json`.
+- The script syncs both files to that max version, tags `v<version>`, and pushes.
+- GitHub Actions publishes a GitHub Release automatically on tag push.
