@@ -227,6 +227,19 @@ def ensure_clean_worktree(dryrun: bool) -> None:
         raise RuntimeError("Working tree not clean. Commit or stash changes first.")
 
 
+def tag_exists(tag_name: str, dryrun: bool) -> bool:
+    """Check if a tag already exists."""
+    if dryrun:
+        return False
+    result = subprocess.run(
+        ["git", "rev-parse", "-q", "--verify", f"refs/tags/{tag_name}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
 def main(argv: Sequence[str]) -> None:
     """Main release procedure."""
     try:
@@ -271,14 +284,25 @@ def main(argv: Sequence[str]) -> None:
         else:
             print_warning("No version file changes to commit")
 
-        print_info(f"Creating tag {tag_name}")
-        run_git_command(["tag", "-a", tag_name, "-m", f"Release {version}"], args.dryrun)
+        tag_created = False
+        if tag_exists(tag_name, args.dryrun):
+            print_warning(f"Tag {tag_name} already exists; skipping tag creation")
+        else:
+            print_info(f"Creating tag {tag_name}")
+            run_git_command(
+                ["tag", "-a", tag_name, "-m", f"Release {version}"],
+                args.dryrun,
+            )
+            tag_created = True
 
         print_info("Pushing main branch")
         run_git_command(["push"], args.dryrun)
 
-        print_info("Pushing tags")
-        run_git_command(["push", "--tags"], args.dryrun)
+        if tag_created:
+            print_info("Pushing tags")
+            run_git_command(["push", "--tags"], args.dryrun)
+        else:
+            print_warning("Skipping tag push; tag already existed")
 
         print_info("Merging main back into dev")
         run_git_command(["checkout", DEV_BRANCH], args.dryrun)
