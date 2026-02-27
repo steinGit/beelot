@@ -25,10 +25,22 @@ export function normalizeCountryName(value) {
     return DEFAULT_ADDRESS_COUNTRY;
   }
 
-  if (token === "d" || token === "de" || token === "deutschland") {
+  if (
+    token === "d"
+    || token === "de"
+    || token === "deutschland"
+    || token === "germany"
+    || token === "deu"
+  ) {
     return "Deutschland";
   }
-  if (token === "ch" || token === "sch" || token === "schweiz") {
+  if (
+    token === "ch"
+    || token === "sch"
+    || token === "schweiz"
+    || token === "switzerland"
+    || token === "che"
+  ) {
     return "Schweiz";
   }
   if (
@@ -38,6 +50,8 @@ export function normalizeCountryName(value) {
     || token === "at"
     || token === "österreich"
     || token === "osterreich"
+    || token === "austria"
+    || token === "aut"
   ) {
     return "Österreich";
   }
@@ -376,11 +390,11 @@ function extractCityFromAddressObject(address) {
   const candidates = [
     address.city,
     address.town,
+    address.municipality,
     address.village,
     address.city_district,
     address.borough,
     address.suburb,
-    address.municipality,
     address.hamlet,
     address.county
   ];

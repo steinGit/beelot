@@ -26,6 +26,12 @@ describe("normalizeCountryName", () => {
     expect(normalizeCountryName("Ö")).toBe("Österreich");
     expect(normalizeCountryName("Au")).toBe("Österreich");
   });
+
+  test("maps English country names to canonical German names", () => {
+    expect(normalizeCountryName("Germany")).toBe("Deutschland");
+    expect(normalizeCountryName("Switzerland")).toBe("Schweiz");
+    expect(normalizeCountryName("Austria")).toBe("Österreich");
+  });
 });
 
 describe("normalizeAddressFormData", () => {
@@ -161,6 +167,24 @@ describe("buildCanonicalAddressFromResult", () => {
     expect(buildCanonicalAddressFromResult(result, fallback)).toEqual({
       street: "",
       city: "Berlin",
+      country: "Deutschland"
+    });
+  });
+
+  test("prefers municipality over village for canonical city", () => {
+    const fallback = { street: "Helene-Lange-Str. 52", city: "Ostfildern", country: "Germany" };
+    const result = {
+      display_name: "52, Helene-Lange-Straße, Scharnhauser Park, Ostfildern, Landkreis Esslingen, Baden-Württemberg, 73760, Deutschland",
+      address: {
+        village: "Scharnhauser Park",
+        municipality: "Ostfildern",
+        country: "Deutschland"
+      }
+    };
+
+    expect(buildCanonicalAddressFromResult(result, fallback)).toEqual({
+      street: "Helene-Lange-Str. 52",
+      city: "Ostfildern",
       country: "Deutschland"
     });
   });

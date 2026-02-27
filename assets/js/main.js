@@ -480,9 +480,30 @@ async function geocodeAddress({ street, city, country, forcedSettlement = null }
       viewbox,
       bounded: true
     });
-    const cityFiltered = results.filter((entry) => {
+    const resultBelongsToSettlement = (entry, settlementCity) => {
+      if (!entry || typeof entry !== "object") {
+        return false;
+      }
+      const address = entry.address && typeof entry.address === "object" ? entry.address : {};
+      const cityFields = [
+        address.city,
+        address.town,
+        address.municipality,
+        address.village,
+        address.city_district,
+        address.suburb,
+        address.borough,
+        address.hamlet,
+        address.county
+      ];
+      if (cityFields.some((field) => citiesLikelyMatch(field, settlementCity))) {
+        return true;
+      }
       const canonical = buildCanonicalAddressFromResult(entry, settlementAddress);
-      return citiesLikelyMatch(canonical.city, settlementAddress.city);
+      return citiesLikelyMatch(canonical.city, settlementCity);
+    };
+    const cityFiltered = results.filter((entry) => {
+      return resultBelongsToSettlement(entry, settlementAddress.city);
     });
     logAddressDebug("street candidates in settlement", {
       settlement: settlementCandidate.label,
