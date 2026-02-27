@@ -35,6 +35,14 @@ import { getNextTabTarget } from './locationTabNavigation.js';
 import { createTooltipGate } from './tooltipFrequency.js';
 import { shouldSwitchLocation } from './locationSwitching.js';
 import {
+  buildAddressQueries,
+  buildCanonicalAddressFromResult,
+  collectSettlementCandidates,
+  getCountryCodeForCountryName,
+  normalizeAddressFormData,
+  pickBestSearchResult
+} from './addressNormalization.js';
+import {
   createLocationEntry,
   createWeatherCacheStore,
   deleteLocationEntry,
@@ -128,6 +136,381 @@ const REGULAR_GTS_RANGES = new Set([1, 5, 10]);
 const GTS_RANGE_20 = 20;
 const COMPARISON_COLORS = ["red", "orange", "gold", "green", "cyan", "blue", "magenta"];
 const OFFLINE_TEXT = "Offline-Modus: Für diese Funktion ist eine Internetverbindung erforderlich.";
+const ADDRESS_SUGGESTION_KEY = "beelotAddressSuggestion";
+const DEFAULT_ADDRESS_ZOOM = 12;
+const DEFAULT_ADDRESS_VIEWPORT_METERS = 1000;
+const ADDRESS_DEBUG_ENABLED = true;
+
+function logAddressDebug(message, payload = null) {
+  if (!ADDRESS_DEBUG_ENABLED) {
+    return;
+  }
+  if (!Array.isArray(window.__beelotAddressDebug)) {
+    window.__beelotAddressDebug = [];
+  }
+  const entry = {
+    timestamp: new Date().toISOString(),
+    message,
+    payload
+  };
+  window.__beelotAddressDebug.push(entry);
+  if (window.__beelotAddressDebug.length > 300) {
+    window.__beelotAddressDebug.splice(0, window.__beelotAddressDebug.length - 300);
+  }
+  if (payload === null) {
+    console.log(`[DEBUG address] ${message}`);
+    return;
+  }
+  console.log(`[DEBUG address] ${message}`, payload);
+}
+
+function loadAddressSuggestion() {
+  try {
+    const stored = localStorage.getItem(ADDRESS_SUGGESTION_KEY);
+    if (!stored) {
+      return normalizeAddressFormData();
+    }
+    return normalizeAddressFormData(JSON.parse(stored));
+  } catch (error) {
+    return normalizeAddressFormData();
+  }
+}
+
+function persistAddressSuggestion(addressData) {
+  try {
+    localStorage.setItem(ADDRESS_SUGGESTION_KEY, JSON.stringify(normalizeAddressFormData(addressData)));
+  } catch (error) {
+    console.warn("[address] Failed to persist address suggestion.", error);
+  }
+}
+
+function getSuggestedAddressForActiveLocation() {
+  const location = getActiveLocation();
+  const fallback = loadAddressSuggestion();
+  if (!location || !location.ui || !location.ui.address) {
+    return fallback;
+  }
+  const perLocation = normalizeAddressFormData(location.ui.address);
+  const hasLocationAddress = Boolean(perLocation.street || perLocation.city || perLocation.country);
+  if (!hasLocationAddress || (perLocation.country === "Deutschland" && !perLocation.street && !perLocation.city)) {
+    return fallback;
+  }
+  return perLocation;
+}
+
+async function geocodeAddress({ street, city, country }) {
+  const normalized = normalizeAddressFormData({ street, city, country });
+  if (!normalized.city) {
+    throw new Error("Bitte gib mindestens einen Ort an.");
+  }
+  logAddressDebug("geocodeAddress start", { normalized });
+
+  const queries = buildAddressQueries(normalized);
+  const requireSettlement = !normalized.street;
+  const countryCode = getCountryCodeForCountryName(normalized.country);
+  logAddressDebug("address queries generated", {
+    requireSettlement,
+    countryCode,
+    queries
+  });
+  let first = null;
+  let ambiguity = null;
+
+  const fetchNominatimForQuery = async (query, cityForStructuredQuery = null) => {
+    const params = new URLSearchParams({
+      q: query,
+      format: "jsonv2",
+      limit: requireSettlement ? "8" : "1",
+      addressdetails: "1",
+      email: "info.beelot@gmail.com"
+    });
+    if (countryCode) {
+      params.set("countrycodes", countryCode);
+    }
+    if (requireSettlement && cityForStructuredQuery) {
+      params.delete("q");
+      params.set("city", cityForStructuredQuery);
+      params.set("country", normalized.country);
+    }
+
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+      headers: {
+        "Accept-Language": "de"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Adresse konnte nicht aufgelöst werden (${response.status}).`);
+    }
+
+    const results = await response.json();
+    logAddressDebug("nominatim response", {
+      query,
+      cityForStructuredQuery,
+      count: Array.isArray(results) ? results.length : 0,
+      sample: Array.isArray(results)
+        ? results.slice(0, 5).map((entry) => ({
+          name: entry.name,
+          display_name: entry.display_name,
+          addresstype: entry.addresstype,
+          type: entry.type,
+          category: entry.category
+        }))
+        : []
+    });
+    return Array.isArray(results) ? results : [];
+  };
+
+  const levenshteinDistance = (left, right) => {
+    const a = left.toLowerCase();
+    const b = right.toLowerCase();
+    const rows = a.length + 1;
+    const cols = b.length + 1;
+    const matrix = Array.from({ length: rows }, () => new Array(cols).fill(0));
+
+    for (let i = 0; i < rows; i += 1) {
+      matrix[i][0] = i;
+    }
+    for (let j = 0; j < cols; j += 1) {
+      matrix[0][j] = j;
+    }
+
+    for (let i = 1; i < rows; i += 1) {
+      for (let j = 1; j < cols; j += 1) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + cost
+        );
+      }
+    }
+
+    return matrix[rows - 1][cols - 1];
+  };
+
+  const fetchPhotonSettlementFallback = async () => {
+    logAddressDebug("photon fallback start", {
+      city: normalized.city,
+      country: normalized.country,
+      countryCode
+    });
+    const params = new URLSearchParams({
+      q: `${normalized.city}, ${normalized.country}`,
+      lang: "de",
+      limit: "10"
+    });
+    const response = await fetch(`https://photon.komoot.io/api/?${params.toString()}`);
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = await response.json();
+    const features = Array.isArray(payload?.features) ? payload.features : [];
+    logAddressDebug("photon response", {
+      featureCount: features.length,
+      sample: features.slice(0, 10).map((feature) => ({
+        name: feature?.properties?.name,
+        type: feature?.properties?.type,
+        country: feature?.properties?.country,
+        countrycode: feature?.properties?.countrycode
+      }))
+    });
+    if (features.length === 0) {
+      return null;
+    }
+
+    const settlementTypes = new Set(["city", "town", "village", "municipality", "hamlet"]);
+    const countryNeedle = normalized.country.toLowerCase();
+    const settlementCandidates = features.filter((feature) => {
+      const properties = feature?.properties || {};
+      const type = typeof properties.type === "string" ? properties.type.toLowerCase() : "";
+      if (!settlementTypes.has(type)) {
+        return false;
+      }
+      const featureCountryCode = typeof properties.countrycode === "string"
+        ? properties.countrycode.toLowerCase()
+        : "";
+      if (countryCode && featureCountryCode) {
+        return featureCountryCode === countryCode;
+      }
+      const candidateCountry = typeof properties.country === "string"
+        ? properties.country.toLowerCase()
+        : "";
+      return !countryNeedle || candidateCountry.includes(countryNeedle);
+    });
+
+    const pool = settlementCandidates.length > 0 ? settlementCandidates : features;
+    let bestFeature = null;
+    let bestScore = Number.POSITIVE_INFINITY;
+
+    pool.forEach((feature) => {
+      const name = typeof feature?.properties?.name === "string"
+        ? feature.properties.name
+        : "";
+      if (!name) {
+        return;
+      }
+      const score = levenshteinDistance(normalized.city, name);
+      if (score < bestScore) {
+        bestScore = score;
+        bestFeature = feature;
+      }
+    });
+
+    if (!bestFeature) {
+      return null;
+    }
+    const coords = bestFeature?.geometry?.coordinates;
+    if (!Array.isArray(coords) || coords.length < 2) {
+      return null;
+    }
+
+    const lon = Number(coords[0]);
+    const lat = Number(coords[1]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      return null;
+    }
+
+    const candidateName = bestFeature?.properties?.name || normalized.city;
+    const candidateCountry = bestFeature?.properties?.country || normalized.country;
+    logAddressDebug("photon fallback selected", {
+      candidateName,
+      candidateCountry,
+      lat,
+      lon
+    });
+    return {
+      lat,
+      lon,
+      source: "photon-fallback",
+      label: candidateName,
+      normalized: normalizeAddressFormData({
+        street: normalized.street,
+        city: candidateName,
+        country: candidateCountry
+      })
+    };
+  };
+
+  for (let i = 0; i < queries.length; i += 1) {
+    const query = queries[i];
+    const queryCity = query.split(",")[0]?.trim() || normalized.city;
+    const results = await fetchNominatimForQuery(query, queryCity);
+
+    if (requireSettlement) {
+      const settlementCandidates = collectSettlementCandidates(results, {
+        ...normalized,
+        city: queryCity
+      });
+      logAddressDebug("settlement candidates after filter", {
+        query,
+        queryCity,
+        count: settlementCandidates.length,
+        candidates: settlementCandidates.map((entry) => ({
+          label: entry.label,
+          city: entry.normalized?.city,
+          country: entry.normalized?.country,
+          lat: entry.lat,
+          lon: entry.lon
+        }))
+      });
+      if (i === 0 && settlementCandidates.length > 1) {
+        ambiguity = settlementCandidates;
+        logAddressDebug("ambiguous settlement results found", {
+          query,
+          options: settlementCandidates.map((entry) => entry.label)
+        });
+        break;
+      }
+      if (settlementCandidates.length === 1) {
+        first = {
+          lat: settlementCandidates[0].lat,
+          lon: settlementCandidates[0].lon,
+          source: "nominatim-settlement",
+          label: settlementCandidates[0].label,
+          normalized: settlementCandidates[0].normalized
+        };
+        logAddressDebug("single settlement candidate selected", {
+          query,
+          selected: settlementCandidates[0].label,
+          lat: settlementCandidates[0].lat,
+          lon: settlementCandidates[0].lon
+        });
+        break;
+      }
+      continue;
+    }
+
+    const candidate = pickBestSearchResult(results, false);
+    if (candidate) {
+      first = candidate;
+      logAddressDebug("direct nominatim candidate selected", {
+        query,
+        candidate: {
+          name: candidate.name,
+          display_name: candidate.display_name,
+          addresstype: candidate.addresstype,
+          type: candidate.type,
+          category: candidate.category,
+          lat: candidate.lat,
+          lon: candidate.lon
+        }
+      });
+      break;
+    }
+  }
+
+  if (ambiguity) {
+    logAddressDebug("returning ambiguity to UI", {
+      options: ambiguity.map((entry) => entry.label)
+    });
+    return { ambiguous: ambiguity, normalized };
+  }
+
+  if (!first && requireSettlement) {
+    const photonFallback = await fetchPhotonSettlementFallback();
+    if (photonFallback) {
+      return photonFallback;
+    }
+  }
+
+  if (!first) {
+    logAddressDebug("no candidate found after all strategies");
+    throw new Error("Keine GPS-Koordinaten für diese Adresse gefunden.");
+  }
+
+  if (typeof first.lat === "number" && typeof first.lon === "number" && first.normalized) {
+    logAddressDebug("resolved from structured object", {
+      source: first.source || "unknown",
+      lat: first.lat,
+      lon: first.lon,
+      normalized: first.normalized
+    });
+    return first;
+  }
+
+  const lat = parseFloat(first.lat);
+  const lon = parseFloat(first.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    throw new Error("Ungültige GPS-Daten von der Geocoding-Quelle.");
+  }
+
+  const canonical = buildCanonicalAddressFromResult(first, normalized);
+  logAddressDebug("resolved from nominatim raw result", {
+    lat,
+    lon,
+    canonical,
+    raw: {
+      name: first.name,
+      display_name: first.display_name,
+      addresstype: first.addresstype,
+      type: first.type,
+      category: first.category
+    }
+  });
+  return { lat, lon, normalized: canonical };
+}
 
 function loadStandortSyncState() {
   const stored = localStorage.getItem(STANDORT_SYNC_KEY);
@@ -1541,6 +1924,12 @@ function setupEventListeners() {
   });
 
   ortKarteBtn.addEventListener('click', () => {
+    const activeLocation = getActiveLocation();
+    logAddressDebug("open map requested", {
+      activeLocationId: activeLocation?.id,
+      coordinates: activeLocation?.coordinates || null,
+      mapState: activeLocation?.ui?.map || null
+    });
     const mapPopup = document.getElementById('map-popup');
     mapPopup.style.display = 'block';
     window.initOrUpdateMap();
@@ -1561,5 +1950,215 @@ function setupEventListeners() {
     // Programmatically click the hidden "berechnenBtn"
     berechnenBtn.click();
   });
+
+  const addressInputBtn = document.getElementById("adresse-eingeben-btn");
+  const addressPopup = document.getElementById("address-popup");
+  const addressStreetInput = document.getElementById("address-strasse");
+  const addressCityInput = document.getElementById("address-ort");
+  const addressCountryInput = document.getElementById("address-land");
+  const addressApplyBtn = document.getElementById("address-apply-btn");
+  const addressCloseBtn = document.getElementById("address-close-btn");
+  const addressStatus = document.getElementById("address-status");
+  const addressChoiceBlock = document.getElementById("address-choice-block");
+  const addressChoiceSelect = document.getElementById("address-choice-select");
+  const addressChoiceApplyBtn = document.getElementById("address-choice-apply-btn");
+  let pendingAddressChoices = [];
+  let lastAddressPopupFocusTarget = null;
+
+  if (
+    addressInputBtn
+    && addressPopup
+    && addressStreetInput
+    && addressCityInput
+    && addressCountryInput
+    && addressApplyBtn
+    && addressCloseBtn
+    && addressStatus
+    && addressChoiceBlock
+    && addressChoiceSelect
+    && addressChoiceApplyBtn
+  ) {
+    addressPopup.setAttribute("inert", "");
+
+    const setAddressStatus = (message, isError = false) => {
+      addressStatus.textContent = message;
+      addressStatus.style.color = isError ? "#802020" : "#206020";
+    };
+
+    const hideChoiceBlock = () => {
+      pendingAddressChoices = [];
+      addressChoiceSelect.innerHTML = "";
+      addressChoiceBlock.style.display = "none";
+    };
+
+    const applyResolvedAddress = async (resolved, userInput) => {
+      const { lat, lon, normalized } = resolved;
+      logAddressDebug("applyResolvedAddress", {
+        resolved,
+        userInput: normalizeAddressFormData(userInput)
+      });
+      if (resolved && typeof resolved.label === "string" && resolved.label.trim()) {
+        setAddressStatus(`Ausgewählt: ${resolved.label}`);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      persistAddressSuggestion(normalized);
+
+      const activeId = getActiveLocationId();
+      if (activeId) {
+        updateLocation(activeId, (location) => {
+          location.coordinates = { lat, lon };
+          location.ui.address = { ...normalized };
+          location.ui.map.lastPos = `${lat},${lon}`;
+          location.ui.map.lastZoom = DEFAULT_ADDRESS_ZOOM;
+          location.ui.map.addressViewportMeters = DEFAULT_ADDRESS_VIEWPORT_METERS;
+        });
+      }
+
+      ortInput.value = formatCoordinates(lat, lon);
+      toggleCoordinatesLine();
+
+      const typedCity = normalizeAddressFormData(userInput).city.toLowerCase();
+      const resolvedCity = (normalized.city || "").toLowerCase();
+      if (typedCity && resolvedCity && typedCity !== resolvedCity) {
+        setAddressStatus(`Meintest du ${normalized.city}? Übernehme diesen Ort.`);
+        await new Promise((resolve) => setTimeout(resolve, 900));
+      }
+
+      closeAddressPopup();
+      plotUpdater.run();
+      if (getLocationsInOrder().length > 1) {
+        refreshAllLocationCalculations();
+      }
+    };
+
+    const showAmbiguityChoices = (choices) => {
+      const sortedChoices = [...choices].sort((left, right) =>
+        String(left.label || "").localeCompare(String(right.label || ""), "de")
+      );
+      pendingAddressChoices = sortedChoices;
+      logAddressDebug("showAmbiguityChoices", {
+        count: sortedChoices.length,
+        labels: sortedChoices.map((entry) => entry.label)
+      });
+      addressChoiceSelect.innerHTML = "";
+      sortedChoices.forEach((choice, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = choice.label;
+        addressChoiceSelect.appendChild(option);
+      });
+      addressChoiceSelect.selectedIndex = -1;
+      addressChoiceBlock.style.display = "grid";
+      setAddressStatus("Mehrere Orte gefunden. Bitte wähle den passenden Ort aus.");
+    };
+
+    const fillAddressForm = (addressData) => {
+      const normalized = normalizeAddressFormData(addressData);
+      addressStreetInput.value = normalized.street;
+      addressCityInput.value = normalized.city;
+      addressCountryInput.value = normalized.country;
+    };
+
+    const openAddressPopup = () => {
+      lastAddressPopupFocusTarget = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : addressInputBtn;
+      fillAddressForm(getSuggestedAddressForActiveLocation());
+      setAddressStatus("");
+      hideChoiceBlock();
+      addressPopup.removeAttribute("inert");
+      addressPopup.classList.add("visible");
+      addressPopup.setAttribute("aria-hidden", "false");
+      addressCityInput.focus();
+    };
+
+    const closeAddressPopup = () => {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLElement && addressPopup.contains(activeElement)) {
+        const fallbackTarget = lastAddressPopupFocusTarget instanceof HTMLElement
+          ? lastAddressPopupFocusTarget
+          : addressInputBtn;
+        fallbackTarget.focus();
+      }
+      addressPopup.classList.remove("visible");
+      addressPopup.setAttribute("aria-hidden", "true");
+      addressPopup.setAttribute("inert", "");
+      setAddressStatus("");
+      hideChoiceBlock();
+      lastAddressPopupFocusTarget = null;
+    };
+
+    const applyAddressSelection = async () => {
+      const inputData = {
+        street: addressStreetInput.value,
+        city: addressCityInput.value,
+        country: addressCountryInput.value
+      };
+
+      const normalized = normalizeAddressFormData(inputData);
+      if (!normalized.city) {
+        setAddressStatus("Bitte gib mindestens einen Ort an.", true);
+        addressCityInput.focus();
+        return;
+      }
+
+      setAddressStatus("Adresse wird aufgelöst ...");
+      addressApplyBtn.disabled = true;
+      hideChoiceBlock();
+
+      try {
+        const resolved = await geocodeAddress(normalized);
+        if (resolved && Array.isArray(resolved.ambiguous) && resolved.ambiguous.length > 1) {
+          showAmbiguityChoices(resolved.ambiguous);
+          return;
+        }
+        await applyResolvedAddress(resolved, inputData);
+      } catch (error) {
+        setAddressStatus(error instanceof Error ? error.message : "Adresse konnte nicht verarbeitet werden.", true);
+      } finally {
+        addressApplyBtn.disabled = false;
+      }
+    };
+
+    addressInputBtn.addEventListener("click", openAddressPopup);
+    addressCloseBtn.addEventListener("click", closeAddressPopup);
+    addressApplyBtn.addEventListener("click", applyAddressSelection);
+    addressChoiceApplyBtn.addEventListener("click", async () => {
+      const selectedIndex = parseInt(addressChoiceSelect.value, 10);
+      if (!Number.isFinite(selectedIndex) || selectedIndex < 0) {
+        setAddressStatus("Bitte einen Ort aus der Liste auswählen.", true);
+        return;
+      }
+      const selected = pendingAddressChoices[selectedIndex];
+      if (!selected || !Number.isFinite(selected.lat) || !Number.isFinite(selected.lon)) {
+        setAddressStatus("Bitte zuerst einen Ort aus der Liste auswählen.", true);
+        return;
+      }
+      logAddressDebug("ambiguity choice selected", {
+        selectedIndex,
+        selected
+      });
+      await applyResolvedAddress(selected, {
+        street: addressStreetInput.value,
+        city: addressCityInput.value,
+        country: addressCountryInput.value
+      });
+    });
+
+    [addressStreetInput, addressCityInput, addressCountryInput].forEach((input) => {
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          applyAddressSelection();
+        }
+      });
+    });
+
+    addressPopup.addEventListener("click", (event) => {
+      if (event.target === addressPopup) {
+        closeAddressPopup();
+      }
+    });
+  }
 
 }

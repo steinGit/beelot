@@ -79,7 +79,11 @@
       <div id="location-panel" class="location-panel" role="tabpanel" tabindex="0">
         <section class="eingabe-section">
           <div class="input-group">
-            <button id="ort-karte-btn">Ort auf Karte wählen</button><br />
+            <div class="location-choice-row">
+              <button id="ort-karte-btn">Ort auf Karte wählen</button>
+              <span class="location-choice-separator">oder</span>
+              <button id="adresse-eingeben-btn">Adresse eingeben</button>
+            </div>
 
             <div id="coordinates-line" style="display: none;">
               <label for="ort">Koordinaten:</label>
@@ -219,6 +223,32 @@
         <button id="map-save-btn">Diesen Ort verwenden</button>
       </div>
       <div id="map"></div>
+    </div>
+
+    <div id="address-popup" class="address-popup" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="address-dialog">
+        <h3>Adresse eingeben</h3>
+        <div class="address-fields">
+          <label for="address-strasse">Strasse:</label>
+          <input type="text" id="address-strasse" name="address-strasse" />
+
+          <label for="address-ort">Ort:</label>
+          <input type="text" id="address-ort" name="address-ort" />
+
+          <label for="address-land">Land:</label>
+          <input type="text" id="address-land" name="address-land" />
+        </div>
+        <p id="address-status" class="address-status" aria-live="polite"></p>
+        <div id="address-choice-block" class="address-choice-block" style="display: none;">
+          <label for="address-choice-select">Mehrere Orte gefunden:</label>
+          <select id="address-choice-select" name="address-choice-select"></select>
+          <button id="address-choice-apply-btn" type="button">Auswahl übernehmen</button>
+        </div>
+        <div class="address-actions">
+          <button id="address-apply-btn" type="button">Adresse verwenden</button>
+          <button id="address-close-btn" type="button">Schließen</button>
+        </div>
+      </div>
     </div>
 
     <div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">

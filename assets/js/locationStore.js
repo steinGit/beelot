@@ -16,9 +16,15 @@ function buildDefaultUiState() {
     gtsColorScheme: "queen",
     gtsPlotVisible: false,
     tempPlotVisible: false,
+    address: {
+      street: "",
+      city: "",
+      country: "Deutschland"
+    },
     map: {
       lastPos: null,
-      lastZoom: null
+      lastZoom: null,
+      addressViewportMeters: null
     }
   };
 }
@@ -102,7 +108,24 @@ function ensureLocationShape(location) {
   if (typeof normalized.ui.gtsRange20Active !== "boolean") {
     normalized.ui.gtsRange20Active = false;
   }
-  normalized.ui.map = normalized.ui.map || { lastPos: null, lastZoom: null };
+  normalized.ui.address = normalized.ui.address || {
+    street: "",
+    city: "",
+    country: "Deutschland"
+  };
+  if (typeof normalized.ui.address.street !== "string") {
+    normalized.ui.address.street = "";
+  }
+  if (typeof normalized.ui.address.city !== "string") {
+    normalized.ui.address.city = "";
+  }
+  if (typeof normalized.ui.address.country !== "string" || !normalized.ui.address.country.trim()) {
+    normalized.ui.address.country = "Deutschland";
+  }
+  normalized.ui.map = normalized.ui.map || { lastPos: null, lastZoom: null, addressViewportMeters: null };
+  if (!Number.isFinite(normalized.ui.map.addressViewportMeters)) {
+    normalized.ui.map.addressViewportMeters = null;
+  }
   return normalized;
 }
 

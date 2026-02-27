@@ -233,20 +233,132 @@
     margin-top: 5px;
 }
 
-#ort-karte-btn {
+.location-choice-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.location-choice-separator {
+    font-weight: bold;
+    color: #404040;
+}
+
+#ort-karte-btn,
+#adresse-eingeben-btn {
     font-size: 1.2rem; /* Increases the button text size */
     padding: 10px 20px; /* Adds space inside the button */
-    margin: 20px 0px; /* Adds margin around the button */
+    margin: 0;
     border-radius: 25px; /* Optional: makes the corners rounded */
-    background-color: #00FF7B; /* Optional: adds a background color */
     color: black; /* Optional: changes text color */
     border: none; /* Optional: removes border */
     cursor: pointer; /* Optional: adds a pointer on hover */
     box-shadow: 2px 2px 5px rgba(60, 60, 60, 0.3);
 }
 
+#ort-karte-btn {
+    background-color: #00ff7b; /* Optional: adds a background color */
+}
+
+#adresse-eingeben-btn {
+    background-color: #00ff7b;
+}
+
 #ort-karte-btn:hover {
     background-color: #00b356; /* Optional: changes background color on hover */
+}
+
+#adresse-eingeben-btn:hover {
+    background-color: #00b356;
+}
+
+.address-popup {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10001;
+}
+
+.address-popup.visible {
+    display: flex;
+}
+
+.address-dialog {
+    width: min(92vw, 460px);
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+}
+
+.address-dialog h3 {
+    margin: 0 0 12px;
+}
+
+.address-fields {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 8px 10px;
+    align-items: center;
+}
+
+.address-fields input {
+    width: 100%;
+    margin: 0;
+}
+
+.address-actions {
+    margin-top: 14px;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.address-status {
+    min-height: 1.2em;
+    margin: 10px 0 0;
+    color: #802020;
+}
+
+.address-choice-block {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+#address-choice-select {
+    width: 100%;
+}
+
+#address-choice-apply-btn {
+    justify-self: end;
+    background-color: #e9eef2;
+    border: 1px solid #c7d0d8;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+}
+
+#address-choice-apply-btn:hover {
+    background-color: #d7e2ea;
+}
+
+#address-apply-btn {
+    background-color: #00ff7b;
+    border: none;
+    border-radius: 16px;
+    padding: 8px 14px;
+    cursor: pointer;
+}
+
+#address-apply-btn:hover {
+    background-color: #00b356;
 }
 
 

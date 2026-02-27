@@ -41,9 +41,100 @@ let map = null;
 let marker = null;
 let selectedLatLng = null;
 const GLOBAL_MAP_VIEW_KEY = "beelotLastMapView";
+const DEFAULT_ADDRESS_VIEWPORT_METERS = 1000;
+const METERS_PER_DEGREE_LAT = 111320;
 
 // We'll create our PlotUpdater instance later
 let plotUpdater = null;
+
+function parseStoredPosition(lastPos) {
+  if (typeof lastPos !== "string" || !lastPos.includes(",")) {
+    return null;
+  }
+  const coords = lastPos.split(",");
+  const lat = parseFloat(coords[0]);
+  const lon = parseFloat(coords[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return null;
+  }
+  return { lat, lon };
+}
+
+function setMarkerForLocation(lat, lon) {
+  if (!map) {
+    return;
+  }
+  selectedLatLng = { lat, lng: lon };
+  if (marker) {
+    map.removeLayer(marker);
+  }
+  marker = L.marker([lat, lon]).addTo(map);
+}
+
+function clearMarkerSelection() {
+  selectedLatLng = null;
+  if (map && marker) {
+    map.removeLayer(marker);
+    marker = null;
+  }
+}
+
+function applyAddressViewport(lat, lon, viewportMeters) {
+  if (!map) {
+    return;
+  }
+  const meters = Number.isFinite(viewportMeters) && viewportMeters > 0
+    ? viewportMeters
+    : DEFAULT_ADDRESS_VIEWPORT_METERS;
+  const halfMeters = meters / 2;
+  const latHalfDelta = halfMeters / METERS_PER_DEGREE_LAT;
+  const cosLat = Math.cos((lat * Math.PI) / 180);
+  const lonHalfDelta = Math.abs(cosLat) < 1e-6
+    ? latHalfDelta
+    : halfMeters / (METERS_PER_DEGREE_LAT * cosLat);
+  const southWest = [lat - latHalfDelta, lon - lonHalfDelta];
+  const northEast = [lat + latHalfDelta, lon + lonHalfDelta];
+  map.fitBounds([southWest, northEast], {
+    animate: false,
+    padding: [0, 0]
+  });
+  map.panTo([lat, lon], { animate: false });
+}
+
+function applyActiveLocationMapView(activeLocation) {
+  if (!map) {
+    return;
+  }
+  if (!activeLocation || !activeLocation.coordinates) {
+    clearMarkerSelection();
+    return;
+  }
+
+  const lat = activeLocation.coordinates.lat;
+  const lon = activeLocation.coordinates.lon;
+  const mapState = activeLocation.ui?.map || {};
+  const viewportMeters = Number(mapState.addressViewportMeters);
+
+  if (Number.isFinite(viewportMeters) && viewportMeters > 0) {
+    applyAddressViewport(lat, lon, viewportMeters);
+    setMarkerForLocation(lat, lon);
+    updateLocation(activeLocation.id, (location) => {
+      location.ui.map.lastPos = `${lat},${lon}`;
+      location.ui.map.lastZoom = map.getZoom();
+      location.ui.map.addressViewportMeters = null;
+    });
+    return;
+  }
+
+  const storedPos = parseStoredPosition(mapState.lastPos);
+  const storedZoom = parseInt(mapState.lastZoom, 10);
+  if (storedPos && Number.isFinite(storedZoom)) {
+    map.setView([storedPos.lat, storedPos.lon], storedZoom);
+  } else {
+    map.setView([lat, lon], 12);
+  }
+  setMarkerForLocation(lat, lon);
+}
 
 /**
  * Initializes or updates the Leaflet map overlay.
@@ -90,44 +181,12 @@ window.initOrUpdateMap = () => {
       }
     }
 
-    if (activeLocation && activeLocation.ui.map.lastPos && activeLocation.ui.map.lastZoom) {
-      const coords = activeLocation.ui.map.lastPos.split(',');
-      const lat = parseFloat(coords[0]);
-      const lon = parseFloat(coords[1]);
-      map.setView([lat, lon], parseInt(activeLocation.ui.map.lastZoom));
-      if (activeLocation.coordinates) {
-        selectedLatLng = { lat: activeLocation.coordinates.lat, lng: activeLocation.coordinates.lon };
-        if (marker) {
-          map.removeLayer(marker);
-        }
-        marker = L.marker([selectedLatLng.lat, selectedLatLng.lng]).addTo(map);
-      }
-    } else if (activeLocation && activeLocation.coordinates) {
-      map.setView([activeLocation.coordinates.lat, activeLocation.coordinates.lon], 12);
-      selectedLatLng = { lat: activeLocation.coordinates.lat, lng: activeLocation.coordinates.lon };
-      marker = L.marker([selectedLatLng.lat, selectedLatLng.lng]).addTo(map);
-    }
+    applyActiveLocationMapView(activeLocation);
   } else {
     // If map already exists, just refresh sizing
     setTimeout(() => {
       map.invalidateSize();
-      if (activeLocation && activeLocation.coordinates) {
-        map.setView(
-          [activeLocation.coordinates.lat, activeLocation.coordinates.lon],
-          parseInt(activeLocation.ui.map.lastZoom) || map.getZoom()
-        );
-        if (marker) {
-          map.removeLayer(marker);
-        }
-        marker = L.marker([activeLocation.coordinates.lat, activeLocation.coordinates.lon]).addTo(map);
-        selectedLatLng = { lat: activeLocation.coordinates.lat, lng: activeLocation.coordinates.lon };
-      } else {
-        if (marker) {
-          map.removeLayer(marker);
-          marker = null;
-        }
-        selectedLatLng = null;
-      }
+      applyActiveLocationMapView(activeLocation);
     }, 100);
   }
 };
@@ -148,6 +207,7 @@ window.saveMapSelection = () => {
         };
         location.ui.map.lastPos = `${map.getCenter().lat},${map.getCenter().lng}`;
         location.ui.map.lastZoom = map.getZoom();
+        location.ui.map.addressViewportMeters = null;
       });
     }
     if (plotUpdater) {
