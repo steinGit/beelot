@@ -35,9 +35,18 @@ export function createChart(canvas, config) {
     });
   }
   const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return null;
+  }
   const chart = new Chart(ctx, config);
   chartMap.set(canvas.id, chart);
   requestAnimationFrame(() => {
+    if (chartMap.get(canvas.id) !== chart) {
+      return;
+    }
+    if (!chart.canvas || !chart.canvas.isConnected) {
+      return;
+    }
     chart.resize();
     chart.update("none");
     if (DEBUG_UI) {

@@ -390,11 +390,11 @@ function extractCityFromAddressObject(address) {
   const candidates = [
     address.city,
     address.town,
-    address.municipality,
     address.village,
     address.city_district,
     address.borough,
     address.suburb,
+    address.municipality,
     address.hamlet,
     address.county
   ];

@@ -220,6 +220,14 @@ function citiesLikelyMatch(left, right) {
     || rightToken.includes(leftToken);
 }
 
+function settlementCandidateMatchesQuery(candidate, queryCity) {
+  if (citiesLikelyMatch(candidate?.normalized?.city, queryCity)) {
+    return true;
+  }
+  const labelHead = String(candidate?.label || "").split(",")[0].trim();
+  return citiesLikelyMatch(labelHead, queryCity);
+}
+
 async function geocodeAddress({ street, city, country, forcedSettlement = null }) {
   const normalized = normalizeAddressFormData({ street, city, country });
   if (!normalized.city) {
@@ -536,7 +544,7 @@ async function geocodeAddress({ street, city, country, forcedSettlement = null }
       label: candidate.display_name || `${settlementAddress.street}, ${settlementAddress.city}, ${settlementAddress.country}`,
       normalized: normalizeAddressFormData({
         street: settlementAddress.street,
-        city: canonical.city || settlementAddress.city,
+        city: settlementAddress.city,
         country: canonical.country || settlementAddress.country
       })
     };
@@ -553,9 +561,7 @@ async function geocodeAddress({ street, city, country, forcedSettlement = null }
       city: queryCity,
       country: normalized.country
     });
-    const candidates = allCandidates.filter((entry) =>
-      citiesLikelyMatch(entry.normalized?.city, queryCity)
-    );
+    const candidates = allCandidates.filter((entry) => settlementCandidateMatchesQuery(entry, queryCity));
     logAddressDebug("city settlement candidates", {
       queryCity,
       totalCount: allCandidates.length,
@@ -587,7 +593,7 @@ async function geocodeAddress({ street, city, country, forcedSettlement = null }
           const nominatimCount = settlementCandidates.length;
           const photonCandidates = await fetchPhotonSettlementCandidates();
           const filteredPhotonCandidates = photonCandidates.filter((entry) =>
-            citiesLikelyMatch(entry.normalized?.city, queryCity)
+            settlementCandidateMatchesQuery(entry, queryCity)
           );
           settlementCandidates = mergeSettlementChoices(settlementCandidates, filteredPhotonCandidates);
           logAddressDebug("street flow merged ambiguity options", {
@@ -664,7 +670,7 @@ async function geocodeAddress({ street, city, country, forcedSettlement = null }
         city: queryCity
       });
       const settlementCandidates = settlementCandidatesRaw.filter((entry) =>
-        citiesLikelyMatch(entry.normalized?.city, queryCity)
+        settlementCandidateMatchesQuery(entry, queryCity)
       );
       logAddressDebug("settlement candidates after filter", {
         query,
@@ -682,7 +688,7 @@ async function geocodeAddress({ street, city, country, forcedSettlement = null }
       if (i === 0 && settlementCandidates.length > 1) {
         const photonCandidates = await fetchPhotonSettlementCandidates();
         const filteredPhotonCandidates = photonCandidates.filter((entry) =>
-          citiesLikelyMatch(entry.normalized?.city, queryCity)
+          settlementCandidateMatchesQuery(entry, queryCity)
         );
         ambiguity = mergeSettlementChoices(settlementCandidates, filteredPhotonCandidates);
         logAddressDebug("ambiguous settlement results found", {
