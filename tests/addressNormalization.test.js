@@ -2,6 +2,7 @@ import {
   buildAddressQueries,
   buildCanonicalAddressFromResult,
   buildCityTypoCandidates,
+  collectPhotonSettlementCandidates,
   collectSettlementCandidates,
   getCountryCodeForCountryName,
   isSettlementSearchResult,
@@ -229,5 +230,65 @@ describe("search result category selection", () => {
     expect(candidates).toHaveLength(1);
     expect(candidates[0].normalized.city).toBe("Neustadt an der Weinstraße");
     expect(candidates[0].label).toContain("Neustadt an der Weinstraße");
+  });
+});
+
+describe("collectPhotonSettlementCandidates", () => {
+  test("keeps settlement entries and builds descriptive labels", () => {
+    const features = [
+      {
+        geometry: { coordinates: [9.2832, 48.6796] },
+        properties: {
+          type: "city",
+          name: "Neuhausen auf den Fildern",
+          county: "Landkreis Esslingen",
+          state: "Baden-Württemberg",
+          country: "Deutschland",
+          countrycode: "de"
+        }
+      },
+      {
+        geometry: { coordinates: [9.2000, 48.7000] },
+        properties: {
+          type: "house",
+          name: "Irgendein Haus",
+          country: "Deutschland",
+          countrycode: "de"
+        }
+      }
+    ];
+
+    const candidates = collectPhotonSettlementCandidates(features, {
+      street: "",
+      city: "Neuhausen",
+      country: "Deutschland"
+    }, "de");
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].normalized.city).toBe("Neuhausen auf den Fildern");
+    expect(candidates[0].label).toContain("Neuhausen auf den Fildern");
+    expect(candidates[0].label).toContain("Landkreis Esslingen");
+  });
+
+  test("filters out candidates from another country code", () => {
+    const features = [
+      {
+        geometry: { coordinates: [8.0, 47.0] },
+        properties: {
+          type: "city",
+          name: "Neuhausen",
+          country: "Schweiz",
+          countrycode: "ch"
+        }
+      }
+    ];
+
+    const candidates = collectPhotonSettlementCandidates(features, {
+      street: "",
+      city: "Neuhausen",
+      country: "Deutschland"
+    }, "de");
+
+    expect(candidates).toHaveLength(0);
   });
 });

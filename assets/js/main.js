@@ -37,6 +37,7 @@ import { shouldSwitchLocation } from './locationSwitching.js';
 import {
   buildAddressQueries,
   buildCanonicalAddressFromResult,
+  collectPhotonSettlementCandidates,
   collectSettlementCandidates,
   getCountryCodeForCountryName,
   normalizeAddressFormData,
@@ -198,7 +199,28 @@ function getSuggestedAddressForActiveLocation() {
   return perLocation;
 }
 
-async function geocodeAddress({ street, city, country }) {
+function normalizeGeoToken(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function citiesLikelyMatch(left, right) {
+  const leftToken = normalizeGeoToken(left);
+  const rightToken = normalizeGeoToken(right);
+  if (!leftToken || !rightToken) {
+    return false;
+  }
+  return leftToken === rightToken
+    || leftToken.includes(rightToken)
+    || rightToken.includes(leftToken);
+}
+
+async function geocodeAddress({ street, city, country, forcedSettlement = null }) {
   const normalized = normalizeAddressFormData({ street, city, country });
   if (!normalized.city) {
     throw new Error("Bitte gib mindestens einen Ort an.");
@@ -215,19 +237,55 @@ async function geocodeAddress({ street, city, country }) {
   });
   let first = null;
   let ambiguity = null;
+  let photonSettlementCandidates = null;
+  const normalizedForcedSettlement = forcedSettlement
+    && Number.isFinite(forcedSettlement.lat)
+    && Number.isFinite(forcedSettlement.lon)
+    ? {
+      lat: forcedSettlement.lat,
+      lon: forcedSettlement.lon,
+      label: forcedSettlement.label,
+      normalized: normalizeAddressFormData({
+        street: normalized.street,
+        city: forcedSettlement.normalized?.city || normalized.city,
+        country: forcedSettlement.normalized?.country || normalized.country
+      })
+    }
+    : null;
 
-  const fetchNominatimForQuery = async (query, cityForStructuredQuery = null) => {
+  const fetchNominatimForQuery = async (
+    query,
+    {
+      cityForStructuredQuery = null,
+      streetForStructuredQuery = null,
+      limitOverride = null,
+      viewbox = null,
+      bounded = false
+    } = {}
+  ) => {
+    const defaultLimit = requireSettlement ? "20" : "1";
     const params = new URLSearchParams({
       q: query,
       format: "jsonv2",
-      limit: requireSettlement ? "8" : "1",
+      limit: limitOverride || defaultLimit,
       addressdetails: "1",
       email: "info.beelot@gmail.com"
     });
     if (countryCode) {
       params.set("countrycodes", countryCode);
     }
-    if (requireSettlement && cityForStructuredQuery) {
+    if (viewbox) {
+      params.set("viewbox", viewbox);
+      if (bounded) {
+        params.set("bounded", "1");
+      }
+    }
+    if (streetForStructuredQuery && cityForStructuredQuery) {
+      params.delete("q");
+      params.set("street", streetForStructuredQuery);
+      params.set("city", cityForStructuredQuery);
+      params.set("country", normalized.country);
+    } else if (cityForStructuredQuery) {
       params.delete("q");
       params.set("city", cityForStructuredQuery);
       params.set("country", normalized.country);
@@ -246,6 +304,7 @@ async function geocodeAddress({ street, city, country }) {
     const results = await response.json();
     logAddressDebug("nominatim response", {
       query,
+      streetForStructuredQuery,
       cityForStructuredQuery,
       count: Array.isArray(results) ? results.length : 0,
       sample: Array.isArray(results)
@@ -259,6 +318,22 @@ async function geocodeAddress({ street, city, country }) {
         : []
     });
     return Array.isArray(results) ? results : [];
+  };
+
+  const mergeSettlementChoices = (baseChoices, extraChoices) => {
+    const unique = new Map();
+    [...baseChoices, ...extraChoices].forEach((candidate) => {
+      if (!candidate || !Number.isFinite(candidate.lat) || !Number.isFinite(candidate.lon)) {
+        return;
+      }
+      const normalizedCity = String(candidate.normalized?.city || "").trim().toLowerCase();
+      const key = `${candidate.lat.toFixed(6)}|${candidate.lon.toFixed(6)}|${normalizedCity}`;
+      if (unique.has(key)) {
+        return;
+      }
+      unique.set(key, candidate);
+    });
+    return Array.from(unique.values());
   };
 
   const levenshteinDistance = (left, right) => {
@@ -289,7 +364,10 @@ async function geocodeAddress({ street, city, country }) {
     return matrix[rows - 1][cols - 1];
   };
 
-  const fetchPhotonSettlementFallback = async () => {
+  const fetchPhotonSettlementCandidates = async () => {
+    if (Array.isArray(photonSettlementCandidates)) {
+      return photonSettlementCandidates;
+    }
     logAddressDebug("photon fallback start", {
       city: normalized.city,
       country: normalized.country,
@@ -302,7 +380,8 @@ async function geocodeAddress({ street, city, country }) {
     });
     const response = await fetch(`https://photon.komoot.io/api/?${params.toString()}`);
     if (!response.ok) {
-      return null;
+      photonSettlementCandidates = [];
+      return photonSettlementCandidates;
     }
 
     const payload = await response.json();
@@ -316,96 +395,260 @@ async function geocodeAddress({ street, city, country }) {
         countrycode: feature?.properties?.countrycode
       }))
     });
-    if (features.length === 0) {
+    photonSettlementCandidates = collectPhotonSettlementCandidates(features, normalized, countryCode);
+    logAddressDebug("photon settlement candidates", {
+      count: photonSettlementCandidates.length,
+      labels: photonSettlementCandidates.slice(0, 15).map((entry) => entry.label)
+    });
+    return photonSettlementCandidates;
+  };
+
+  const fetchPhotonSettlementFallback = async () => {
+    const candidates = await fetchPhotonSettlementCandidates();
+    if (candidates.length === 0) {
       return null;
     }
 
-    const settlementTypes = new Set(["city", "town", "village", "municipality", "hamlet"]);
-    const countryNeedle = normalized.country.toLowerCase();
-    const settlementCandidates = features.filter((feature) => {
-      const properties = feature?.properties || {};
-      const type = typeof properties.type === "string" ? properties.type.toLowerCase() : "";
-      if (!settlementTypes.has(type)) {
-        return false;
-      }
-      const featureCountryCode = typeof properties.countrycode === "string"
-        ? properties.countrycode.toLowerCase()
-        : "";
-      if (countryCode && featureCountryCode) {
-        return featureCountryCode === countryCode;
-      }
-      const candidateCountry = typeof properties.country === "string"
-        ? properties.country.toLowerCase()
-        : "";
-      return !countryNeedle || candidateCountry.includes(countryNeedle);
-    });
-
-    const pool = settlementCandidates.length > 0 ? settlementCandidates : features;
-    let bestFeature = null;
+    let bestCandidate = null;
     let bestScore = Number.POSITIVE_INFINITY;
 
-    pool.forEach((feature) => {
-      const name = typeof feature?.properties?.name === "string"
-        ? feature.properties.name
-        : "";
-      if (!name) {
+    candidates.forEach((candidate) => {
+      const cityName = String(candidate?.normalized?.city || "").trim();
+      if (!cityName) {
         return;
       }
-      const score = levenshteinDistance(normalized.city, name);
+      const score = levenshteinDistance(normalized.city, cityName);
       if (score < bestScore) {
         bestScore = score;
-        bestFeature = feature;
+        bestCandidate = candidate;
       }
     });
 
-    if (!bestFeature) {
+    if (!bestCandidate) {
       return null;
     }
-    const coords = bestFeature?.geometry?.coordinates;
-    if (!Array.isArray(coords) || coords.length < 2) {
-      return null;
-    }
+    logAddressDebug("photon fallback selected", {
+      label: bestCandidate.label,
+      normalized: bestCandidate.normalized,
+      lat: bestCandidate.lat,
+      lon: bestCandidate.lon
+    });
+    return {
+      lat: bestCandidate.lat,
+      lon: bestCandidate.lon,
+      source: "photon-fallback",
+      label: bestCandidate.label,
+      normalized: bestCandidate.normalized
+    };
+  };
 
-    const lon = Number(coords[0]);
-    const lat = Number(coords[1]);
+  const buildSettlementCenterResult = (settlementCandidate) => {
+    const settlementAddress = normalizeAddressFormData({
+      // Street was not found for the selected settlement; persist an empty street field.
+      street: "",
+      city: settlementCandidate.normalized?.city || normalized.city,
+      country: settlementCandidate.normalized?.country || normalized.country
+    });
+    return {
+      lat: settlementCandidate.lat,
+      lon: settlementCandidate.lon,
+      source: "settlement-center",
+      label: settlementCandidate.label || `${settlementAddress.city}, ${settlementAddress.country}`,
+      normalized: settlementAddress
+    };
+  };
+
+  const fetchStreetCandidateInSettlement = async (settlementCandidate) => {
+    const settlementAddress = normalizeAddressFormData({
+      street: normalized.street,
+      city: settlementCandidate.normalized?.city || normalized.city,
+      country: settlementCandidate.normalized?.country || normalized.country
+    });
+    const cosLat = Math.cos((settlementCandidate.lat * Math.PI) / 180);
+    const latDelta = 0.18;
+    const lonDelta = Math.abs(cosLat) < 1e-6 ? latDelta : latDelta / Math.abs(cosLat);
+    const west = settlementCandidate.lon - lonDelta;
+    const east = settlementCandidate.lon + lonDelta;
+    const north = settlementCandidate.lat + latDelta;
+    const south = settlementCandidate.lat - latDelta;
+    const viewbox = `${west},${north},${east},${south}`;
+    const query = `${settlementAddress.street}, ${settlementAddress.city}, ${settlementAddress.country}`;
+    const results = await fetchNominatimForQuery(query, {
+      streetForStructuredQuery: settlementAddress.street,
+      cityForStructuredQuery: settlementAddress.city,
+      limitOverride: "8",
+      viewbox,
+      bounded: true
+    });
+    const cityFiltered = results.filter((entry) => {
+      const canonical = buildCanonicalAddressFromResult(entry, settlementAddress);
+      return citiesLikelyMatch(canonical.city, settlementAddress.city);
+    });
+    logAddressDebug("street candidates in settlement", {
+      settlement: settlementCandidate.label,
+      query,
+      viewbox,
+      totalResults: results.length,
+      cityFilteredResults: cityFiltered.length,
+      filteredSample: cityFiltered.slice(0, 5).map((entry) => ({
+        display_name: entry.display_name,
+        addresstype: entry.addresstype,
+        type: entry.type,
+        category: entry.category
+      }))
+    });
+
+    const candidate = pickBestSearchResult(cityFiltered, false);
+    if (!candidate) {
+      return null;
+    }
+    const lat = parseFloat(candidate.lat);
+    const lon = parseFloat(candidate.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
       return null;
     }
-
-    const candidateName = bestFeature?.properties?.name || normalized.city;
-    const candidateCountry = bestFeature?.properties?.country || normalized.country;
-    logAddressDebug("photon fallback selected", {
-      candidateName,
-      candidateCountry,
-      lat,
-      lon
-    });
+    const canonical = buildCanonicalAddressFromResult(candidate, settlementAddress);
     return {
       lat,
       lon,
-      source: "photon-fallback",
-      label: candidateName,
+      source: "nominatim-street",
+      label: candidate.display_name || `${settlementAddress.street}, ${settlementAddress.city}, ${settlementAddress.country}`,
       normalized: normalizeAddressFormData({
-        street: normalized.street,
-        city: candidateName,
-        country: candidateCountry
+        street: settlementAddress.street,
+        city: canonical.city || settlementAddress.city,
+        country: canonical.country || settlementAddress.country
       })
     };
   };
 
+  const fetchSettlementCandidatesForCity = async (queryCity) => {
+    const cityQuery = `${queryCity}, ${normalized.country}`;
+    const results = await fetchNominatimForQuery(cityQuery, {
+      cityForStructuredQuery: queryCity,
+      limitOverride: "20"
+    });
+    const allCandidates = collectSettlementCandidates(results, {
+      street: "",
+      city: queryCity,
+      country: normalized.country
+    });
+    const candidates = allCandidates.filter((entry) =>
+      citiesLikelyMatch(entry.normalized?.city, queryCity)
+    );
+    logAddressDebug("city settlement candidates", {
+      queryCity,
+      totalCount: allCandidates.length,
+      count: candidates.length,
+      labels: candidates.map((entry) => entry.label)
+    });
+    return candidates;
+  };
+
+  if (!requireSettlement) {
+    let selectedSettlement = normalizedForcedSettlement;
+    let settlementCandidates = normalizedForcedSettlement ? [normalizedForcedSettlement] : [];
+
+    if (!selectedSettlement) {
+      const cityQueries = buildAddressQueries({
+        street: "",
+        city: normalized.city,
+        country: normalized.country
+      });
+      for (let i = 0; i < cityQueries.length; i += 1) {
+        const query = cityQueries[i];
+        const queryCity = query.split(",")[0]?.trim() || normalized.city;
+        const candidates = await fetchSettlementCandidatesForCity(queryCity);
+        if (candidates.length === 0) {
+          continue;
+        }
+        settlementCandidates = candidates;
+        if (i === 0 && settlementCandidates.length > 1) {
+          const nominatimCount = settlementCandidates.length;
+          const photonCandidates = await fetchPhotonSettlementCandidates();
+          const filteredPhotonCandidates = photonCandidates.filter((entry) =>
+            citiesLikelyMatch(entry.normalized?.city, queryCity)
+          );
+          settlementCandidates = mergeSettlementChoices(settlementCandidates, filteredPhotonCandidates);
+          logAddressDebug("street flow merged ambiguity options", {
+            queryCity,
+            nominatimCount,
+            photonCount: filteredPhotonCandidates.length,
+            mergedCount: settlementCandidates.length
+          });
+        }
+        break;
+      }
+
+      if (settlementCandidates.length > 1) {
+        ambiguity = settlementCandidates.map((entry) => ({
+          ...entry,
+          normalized: normalizeAddressFormData({
+            street: normalized.street,
+            city: entry.normalized?.city || normalized.city,
+            country: entry.normalized?.country || normalized.country
+          })
+        }));
+        logAddressDebug("street flow ambiguous settlements", {
+          count: ambiguity.length,
+          labels: ambiguity.map((entry) => entry.label)
+        });
+        return { ambiguous: ambiguity, normalized };
+      }
+
+      selectedSettlement = settlementCandidates[0] || null;
+      if (!selectedSettlement) {
+        const photonFallback = await fetchPhotonSettlementFallback();
+        if (photonFallback) {
+          selectedSettlement = {
+            lat: photonFallback.lat,
+            lon: photonFallback.lon,
+            label: photonFallback.label,
+            normalized: normalizeAddressFormData({
+              street: normalized.street,
+              city: photonFallback.normalized?.city || normalized.city,
+              country: photonFallback.normalized?.country || normalized.country
+            })
+          };
+        }
+      }
+    }
+
+    if (selectedSettlement) {
+      const streetCandidate = await fetchStreetCandidateInSettlement(selectedSettlement);
+      if (streetCandidate) {
+        return streetCandidate;
+      }
+      logAddressDebug("street missing in settlement, fallback to center", {
+        settlement: selectedSettlement.label,
+        city: selectedSettlement.normalized?.city,
+        country: selectedSettlement.normalized?.country
+      });
+      return buildSettlementCenterResult(selectedSettlement);
+    }
+  }
+
   for (let i = 0; i < queries.length; i += 1) {
     const query = queries[i];
     const queryCity = query.split(",")[0]?.trim() || normalized.city;
-    const results = await fetchNominatimForQuery(query, queryCity);
+    const results = await fetchNominatimForQuery(
+      query,
+      requireSettlement
+        ? { cityForStructuredQuery: queryCity }
+        : {}
+    );
 
-    if (requireSettlement) {
-      const settlementCandidates = collectSettlementCandidates(results, {
+      if (requireSettlement) {
+      const settlementCandidatesRaw = collectSettlementCandidates(results, {
         ...normalized,
         city: queryCity
       });
+      const settlementCandidates = settlementCandidatesRaw.filter((entry) =>
+        citiesLikelyMatch(entry.normalized?.city, queryCity)
+      );
       logAddressDebug("settlement candidates after filter", {
         query,
         queryCity,
+        rawCount: settlementCandidatesRaw.length,
         count: settlementCandidates.length,
         candidates: settlementCandidates.map((entry) => ({
           label: entry.label,
@@ -416,10 +659,16 @@ async function geocodeAddress({ street, city, country }) {
         }))
       });
       if (i === 0 && settlementCandidates.length > 1) {
-        ambiguity = settlementCandidates;
+        const photonCandidates = await fetchPhotonSettlementCandidates();
+        const filteredPhotonCandidates = photonCandidates.filter((entry) =>
+          citiesLikelyMatch(entry.normalized?.city, queryCity)
+        );
+        ambiguity = mergeSettlementChoices(settlementCandidates, filteredPhotonCandidates);
         logAddressDebug("ambiguous settlement results found", {
           query,
-          options: settlementCandidates.map((entry) => entry.label)
+          nominatimOptions: settlementCandidates.map((entry) => entry.label),
+          photonOptions: filteredPhotonCandidates.map((entry) => entry.label),
+          mergedOptions: ambiguity.map((entry) => entry.label)
         });
         break;
       }
@@ -442,7 +691,11 @@ async function geocodeAddress({ street, city, country }) {
       continue;
     }
 
-    const candidate = pickBestSearchResult(results, false);
+    const cityFilteredResults = results.filter((entry) => {
+      const canonical = buildCanonicalAddressFromResult(entry, normalized);
+      return citiesLikelyMatch(canonical.city, normalized.city);
+    });
+    const candidate = pickBestSearchResult(cityFilteredResults, false);
     if (candidate) {
       first = candidate;
       logAddressDebug("direct nominatim candidate selected", {
@@ -455,7 +708,8 @@ async function geocodeAddress({ street, city, country }) {
           category: candidate.category,
           lat: candidate.lat,
           lon: candidate.lon
-        }
+        },
+        filteredCount: cityFilteredResults.length
       });
       break;
     }
@@ -1988,7 +2242,9 @@ function setupEventListeners() {
     const hideChoiceBlock = () => {
       pendingAddressChoices = [];
       addressChoiceSelect.innerHTML = "";
+      addressChoiceApplyBtn.disabled = true;
       addressChoiceBlock.style.display = "none";
+      addressApplyBtn.disabled = false;
     };
 
     const applyResolvedAddress = async (resolved, userInput) => {
@@ -2017,13 +2273,6 @@ function setupEventListeners() {
       ortInput.value = formatCoordinates(lat, lon);
       toggleCoordinatesLine();
 
-      const typedCity = normalizeAddressFormData(userInput).city.toLowerCase();
-      const resolvedCity = (normalized.city || "").toLowerCase();
-      if (typedCity && resolvedCity && typedCity !== resolvedCity) {
-        setAddressStatus(`Meintest du ${normalized.city}? Übernehme diesen Ort.`);
-        await new Promise((resolve) => setTimeout(resolve, 900));
-      }
-
       closeAddressPopup();
       plotUpdater.run();
       if (getLocationsInOrder().length > 1) {
@@ -2047,8 +2296,10 @@ function setupEventListeners() {
         option.textContent = choice.label;
         addressChoiceSelect.appendChild(option);
       });
-      addressChoiceSelect.selectedIndex = -1;
+      addressChoiceSelect.selectedIndex = sortedChoices.length > 0 ? 0 : -1;
+      addressChoiceApplyBtn.disabled = sortedChoices.length === 0;
       addressChoiceBlock.style.display = "grid";
+      addressApplyBtn.disabled = true;
       setAddressStatus("Mehrere Orte gefunden. Bitte wähle den passenden Ort aus.");
     };
 
@@ -2103,8 +2354,8 @@ function setupEventListeners() {
       }
 
       setAddressStatus("Adresse wird aufgelöst ...");
-      addressApplyBtn.disabled = true;
       hideChoiceBlock();
+      addressApplyBtn.disabled = true;
 
       try {
         const resolved = await geocodeAddress(normalized);
@@ -2116,7 +2367,9 @@ function setupEventListeners() {
       } catch (error) {
         setAddressStatus(error instanceof Error ? error.message : "Adresse konnte nicht verarbeitet werden.", true);
       } finally {
-        addressApplyBtn.disabled = false;
+        if (pendingAddressChoices.length === 0) {
+          addressApplyBtn.disabled = false;
+        }
       }
     };
 
@@ -2138,11 +2391,40 @@ function setupEventListeners() {
         selectedIndex,
         selected
       });
-      await applyResolvedAddress(selected, {
-        street: addressStreetInput.value,
-        city: addressCityInput.value,
-        country: addressCountryInput.value
-      });
+      try {
+        const inputData = {
+          street: addressStreetInput.value,
+          city: addressCityInput.value,
+          country: addressCountryInput.value
+        };
+        const normalizedInput = normalizeAddressFormData(inputData);
+        let resolvedSelection = selected;
+
+        if (normalizedInput.street) {
+          setAddressStatus("Adresse in ausgewähltem Ort wird geprüft ...");
+          addressChoiceApplyBtn.disabled = true;
+          try {
+            resolvedSelection = await geocodeAddress({
+              street: normalizedInput.street,
+              city: selected.normalized?.city || normalizedInput.city,
+              country: normalizedInput.country,
+              forcedSettlement: selected
+            });
+          } finally {
+            if (addressChoiceBlock.style.display !== "none") {
+              addressChoiceApplyBtn.disabled = false;
+            }
+          }
+          if (resolvedSelection && Array.isArray(resolvedSelection.ambiguous) && resolvedSelection.ambiguous.length > 1) {
+            showAmbiguityChoices(resolvedSelection.ambiguous);
+            return;
+          }
+        }
+
+        await applyResolvedAddress(resolvedSelection, inputData);
+      } catch (error) {
+        setAddressStatus(error instanceof Error ? error.message : "Adresse konnte nicht verarbeitet werden.", true);
+      }
     });
 
     [addressStreetInput, addressCityInput, addressCountryInput].forEach((input) => {

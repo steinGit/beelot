@@ -338,15 +338,23 @@
 
 #address-choice-apply-btn {
     justify-self: end;
-    background-color: #e9eef2;
-    border: 1px solid #c7d0d8;
-    border-radius: 6px;
+    background-color: #00ff7b;
+    border: none;
+    border-radius: 16px;
     padding: 6px 10px;
     cursor: pointer;
+    box-shadow: 1px 1px 4px rgba(60, 60, 60, 0.25);
 }
 
 #address-choice-apply-btn:hover {
-    background-color: #d7e2ea;
+    background-color: #00b356;
+}
+
+#address-choice-apply-btn:disabled {
+    background-color: #d4d9dd;
+    color: #6e757c;
+    cursor: not-allowed;
+    box-shadow: none;
 }
 
 #address-apply-btn {
@@ -359,6 +367,13 @@
 
 #address-apply-btn:hover {
     background-color: #00b356;
+}
+
+#address-apply-btn:disabled {
+    background-color: #d4d9dd;
+    color: #6e757c;
+    cursor: not-allowed;
+    box-shadow: none;
 }
 
 
