@@ -25,8 +25,6 @@
         if (versionElement) {
             versionElement.textContent = `Version ${VERSION}`;
         }
-
-        import("./assets/js/main.js");
     });
     </script>
 
@@ -35,93 +33,102 @@
       <h1>Häufig gestellte Fragen (FAQ)</h1>
       <section class="faq-section">
         <details>
+
           <summary>Bedienung</summary>
-          <p>
-            <ol style="list-style-type: decimal; margin-left: 20px; padding: 0; line-height: 1.8;">
-              <li style="margin-bottom: 20px;">
-                Wähle oder erstelle einen Standort. Anfangs gibt es einen Standard-Standort:
-                <br>
-                <img src="assets/img/tabs01.png" "Initiales Standort Reiter Bild" style="height: 40px; width: auto;">
-                <br>
-                Du kannst mehrere Standorte gleichzeitig verwalten. Jeder ist unabhängig von den anderen.<br>
-                Mit einem Klick auf den "+" Reiter kann ein neuer Standort angelegt werden.<br>
-                Mit einem Klick auf den "-" wird der aktive Standort gelöscht.<br>
-                Der letzte verbleibende Standort kann nicht gelöscht werden.<br>
-                Mit Doppelklick auf einen Standort Reiter Name kann dieser geändert werden:
-                <br>
-                <img src="assets/img/tabs02.png" "Name ändern." style="height: 50px; width: auto;">
-                <br>
-                Sinnvolle Namen schaffen Klarheit:
-                <br>
-                <img src="assets/img/tabs03.png" "Klare Bezeichnungen." style="height: 50px; width: auto;">
-                <br><br>
-                <b>Hinweis:</b><br>
-                Jeder Standort ist eine eigene „Karteikarte“ mit einem fest zugewiesenen Ort und einer eigenen Grünland-Temperatur-Summe.
-                Du kannst zwischen Standorten wechseln, ohne die anderen zu verändern.<br>
-              </li>
-              <li style="margin-bottom: 20px;">
-                Im aktuell ausgewählten Standort (aktiver Reiter): Wähle einen Ort auf der Karte:<br>
-                <br>
-                <img src="assets/img/ort_button.png" "Ort Button Bild" style="width: 150px; height: auto;">
-                <br>
-                Suche deinen Standort aus und bestätige ihn.
-                <br>
-                <img src="assets/img/usage_map1.png" "Karten Bild" style="width: 300px; height: auto;">
-                <br>
-                <img src="assets/img/usage_map2.png" "Bestätigung Bild" style="width: 300px; height: auto;">
-              <li style="margin-bottom: 20px;">
-                Jetzt bekommst Du die Grünland-Temperatur-Summe angezeigt und
-                es werden, wenn imkerliche Informationen vorliegen, selbige auch aufgelistet.
-                Die Trachtpflanzen sind anklickbar für tiefergehende Information.
-                <br>
-                <img src="assets/img/imkerliche_info.png" "Imkerliche Information" style="width: 400px; height: auto;">
-                <br>
-              </li>
-              <li style="margin-bottom: 20px;">
-                In dem Visualisierungs Bereich kannst du auch vergangene Tage anschauen.
-                <p>
-                  Zum Beispiel: "Was hätte mir Beelot am 9. April 2024 angezeigt."
-                </p>
-                Dazu das Datum auswählen:
-                <br>
-                <img src="assets/img/date_selection.png" "Datum Auswahl Bild" style="width: 300px; height: auto;">
-                <br>
-                Entsprechend werden dann die Grünland-Temperatur-Summe und die imkerlichen Hinweise angezeigt.
-                <br>
-                Wenn mehr als 1 Standort existiert, dann wird automatisch die Möglichkeit des "Standort-Sync" angeboten. Das bedeutet, dass ein Datumswechsel dann auf allen Standorten mitgezogen wird. Das erleichtert auch das visuelle vergleichen von Kurven (Tip: Cursor Taste rechts und links ermöglicht das Wechseln der Standorte reihum).
-              </li>
-              <li style="margin-bottom: 20px;">
-                Die Diagramme sind am Anfang ausgeblendet. Sie können angezeigt werden. Einfach den Knopf anklicken.
-                <br>
-                Die Kurvenfarben entsprechen als Default den Königinnen-Farben des jeweiligen Jahres.
-                <br>
-                <img src="assets/img/usage_curve1.png" "Einzelkurve GTS Bild" style="width: 600px; height: auto;">
-                <br>
-                Der Zeitraum ist wählbar.
-                <br>
-                <img src="assets/img/usage_curve_4weeks.png" "Einzelkurve GTS Bild 4 Wochen Zeitraum" style="width: 600px; height: auto;">
-                <br>
-                Die letzten 5 oder 10 Jahre sind einblendbar.
-                <br>
-                <!-- <img src="assets/img/usage_curve_5years.png" "Mehrfachkurve GTS Bild der letzten 5 Jahre" style="width: 600px; height: auto;"> -->
-                <img src="assets/img/curve_queen_sorting.png" "Mehrfachkurve GTS Bild der letzten 10 Jahre" style="width: 600px; height: auto;">
-                <br>
-                Es lassen sich auch andere Farbschemata einstellen, zum Beispiel die Temperatur (abhängig vom rechten GTS Wert der Kurve).
-                <br>
-                <img src="assets/img/curve_temp_sorting.png" "Mehrfachkurve GTS Bild " style="width: 600px; height: auto;">
-                <br>
-                Kurven sind einzeln abwählbar. Zum Beispiel, wenn man nur 2 Kurven vergleichen möchte.
-                <br>
-                <img src="assets/img/usage_curve_selective.png" "Mehrfachkurve GTS Bild der letzten 5 Jahre" style="width: 600px; height: auto;">
-              </li>
-              <li style="margin-bottom: 20px;">
-                Weiter unten kann der Temperatur Verlauf angezeigt werden. Allerdings in der aktuellen Version 0.2 nur für das ausgewählte Jahr.
-                <br>
-                <img src="assets/img/usage_curve2.png" "Temperaturverlauf Bild" style="width: 600px; height: auto;">
-              </li>
-            </ol>
-            Viel Spaß beim Experimentieren!
-          </p>
+
+
+          <ol style="list-style-type: decimal; margin-left: 20px; padding: 0; line-height: 1.8;">
+
+
+            <li style="margin-bottom: 20px;">
+              <a href="https://www.youtube.com/live/TeMICU9kFP0?si=h2LUsBYERmvjrgMF" target="_blank" rel="noopener noreferrer">
+                YouTube Auftritt: Hier wird vieles erklärt. Ab Minute 18:00 wird die Bedienung vorgestellt.
+              </a>
+            </li>
+
+            <li style="margin-bottom: 20px;">
+              Wähle oder erstelle einen Standort. Anfangs gibt es einen Standard-Standort:
+              <br>
+              <img src="assets/img/tabs01.png" alt="Initiales Standort-Reiter-Bild" style="height: 40px; width: auto;">
+              <br>
+              Du kannst mehrere Standorte gleichzeitig verwalten. Jeder ist unabhängig von den anderen.<br>
+              Mit einem Klick auf den "+" Reiter kann ein neuer Standort angelegt werden.<br>
+              Mit einem Klick auf den "-" wird der aktive Standort gelöscht.<br>
+              Der letzte verbleibende Standort kann nicht gelöscht werden.<br>
+              Mit Doppelklick auf einen Standort-Reiter-Namen kann dieser geändert werden:
+              <br>
+              <img src="assets/img/tabs02.png" alt="Standortname ändern" style="height: 50px; width: auto;">
+              <br>
+              Sinnvolle Namen schaffen Klarheit:
+              <br>
+              <img src="assets/img/tabs03.png" alt="Klare Standortbezeichnungen" style="height: 50px; width: auto;">
+              <br><br>
+              <b>Hinweis:</b><br>
+              Jeder Standort ist eine eigene „Karteikarte“ mit einem fest zugewiesenen Ort und einer eigenen Grünland-Temperatur-Summe.
+              Du kannst zwischen Standorten wechseln, ohne die anderen zu verändern.<br>
+            </li>
+            <li style="margin-bottom: 20px;">
+              Im aktuell ausgewählten Standort (aktiver Reiter): Wähle einen Ort auf der Karte oder gib eine Adresse ein:<br>
+              <br>
+              <img src="assets/img/ort_button.png" alt="Ort auf Karte wählen Button" style="width: 150px; height: auto;">
+              <br>
+              Suche deinen Standort aus und bestätige ihn.
+              <br>
+              <img src="assets/img/usage_map1.png" alt="Kartenauswahl Schritt 1" style="width: 300px; height: auto;">
+              <br>
+              <img src="assets/img/usage_map2.png" alt="Kartenauswahl bestätigen" style="width: 300px; height: auto;">
+            </li>
+            <li style="margin-bottom: 20px;">
+              Jetzt bekommst Du die Grünland-Temperatur-Summe angezeigt und
+              es werden, wenn imkerliche Informationen vorliegen, selbige auch aufgelistet.
+              Die Trachtpflanzen sind anklickbar für tiefergehende Information.
+              <br>
+              <img src="assets/img/imkerliche_info.png" alt="Imkerliche Information" style="width: 400px; height: auto;">
+              <br>
+            </li>
+            <li style="margin-bottom: 20px;">
+              In dem Visualisierungs-Bereich kannst du auch vergangene Tage anschauen.
+              <p>
+                Zum Beispiel: "Was hätte mir BeeLot am 9. April 2024 angezeigt."
+              </p>
+              Dazu das Datum auswählen:
+              <br>
+              <img src="assets/img/date_selection.png" alt="Datumauswahl" style="width: 300px; height: auto;">
+              <br>
+              Entsprechend werden dann die Grünland-Temperatur-Summe und die imkerlichen Hinweise angezeigt.
+              <br>
+              Wenn mehr als 1 Standort existiert, dann wird automatisch die Möglichkeit des "Standort-Sync" angeboten. Das bedeutet, dass ein Datumswechsel dann auf allen Standorten mitgezogen wird. Das erleichtert auch das visuelle Vergleichen von Kurven (Tipp: Cursor-Taste rechts und links ermöglicht das Wechseln der Standorte reihum).
+            </li>
+            <li style="margin-bottom: 20px;">
+              Die Diagramme sind am Anfang ausgeblendet. Sie können angezeigt werden. Einfach den Knopf anklicken.
+              <br>
+              Die Kurvenfarben entsprechen als Default den Königinnen-Farben des jeweiligen Jahres.
+              <br>
+              <img src="assets/img/usage_curve1.png" alt="Einzelkurve GTS" style="width: 600px; height: auto;">
+              <br>
+              Der Zeitraum ist wählbar.
+              <br>
+              <img src="assets/img/usage_curve_4weeks.png" alt="Einzelkurve GTS mit 4-Wochen-Zeitraum" style="width: 600px; height: auto;">
+              <br>
+              Die letzten 5 oder 10 Jahre sind einblendbar.
+              <br>
+              <img src="assets/img/curve_queen_sorting.png" alt="Mehrfachkurve GTS der letzten 10 Jahre" style="width: 600px; height: auto;">
+              <br>
+              Es lassen sich auch andere Farbschemata einstellen, zum Beispiel die Temperatur (abhängig vom rechten GTS-Wert der Kurve).
+              <br>
+              <img src="assets/img/curve_temp_sorting.png" alt="Mehrfachkurve GTS mit Temperatursortierung" style="width: 600px; height: auto;">
+              <br>
+              Kurven sind einzeln abwählbar. Zum Beispiel, wenn man nur 2 Kurven vergleichen möchte.
+              <br>
+              <img src="assets/img/usage_curve_selective.png" alt="Mehrfachkurve GTS selektiv auswählbar" style="width: 600px; height: auto;">
+            </li>
+            <li style="margin-bottom: 20px;">
+              Weiter unten kann der Temperaturverlauf angezeigt werden. Allerdings in der aktuellen Version 0.2 nur für das ausgewählte Jahr.
+              <br>
+              <img src="assets/img/usage_curve2.png" alt="Temperaturverlauf" style="width: 600px; height: auto;">
+            </li>
+          </ol>
+          <p>Viel Spaß beim Experimentieren!</p>
         </details>
 
         <details>
@@ -163,12 +170,14 @@
             <summary>Definition</summary>
             <p>
               Die Grünland-Temperatur-Summe wird für jeden Tag berechnet. Mit
-              ihrer Hilfe läßt sich
-              <ul>
-                <li> die Bodeneignung für Düngung bestimmen, </li>
-                <li> der Wachstumsbeginns von Pflanzen und </li>
-                <li> verschiedene Blühphasen berechnen.</li>
-              </ul>
+              ihrer Hilfe lässt sich:
+            </p>
+            <ul>
+              <li>die Bodeneignung für Düngung bestimmen,</li>
+              <li>der Wachstumsbeginn von Pflanzen einschätzen und</li>
+              <li>verschiedene Blühphasen berechnen.</li>
+            </ul>
+            <p>
               Die Formel ist so aufgebaut, dass die täglichen
               Durchschnittstemperaturen oberhalb von 0 °C aufsummiert
               werden. Die Werte im Januar werden mit 0.5 multipliziert, die
@@ -211,26 +220,27 @@
               geeignet. Pflanzen, die andere Umweltfaktoren als Hauptsteuerung
               für ihr Wachstum oder ihre Blüte haben, weichen von der
               Gültigkeit der GTS als Indikator ab.
-              <ul>
-                <li>
-                  Pflanzen wie die Besenheide (Calluna vulgaris) oder Kürbisse
-                  reagieren weniger auf Wärme und mehr auf die Tageslänge.
-                </li>
-                <li>
-                  Viele Wüstenpflanzen (z. B. Kakteen) und Steppenpflanzen
-                  wachsen nur bei ausreichender Feuchtigkeit und nicht primär
-                  durch Wärme.
-                </li>
-                <li>
-                  Spätsommerblüher wie die Sonnenblume (Helianthus annuus) oder
-                  Herbstanemonen haben genetisch festgelegte Blühzeitpunkte.
-                </li>
-                <li>
-                  Einige Pflanzen, wie Salat, schießen oder gehen in Ruhephasen
-                  über, wenn die Temperaturen zu hoch werden, obwohl die GTS
-                  weiter steigt.
-                </li>
             </p>
+            <ul>
+              <li>
+                Pflanzen wie die Besenheide (Calluna vulgaris) oder Kürbisse
+                reagieren weniger auf Wärme und mehr auf die Tageslänge.
+              </li>
+              <li>
+                Viele Wüstenpflanzen (z. B. Kakteen) und Steppenpflanzen
+                wachsen nur bei ausreichender Feuchtigkeit und nicht primär
+                durch Wärme.
+              </li>
+              <li>
+                Spätsommerblüher wie die Sonnenblume (Helianthus annuus) oder
+                Herbstanemonen haben genetisch festgelegte Blühzeitpunkte.
+              </li>
+              <li>
+                Einige Pflanzen, wie Salat, schießen oder gehen in Ruhephasen
+                über, wenn die Temperaturen zu hoch werden, obwohl die GTS
+                weiter steigt.
+              </li>
+            </ul>
           </details>
         </details>
 
@@ -404,16 +414,6 @@
           <details>
             <summary>Bekannte Bugs und die Abhilfe</summary>
             <details>
-              <summary>"+" Button hängt (Simulation)</summary>
-              <p>
-                Ein Klick auf "+" sollte immer einen Tag weiterspringen. Manchmal hängt das Datum.
-                Vor allem am 30. März -> 31. März (third-party-bug)
-              </p>
-              <p>
-                Lösung: Das Datum für den nächsten Tag über die Datum Einstellung direkt auswählen.
-              </p>
-            </details>
-            <details>
               <summary>
                 Not a bug, but a Feature: Plot-Kurven von Schaltjahren haben einen Datenpunkt mehr.
               </summary>
@@ -528,10 +528,23 @@
         <ul>
           <li>
             <a href="https://www.youtube.com/watch?v=3spi7qFOTJw&t=3867s" target="_blank" rel="noopener noreferrer">
-              Montagsimker YouTube-Video: Grünland-Temperatur-Summe in der Imkerei
+              Montagsimker YouTube-Video: Claus Brell über die Grünland-Temperatur-Summe in der Imkerei
             </a>
           </li>
         </ul>
+
+        <ul>
+          <li>
+            <a href="https://www.youtube.com/live/TeMICU9kFP0?si=h2LUsBYERmvjrgMF" target="_blank" rel="noopener noreferrer">
+              Montagsimker YouTube-Video: Fridtjof Stein über beelot.de Grünlandtemperatursummen für Jedermann
+            </a>
+          </li>
+        </ul>
+
+
+
+
+
         <ul>
           <li>
             <a href="https://cbrell.de/blog/gruenlandtemperatursumme-phaenologischer-kalender-und-bienen-bedeutung-der-temperatur-fuer-die-imkerei/" target="_blank" rel="noopener noreferrer">
@@ -552,10 +565,10 @@
     <div id="footer-placeholder"></div>
     <script>
       fetch("components/footer.html")
-      .then(response => response.text())
-      .then(html => {
-      document.getElementById("footer-placeholder").innerHTML = html;
-      });
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById("footer-placeholder").innerHTML = html;
+    });
     </script>
   </body>
 </html>

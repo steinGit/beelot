@@ -7,6 +7,29 @@
 
 import { formatDateLocal, isValidDate } from './utils.js';
 
+const DATA_SERVICE_DEBUG = false;
+
+function debugLog(message) {
+    if (!DATA_SERVICE_DEBUG) {
+        return;
+    }
+    console.log(`[DEBUG dataService.js] ${message}`);
+}
+
+function debugWarn(message) {
+    if (!DATA_SERVICE_DEBUG) {
+        return;
+    }
+    console.warn(`[DEBUG dataService.js] ${message}`);
+}
+
+function debugError(message) {
+    if (!DATA_SERVICE_DEBUG) {
+        return;
+    }
+    console.error(`[DEBUG dataService.js] ${message}`);
+}
+
 export class OpenMeteoError extends Error {
     constructor(message, cause = null) {
         super(message);
@@ -40,7 +63,13 @@ export function getCachedData(key, cacheStore = null) {
     }
     const cached = localStorage.getItem(key);
     if (cached) {
-        return JSON.parse(cached);
+        try {
+            return JSON.parse(cached);
+        } catch (error) {
+            console.warn(`[dataService.js] Invalid JSON in cache for key '${key}', clearing entry.`);
+            localStorage.removeItem(key);
+            return null;
+        }
     }
     return null;
 }
@@ -107,7 +136,7 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
         const cachedYearData = getCachedData(yearKey, cacheStore);
         if (cachedYearData) {
             ensureDailyData(cachedYearData, "historical-cache");
-            console.log(`[DEBUG dataService.js] Cached full-year data found for ${yearKey}.`);
+            debugLog(`Cached full-year data found for ${yearKey}.`);
             return extractDateRangeFromYearData(cachedYearData, start, end);
         }
 
@@ -115,9 +144,9 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
         const fullYearStart = new Date(startYear, 0, 1);
         const fullYearEnd = new Date(startYear, 11, 31);
 
-        console.log(`[DEBUG dataService.js] Fetching full-year data for ${startYear}.`);
+        debugLog(`Fetching full-year data for ${startYear}.`);
 
-        const data = await fetchHistoricalYear(lat, lon, fullYearStart, fullYearEnd, cacheStore);
+        const data = await fetchHistoricalYear(lat, lon, fullYearStart, fullYearEnd);
         setCachedData(yearKey, data, cacheStore);
 
         return extractDateRangeFromYearData(data, start, end);
@@ -133,11 +162,11 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
     const cachedData = getCachedData(cacheKey, cacheStore);
     if (cachedData) {
         ensureDailyData(cachedData, "historical-cache");
-        console.log(`[DEBUG dataService.js] Historical data loaded from cache (key=${cacheKey}).`);
+        debugLog(`Historical data loaded from cache (key=${cacheKey}).`);
         return cachedData;
     }
 
-    console.log(`[DEBUG dataService.js] Fetching historical data from ${start} to ${end}.`);
+    debugLog(`Fetching historical data from ${start} to ${end}.`);
 
     const roundedLat = Math.round(lat * 100) / 100;
     const roundedLon = Math.round(lon * 100) / 100;
@@ -155,12 +184,12 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
         setCachedData(cacheKey, data, cacheStore);
         return data;
     } catch (error) {
-        console.error(`[DEBUG dataService.js] Error fetching historical data: ${error.message}`);
+        debugError(`Error fetching historical data: ${error.message}`);
         if (allowForecastFallback) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             if (end >= today) {
-                console.warn("[DEBUG dataService.js] Falling back to forecast data for recent dates.");
+                debugWarn("Falling back to forecast data for recent dates.");
                 return fetchRecentData(lat, lon, start, end, cacheStore);
             }
         }
@@ -179,7 +208,7 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
  * @param {Date} end - End date (end of the year).
  * @returns {Promise<Object>} - The full-year historical data.
  */
-async function fetchHistoricalYear(lat, lon, start, end, cacheStore) {
+async function fetchHistoricalYear(lat, lon, start, end) {
     const roundedLat = Math.round(lat * 100) / 100;
     const roundedLon = Math.round(lon * 100) / 100;
     const url = `https://archive-api.open-meteo.com/v1/era5?latitude=${roundedLat}&longitude=${roundedLon}&start_date=${formatDateLocal(
@@ -195,7 +224,7 @@ async function fetchHistoricalYear(lat, lon, start, end, cacheStore) {
         ensureDailyData(data, "historical-year");
         return data;
     } catch (error) {
-        console.error(`[DEBUG dataService.js] Error fetching full-year data: ${error.message}`);
+        debugError(`Error fetching full-year data: ${error.message}`);
         if (isOpenMeteoError(error)) {
             throw error;
         }
@@ -243,7 +272,7 @@ export async function fetchRecentData(lat, lon, start, end, cacheStore = null) {
     const cachedData = getCachedData(cacheKey, cacheStore);
     if (cachedData) {
         ensureDailyData(cachedData, "recent-cache");
-        console.log(`[DEBUG dataService.js] Recent data loaded from cache (key=${cacheKey}).`);
+        debugLog(`Recent data loaded from cache (key=${cacheKey}).`);
         return cachedData;
     }
 
@@ -264,7 +293,7 @@ export async function fetchRecentData(lat, lon, start, end, cacheStore = null) {
         setCachedData(cacheKey, data, cacheStore);
         return data;
     } catch (error) {
-        console.error(`[DEBUG dataService.js] Error fetching recent data: ${error.message}`);
+        debugError(`Error fetching recent data: ${error.message}`);
         if (isOpenMeteoError(error)) {
             throw error;
         }

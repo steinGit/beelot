@@ -61,10 +61,27 @@ import {
  * Helper: get local "today" in YYYY-MM-DD format
  */
 function getLocalTodayString() {
-  const now = new Date();
-  // Use local offset to ensure correct date even if user is in e.g. UTC+something
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-  return local.toISOString().split('T')[0];
+  return formatDateLocal(new Date());
+}
+
+function shiftLocalDateStringByDays(value, deltaDays, maxDateValue = null) {
+  const baseDate = parseDateInput(value);
+  if (!(baseDate instanceof Date) || !Number.isFinite(deltaDays)) {
+    return null;
+  }
+  const shifted = new Date(baseDate);
+  shifted.setDate(shifted.getDate() + Number(deltaDays));
+
+  if (maxDateValue) {
+    const maxDate = parseDateInput(maxDateValue);
+    if (!(maxDate instanceof Date)) {
+      return null;
+    }
+    if (shifted.getTime() > maxDate.getTime()) {
+      return formatDateLocal(maxDate);
+    }
+  }
+  return formatDateLocal(shifted);
 }
 
 /**
@@ -140,7 +157,7 @@ const OFFLINE_TEXT = "Offline-Modus: Für diese Funktion ist eine Internetverbin
 const ADDRESS_SUGGESTION_KEY = "beelotAddressSuggestion";
 const DEFAULT_ADDRESS_ZOOM = 12;
 const DEFAULT_ADDRESS_VIEWPORT_METERS = 1000;
-const ADDRESS_DEBUG_ENABLED = true;
+const ADDRESS_DEBUG_ENABLED = false;
 
 function logAddressDebug(message, payload = null) {
   if (!ADDRESS_DEBUG_ENABLED) {
@@ -215,9 +232,12 @@ function citiesLikelyMatch(left, right) {
   if (!leftToken || !rightToken) {
     return false;
   }
-  return leftToken === rightToken
-    || leftToken.includes(rightToken)
-    || rightToken.includes(leftToken);
+  if (leftToken === rightToken) {
+    return true;
+  }
+  const leftNoSpace = leftToken.replace(/\s+/g, "");
+  const rightNoSpace = rightToken.replace(/\s+/g, "");
+  return leftNoSpace === rightNoSpace;
 }
 
 function settlementCandidateMatchesQuery(candidate, queryCity) {
@@ -2063,13 +2083,13 @@ function setupEventListeners() {
   });
 
   datumPlusBtn.addEventListener('click', () => {
-    const current = new Date(datumInput.value);
-    const now = new Date();
-    current.setDate(current.getDate() + 1);
-    if (current > now) {
-      current.setDate(now.getDate());
+    const todayStr = getLocalTodayString();
+    const baseDate = datumInput.value || todayStr;
+    const shifted = shiftLocalDateStringByDays(baseDate, 1, todayStr);
+    if (!shifted) {
+      return;
     }
-    datumInput.value = current.toISOString().split('T')[0];
+    datumInput.value = shifted;
     updateZeitraumSelect();
     if (comparisonActive) {
       updateAllLocationsUiState({
@@ -2090,9 +2110,12 @@ function setupEventListeners() {
   });
 
   datumMinusBtn.addEventListener('click', () => {
-    const current = new Date(datumInput.value);
-    current.setDate(current.getDate() - 1);
-    datumInput.value = current.toISOString().split('T')[0];
+    const baseDate = datumInput.value || getLocalTodayString();
+    const shifted = shiftLocalDateStringByDays(baseDate, -1);
+    if (!shifted) {
+      return;
+    }
+    datumInput.value = shifted;
     updateZeitraumSelect();
     if (comparisonActive) {
       updateAllLocationsUiState({
@@ -2212,12 +2235,18 @@ function setupEventListeners() {
       mapState: activeLocation?.ui?.map || null
     });
     const mapPopup = document.getElementById('map-popup');
+    if (!mapPopup) {
+      return;
+    }
     mapPopup.style.display = 'block';
     window.initOrUpdateMap();
   });
 
   mapCloseBtn.addEventListener('click', () => {
     const mapPopup = document.getElementById('map-popup');
+    if (!mapPopup) {
+      return;
+    }
     mapPopup.style.display = 'none';
   });
 
@@ -2245,6 +2274,7 @@ function setupEventListeners() {
   const addressChoiceApplyBtn = document.getElementById("address-choice-apply-btn");
   let pendingAddressChoices = [];
   let lastAddressPopupFocusTarget = null;
+  let addressResolveInFlight = false;
 
   if (
     addressInputBtn
@@ -2367,6 +2397,9 @@ function setupEventListeners() {
     };
 
     const applyAddressSelection = async () => {
+      if (addressResolveInFlight) {
+        return;
+      }
       const inputData = {
         street: addressStreetInput.value,
         city: addressCityInput.value,
@@ -2383,6 +2416,7 @@ function setupEventListeners() {
       setAddressStatus("Adresse wird aufgelöst ...");
       hideChoiceBlock();
       addressApplyBtn.disabled = true;
+      addressResolveInFlight = true;
 
       try {
         const resolved = await geocodeAddress(normalized);
@@ -2394,6 +2428,7 @@ function setupEventListeners() {
       } catch (error) {
         setAddressStatus(error instanceof Error ? error.message : "Adresse konnte nicht verarbeitet werden.", true);
       } finally {
+        addressResolveInFlight = false;
         if (pendingAddressChoices.length === 0) {
           addressApplyBtn.disabled = false;
         }
@@ -2404,6 +2439,9 @@ function setupEventListeners() {
     addressCloseBtn.addEventListener("click", closeAddressPopup);
     addressApplyBtn.addEventListener("click", applyAddressSelection);
     addressChoiceApplyBtn.addEventListener("click", async () => {
+      if (addressResolveInFlight) {
+        return;
+      }
       const selectedIndex = parseInt(addressChoiceSelect.value, 10);
       if (!Number.isFinite(selectedIndex) || selectedIndex < 0) {
         setAddressStatus("Bitte einen Ort aus der Liste auswählen.", true);
@@ -2418,6 +2456,7 @@ function setupEventListeners() {
         selectedIndex,
         selected
       });
+      addressResolveInFlight = true;
       try {
         const inputData = {
           street: addressStreetInput.value,
@@ -2451,6 +2490,8 @@ function setupEventListeners() {
         await applyResolvedAddress(resolvedSelection, inputData);
       } catch (error) {
         setAddressStatus(error instanceof Error ? error.message : "Adresse konnte nicht verarbeitet werden.", true);
+      } finally {
+        addressResolveInFlight = false;
       }
     });
 

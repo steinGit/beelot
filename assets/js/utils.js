@@ -60,3 +60,59 @@ export function calculateStartDate(endDate, days) {
     startDate.setDate(endDate.getDate() - (days - 1));
     return startDate;
 }
+
+function parseDateStringLocal(value) {
+    if (typeof value !== "string") {
+        return null;
+    }
+    const parts = value.split("-");
+    if (parts.length !== 3) {
+        return null;
+    }
+    const year = Number.parseInt(parts[0], 10);
+    const month = Number.parseInt(parts[1], 10);
+    const day = Number.parseInt(parts[2], 10);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+        return null;
+    }
+    const date = new Date(year, month - 1, day, 0, 0, 0, 0);
+    if (!isValidDate(date)) {
+        return null;
+    }
+    if (
+        date.getFullYear() !== year
+        || date.getMonth() !== month - 1
+        || date.getDate() !== day
+    ) {
+        return null;
+    }
+    return date;
+}
+
+/**
+ * Shifts a YYYY-MM-DD date string by a number of days in local time.
+ * Optionally clamps the result to a maximum date.
+ * @param {string} value - Base date in YYYY-MM-DD.
+ * @param {number} deltaDays - Number of days to shift (positive or negative).
+ * @param {string|null} maxDateValue - Optional max date in YYYY-MM-DD.
+ * @returns {string|null} - Shifted date string or null for invalid input.
+ */
+export function shiftDateStringByDays(value, deltaDays, maxDateValue = null) {
+    const baseDate = parseDateStringLocal(value);
+    if (!baseDate || !Number.isFinite(deltaDays)) {
+        return null;
+    }
+    const shifted = new Date(baseDate);
+    shifted.setDate(shifted.getDate() + Number(deltaDays));
+
+    if (maxDateValue) {
+        const maxDate = parseDateStringLocal(maxDateValue);
+        if (!maxDate) {
+            return null;
+        }
+        if (shifted.getTime() > maxDate.getTime()) {
+            return formatDateLocal(maxDate);
+        }
+    }
+    return formatDateLocal(shifted);
+}

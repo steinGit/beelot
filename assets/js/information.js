@@ -106,7 +106,6 @@ export async function updateHinweisSection(gtsResults, endDate) {
         forecast_list = relevant_list.filter(
             row => row.TSUM_start > TSUM_current
         );
-    } else {
     }
 
     // 5) rearview_list => items in last R days => TSUM_start > D_E[n-R], TSUM_start <= TSUM_current
@@ -455,18 +454,19 @@ function buildPlantLabel(row) {
     if (!row) {
         return "";
     }
-    const plant = row.plant || "";
+    const plant = escapeHtml(row.plant || "");
     let url = typeof row.url === "string" ? row.url.trim() : "";
     if (!url && row && !Object.prototype.hasOwnProperty.call(row, "url")) {
-        const fallback = DEFAULT_URL_BY_PLANT.get(plant.trim());
+        const fallback = DEFAULT_URL_BY_PLANT.get(String(row.plant || "").trim());
         if (typeof fallback === "string") {
             url = fallback.trim();
         }
     }
-    if (!url) {
+    const safeUrl = sanitizeHttpUrl(url);
+    if (!safeUrl) {
         return plant;
     }
-    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${plant}</a>`;
+    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${plant}</a>`;
 }
 
 function computeDatesForList(list, curve, dayNow, referenceDate) {
@@ -516,4 +516,25 @@ function parseLocalDateString(dateStr) {
         return null;
     }
     return new Date(year, month, day, 0, 0, 0, 0);
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+function sanitizeHttpUrl(rawUrl) {
+    try {
+        const parsed = new URL(String(rawUrl || "").trim(), window.location.origin);
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            return parsed.href;
+        }
+    } catch (error) {
+        return "";
+    }
+    return "";
 }

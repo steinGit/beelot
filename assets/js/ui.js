@@ -33,9 +33,6 @@ export const locationNameOutput = document.getElementById('location-name');
 export const locationTabsContainer = document.getElementById('location-tabs');
 export const locationPanel = document.getElementById('location-panel');
 
-// The main "Ergebnis" paragraph
-const ergebnisTextEl = document.getElementById('ergebnis-text');
-
 // Leaflet map references
 let map = null;
 let marker = null;
@@ -43,9 +40,6 @@ let selectedLatLng = null;
 const GLOBAL_MAP_VIEW_KEY = "beelotLastMapView";
 const DEFAULT_ADDRESS_VIEWPORT_METERS = 1000;
 const METERS_PER_DEGREE_LAT = 111320;
-
-// We'll create our PlotUpdater instance later
-let plotUpdater = null;
 
 function parseStoredPosition(lastPos) {
   if (typeof lastPos !== "string" || !lastPos.includes(",")) {
@@ -154,10 +148,6 @@ window.initOrUpdateMap = () => {
       }
       marker = L.marker(e.latlng).addTo(map);
       selectedLatLng = e.latlng;
-      // After choosing a location => re-run the plot logic
-      if (plotUpdater) {
-        plotUpdater.run();
-      }
     });
 
     map.on('moveend', () => {
@@ -210,10 +200,9 @@ window.saveMapSelection = () => {
         location.ui.map.addressViewportMeters = null;
       });
     }
-    if (plotUpdater) {
-      plotUpdater.run();
-    }
   }
   const mapPopup = document.getElementById('map-popup');
-  mapPopup.style.display = 'none';
+  if (mapPopup) {
+    mapPopup.style.display = 'none';
+  }
 };

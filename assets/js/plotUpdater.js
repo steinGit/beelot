@@ -9,9 +9,7 @@ import { plotData, plotDailyTemps, plotMultipleYearData } from './charts.js';
 import { fetchHistoricalData, fetchRecentData, isOpenMeteoError } from './dataService.js';
 import {
   calculateGTS,
-  computeStartDate,
   getSelectedEndDate,
-  build5YearData,
   buildYearData,
   buildFullYearData,
   computeDateRange
@@ -36,7 +34,13 @@ const OFFLINE_TEXT = "Offline-Modus: Für diese Funktion ist eine Internetverbin
  * @param {string} canvasId - The ID of the canvas element.
  */
 function destroyIfCanvasInUse(canvasId) {
-  const existingChart = Chart.getChart(canvasId);
+  const canvas = typeof canvasId === "string"
+    ? document.getElementById(canvasId)
+    : canvasId;
+  if (!canvas) {
+    return;
+  }
+  const existingChart = Chart.getChart(canvas);
   if (existingChart) {
     existingChart.destroy();
   }
@@ -200,8 +204,14 @@ export class PlotUpdater {
       }
       this.ergebnisTextEl.textContent = "Ein Fehler ist aufgetreten. Bitte versuche es später erneut.";
       if (this.hinweisSection) {
-        this.hinweisSection.innerHTML = `<h2>Imkerliche Information</h2>
-          <p style="color: red;">Es ist ein Fehler aufgetreten: ${err.message}</p>`;
+        this.hinweisSection.innerHTML = "<h2>Imkerliche Information</h2>";
+        const errorLine = document.createElement("p");
+        errorLine.style.color = "red";
+        const message = err && typeof err.message === "string"
+          ? err.message
+          : "Unbekannter Fehler";
+        errorLine.textContent = `Es ist ein Fehler aufgetreten: ${message}`;
+        this.hinweisSection.appendChild(errorLine);
       }
     }
   }
@@ -291,8 +301,13 @@ export class PlotUpdater {
    */
   async step4aFetchAndDisplayLocationName(lat, lon) {
     if (this.locationNameOutput) {
+      const requestId = `${lat.toFixed(6)}|${lon.toFixed(6)}|${Date.now()}`;
+      this.latestLocationNameRequestId = requestId;
       this.locationNameOutput.textContent = "Standortname wird ermittelt...";
       const locationName = await this.locationFetcher.getLocationName(lat, lon);
+      if (this.latestLocationNameRequestId !== requestId) {
+        return;
+      }
       this.locationNameOutput.textContent = "In der Nähe von: " + locationName;
       updateLocation(this.locationId, (current) => {
         current.calculations.locationLabel = locationName;
@@ -629,7 +644,7 @@ export class PlotUpdater {
       const yRange = window.standortSyncEnabled
         ? this.computeGlobalYRange("gts", this.buildGtsViewKey(endDate))
         : null;
-      this.chartGTS = plotData(filteredResults, false, yRange);
+      this.chartGTS = plotData(filteredResults, yRange);
     }
   }
 
@@ -758,7 +773,6 @@ export class PlotUpdater {
         }, null);
 
         if (reference && reference.location?.calculations?.gtsResults) {
-          const referenceName = reference.location.name || "Standort";
           const referenceDate = reference.selectedDate;
           const referenceCurve = reference.location.calculations.gtsResults;
           const referenceStamp = this.getUtcDayStamp(referenceDate);
@@ -880,22 +894,23 @@ export class PlotUpdater {
 
           const lines = [];
           const currentName = currentLocation ? currentLocation.name : "Standort";
+          const safeCurrentName = this.escapeHtml(currentName);
           groupedComparisons.forEach((group) => {
             if (group.targets.length === 0) {
               return;
             }
             if (group.relation === "gleich") {
-              const targets = group.targets.map((item) => item.name).join(" und ");
-              lines.push(`${currentName} ist gleichauf mit ${targets}.`);
+              const targets = group.targets.map((item) => this.escapeHtml(item.name)).join(" und ");
+              lines.push(`${safeCurrentName} ist gleichauf mit ${targets}.`);
               return;
             }
             if (group.days === 0) {
-              const targets = group.targets.map((item) => item.name).join(" und ");
-              lines.push(`${currentName} ist mit ${targets} gleichauf.`);
+              const targets = group.targets.map((item) => this.escapeHtml(item.name)).join(" und ");
+              lines.push(`${safeCurrentName} ist mit ${targets} gleichauf.`);
               return;
             }
-            const targets = group.targets.map((item) => item.name).join(" und ");
-            lines.push(`${currentName} ist um ${group.days} Tage ${group.relation} als ${targets}.`);
+            const targets = group.targets.map((item) => this.escapeHtml(item.name)).join(" und ");
+            lines.push(`${safeCurrentName} ist um ${group.days} Tage ${group.relation} als ${targets}.`);
           });
 
           if (lines.length > 0) {
@@ -1047,6 +1062,15 @@ export class PlotUpdater {
     return Number.isFinite(latestValue) ? latestValue : null;
   }
 
+  escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   /**
    * Step 15: Create the Temperature chart.
    */
@@ -1059,7 +1083,7 @@ export class PlotUpdater {
     const yRange = window.standortSyncEnabled
       ? this.computeGlobalYRange("temp", this.buildTempViewKey(endDate))
       : null;
-    this.chartTemp = plotDailyTemps(this.filteredTempsDates, this.filteredTempsData, false, yRange);
+    this.chartTemp = plotDailyTemps(this.filteredTempsDates, this.filteredTempsData, yRange);
   }
 
   /**

@@ -84,9 +84,6 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         action="store_true",
         help="Print commands without executing them.",
     )
-    if len(argv) == 0:
-        parser.print_help()
-        sys.exit(0)
     return parser.parse_args(argv)
 
 

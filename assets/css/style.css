@@ -86,11 +86,6 @@ nav img:hover {
     transform: rotate(20deg);
 }
 
-/* Pfeildrehen */
-.rotate-90 {
-    transform: rotate(90deg);
-}
-
 /* Footer */
 footer {
     position: fixed;

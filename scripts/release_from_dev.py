@@ -213,10 +213,8 @@ def read_versions_from_branch(branch: str) -> Tuple[str, str]:
     return version_js, package_version
 
 
-def ensure_clean_worktree(dryrun: bool) -> None:
+def ensure_clean_worktree() -> None:
     """Ensure git working tree is clean."""
-    if dryrun:
-        return
     result = subprocess.run(
         ["git", "status", "--porcelain"],
         capture_output=True,
@@ -224,11 +222,14 @@ def ensure_clean_worktree(dryrun: bool) -> None:
         check=False,
     )
     if result.stdout.strip():
-        raise RuntimeError("Working tree not clean. Commit or stash changes first.")
+        raise RuntimeError(
+            "Working tree not clean. Commit or stash changes first.\n"
+            "Hint: run `git status --short` to inspect pending changes."
+        )
 
 
-def tag_exists(tag_name: str, dryrun: bool) -> bool:
-    """Check if a tag already exists."""
+def local_tag_exists(tag_name: str, dryrun: bool) -> bool:
+    """Check if a local tag already exists."""
     if dryrun:
         return False
     result = subprocess.run(
@@ -238,6 +239,19 @@ def tag_exists(tag_name: str, dryrun: bool) -> bool:
         check=False,
     )
     return result.returncode == 0
+
+
+def remote_tag_exists(tag_name: str, dryrun: bool) -> bool:
+    """Check if a remote tag already exists on origin."""
+    if dryrun:
+        return False
+    result = subprocess.run(
+        ["git", "ls-remote", "--tags", "origin", tag_name],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return bool(result.stdout.strip())
 
 
 def main(argv: Sequence[str]) -> None:
@@ -256,7 +270,7 @@ def main(argv: Sequence[str]) -> None:
     print_info(f"Releasing version {version}")
 
     try:
-        ensure_clean_worktree(args.dryrun)
+        ensure_clean_worktree()
 
         print_info("Checking out dev branch")
         run_git_command(["checkout", DEV_BRANCH], args.dryrun)
@@ -285,8 +299,10 @@ def main(argv: Sequence[str]) -> None:
             print_warning("No version file changes to commit")
 
         tag_created = False
-        if tag_exists(tag_name, args.dryrun):
-            print_warning(f"Tag {tag_name} already exists; skipping tag creation")
+        if local_tag_exists(tag_name, args.dryrun):
+            print_warning(f"Local tag {tag_name} already exists; skipping tag creation")
+        elif remote_tag_exists(tag_name, args.dryrun):
+            print_warning(f"Remote tag {tag_name} already exists; skipping local tag creation")
         else:
             print_info(f"Creating tag {tag_name}")
             run_git_command(
@@ -299,8 +315,8 @@ def main(argv: Sequence[str]) -> None:
         run_git_command(["push"], args.dryrun)
 
         if tag_created:
-            print_info("Pushing tags")
-            run_git_command(["push", "--tags"], args.dryrun)
+            print_info(f"Pushing tag {tag_name}")
+            run_git_command(["push", "origin", tag_name], args.dryrun)
         else:
             print_warning("Skipping tag push; tag already existed")
 

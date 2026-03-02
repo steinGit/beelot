@@ -130,10 +130,6 @@
     cursor: pointer;
 }
 
-.gts-color-group input:disabled + span {
-    color: #9a9a9a;
-}
-
 .gts-color-group input:disabled {
     cursor: not-allowed;
 }
@@ -167,13 +163,6 @@
     border-radius: 8px;
     padding: 8px 12px;
     background: #ffffff;
-}
-
-.brave-hint {
-    font-style: italic;
-    color: #7a7a7a;
-    font-weight: normal;
-    margin-left: 6px;
 }
 
 .sync-toggle {

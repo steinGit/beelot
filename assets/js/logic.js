@@ -5,7 +5,7 @@
  * Handles calculations and helper functions related to data processing.
  */
 
-import { formatDateLocal, isValidDate, extendToEndOfDay, calculateStartDate } from './utils.js';
+import { formatDateLocal } from './utils.js';
 import { fetchHistoricalData } from './dataService.js';
 
 /**
@@ -27,7 +27,6 @@ function createLocalStartOfDay(year, month, day) {
  */
 export function getSelectedEndDate() {
     const datumInput = document.getElementById('datum');
-    const ortVal = document.getElementById('ort').value || "";
 
     const parts = datumInput.value.split('-');
     const y = parseInt(parts[0], 10);
@@ -89,7 +88,7 @@ export function computeStartDate(endDate) {
  * @param {boolean} verbose - If true, logs additional debug information.
  * @returns {Array<Object>} - Array of objects with 'date' and 'gts' properties.
  */
-export function calculateGTS(dates, values, verbose = false) {
+export function calculateGTS(dates, values) {
     let cumulativeSum = 0;
     const results = [];
 
@@ -133,7 +132,6 @@ export async function fetchGTSForYear(
     year,
     baseStartDate,
     baseEndDate,
-    verbose = false,
     cacheStore = null
 ) {
     // A) Define the fetch range: January 1st to the same month/day as baseEndDate + 1 day
@@ -276,7 +274,6 @@ export async function buildYearData(
                     y,
                     yearPlotStart,
                     yearPlotEnd,
-                    false,
                     cacheStore
                 );
                 // console.log("[DEBUG logic.js] build5YearData() => year=", y,
@@ -370,7 +367,6 @@ export async function buildFullYearData(
                 y,
                 yearPlotStart,
                 yearPlotEnd,
-                false,
                 cacheStore
             );
             allResults.push(yearly);

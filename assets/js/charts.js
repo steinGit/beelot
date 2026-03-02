@@ -194,7 +194,7 @@ const getColorForIndex = (yearIndex, totalYears, year, scheme) => {
  * Plot a single GTS dataset (the existing approach).
  * E.g. filteredResults => array of { date, gts }.
  */
-export function plotData(results, verbose = false, yRange = null) {
+export function plotData(results, yRange = null) {
     if (!results || results.length === 0) {
         console.warn("[charts.js] plotData() aufgerufen mit leeren Ergebnissen.");
         return null;
@@ -302,7 +302,7 @@ export function plotData(results, verbose = false, yRange = null) {
 /**
  * Plot daily temps.
  */
-export function plotDailyTemps(dates, temps, verbose = false, yRange = null) {
+export function plotDailyTemps(dates, temps, yRange = null) {
     const labels = dates.map(dStr => formatDayMonth(dStr));
 
     let yearLabel = '';

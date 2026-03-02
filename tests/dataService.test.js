@@ -11,6 +11,12 @@ describe('getCachedData', () => {
         localStorage.setItem('testKey', JSON.stringify(data));
         expect(getCachedData('testKey')).toEqual(data);
     });
+
+    test('returns null and clears invalid JSON cache entry', () => {
+        localStorage.setItem('testKey', '{bad json');
+        expect(getCachedData('testKey')).toBeNull();
+        expect(localStorage.getItem('testKey')).toBeNull();
+    });
 });
 
 describe('setCachedData', () => {

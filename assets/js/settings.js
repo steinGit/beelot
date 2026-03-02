@@ -31,7 +31,22 @@ async function loadTrachtData() {
   // Check localStorage for existing data
   const stored = localStorage.getItem(TRACT_DATA_KEY);
   if (stored) {
-    const data = JSON.parse(stored);
+    let data = [];
+    try {
+      const parsed = JSON.parse(stored);
+      data = Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.warn("[settings.js] Invalid trachtData in localStorage. Resetting to defaults.", error);
+      localStorage.removeItem(TRACT_DATA_KEY);
+    }
+    if (data.length === 0) {
+      try {
+        const module = await import(`./tracht_data.js?ts=${Date.now()}`);
+        data = module.defaultTrachtData;
+      } catch (error) {
+        console.error("[settings.js] loadTrachtData failed:", error);
+      }
+    }
     populateTrachtTable(data);
     saveTrachtData(data);
     return;
@@ -134,7 +149,18 @@ function populateTrachtTable(data) {
 }
 
 function getTrachtData() {
-  return JSON.parse(localStorage.getItem(TRACT_DATA_KEY));
+  const stored = localStorage.getItem(TRACT_DATA_KEY);
+  if (!stored) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.warn("[settings.js] Invalid trachtData in localStorage. Resetting.", error);
+    localStorage.removeItem(TRACT_DATA_KEY);
+    return [];
+  }
 }
 
 function saveTrachtData(data) {
@@ -233,7 +259,6 @@ async function resetTrachtData() {
     saveTrachtData(module.defaultTrachtData);
     populateTrachtTable(module.defaultTrachtData);
   } catch (error) {
-    console.error("[settings.js] resetTrachtData failed:", error);
     console.error("[settings.js] resetTrachtData failed:", error);
   }
 }
