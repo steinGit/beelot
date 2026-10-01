@@ -59,6 +59,8 @@ export class PlotUpdater {
     chartRefs = {},
     locationNameOutput // Add locationNameOutput to constructor
   }) {
+    this.displayGeneration = 0;
+    this.locationGenerations = new Map();
     this.verbose = false;
     this.debugGts = false; // set to true for temporary debugging only.
     this.locationId = locationId;
@@ -88,6 +90,7 @@ export class PlotUpdater {
   }
 
   setLocationId(locationId) {
+    this.invalidatePendingDisplay();
     this.locationId = locationId;
     this.weatherCacheStore = createWeatherCacheStore(this.locationId);
     this.locationNameCacheStore = createLocationNameCacheStore(this.locationId);
@@ -101,10 +104,44 @@ export class PlotUpdater {
     return getLocationById(this.locationId);
   }
 
+  invalidatePendingDisplay() {
+    this.displayGeneration += 1;
+  }
+
+  canDisplay() {
+    return !this.request || this.request.canDisplay();
+  }
+
+  storeCalculations(update) {
+    if (!this.request || this.request.canStore()) {
+      updateLocation(this.locationId, update);
+    }
+  }
+
   /**
-   * Main entry point: orchestrates the entire plotting process.
+   * Main entry point: start an isolated execution for the selected location.
    */
   async run() {
+    const locationId = this.locationId;
+    const generation = ++this.displayGeneration;
+    this.locationGenerations.set(locationId, generation);
+    // Each execution owns its caches and intermediate results across every await.
+    // Display freshness is global; storage freshness is specific to the location.
+    const execution = new PlotUpdater(this);
+    execution.verbose = this.verbose;
+    execution.debugGts = this.debugGts;
+    execution.request = Object.freeze({
+      timeframe: this.zeitraumSelect.value,
+      date: this.datumInput.value,
+      yearRange: window.gtsYearRange || 1,
+      colorScheme: window.gtsColorScheme,
+      canDisplay: () => this.displayGeneration === generation,
+      canStore: () => this.locationGenerations.get(locationId) === generation
+    });
+    return execution.executeRun();
+  }
+
+  async executeRun() {
     try {
       destroyAllCharts();
       const location = this.getLocation();
@@ -127,7 +164,9 @@ export class PlotUpdater {
       this.currentLon = lon;
 
       // Fetch and display location name
-      this.step4aFetchAndDisplayLocationName(lat, lon);
+      this.step4aFetchAndDisplayLocationName(lat, lon).catch((error) => {
+        console.error("[PlotUpdater] Location name lookup failed:", error);
+      });
 
       // Step 5) Date range logic
       const { differenceInDays, plotStartDate } = this.step5ComputeDateRange(endDate);
@@ -160,10 +199,25 @@ export class PlotUpdater {
       }
 
       // Step 10) If empty, bail
-      if (!this.step10CheckIfEmpty(filteredResults, endDate)) return;
+      if (filteredResults.length === 0) {
+        if (this.canDisplay()) this.step10CheckIfEmpty(filteredResults, endDate);
+        return;
+      }
 
       // Step 11) Filter daily temps
       this.step11FilterDailyTemps(allDates, allTemps, plotStartDate, endDate);
+
+      // Keep valid inactive-location results, independently of display freshness.
+      this.storeCalculations((current) => {
+        current.calculations.gtsResults = gtsResults;
+        current.calculations.filteredResults = filteredResults;
+        current.calculations.temps = {
+          dates: [...this.filteredTempsDates],
+          values: [...this.filteredTempsData]
+        };
+        current.calculations.lastGtsKey = `${formatDateLocal(endDate)}|${this.request.timeframe}`;
+      });
+      if (!this.canDisplay()) return;
 
       // Step 12) Update text
       this.step12UpdateErgebnisText(gtsResults, endDate);
@@ -173,7 +227,9 @@ export class PlotUpdater {
 
       // Step 14) GTS chart creation
       await this.step14CreateGTSChart(lat, lon, plotStartDate, endDate, filteredResults);
+      if (!this.canDisplay()) return;
       await this.step14bUpdateGtsComparison();
+      if (!this.canDisplay()) return;
 
       // Step 15) Temp chart creation
       this.step15CreateTemperatureChart(endDate);
@@ -181,20 +237,15 @@ export class PlotUpdater {
       // Step 16) Update hints
       await this.step16UpdateHinweisSection(gtsResults, endDate);
 
-      updateLocation(this.locationId, (current) => {
-        current.calculations.gtsResults = gtsResults;
-        current.calculations.filteredResults = filteredResults;
-        current.calculations.temps = {
-          dates: [...this.filteredTempsDates],
-          values: [...this.filteredTempsData]
-        };
-        current.calculations.lastGtsKey = `${formatDateLocal(endDate)}|${this.zeitraumSelect.value}`;
+      if (!this.canDisplay()) return;
+      this.storeCalculations((current) => {
         if (this.hinweisSection) {
           current.calculations.hinweisHtml = this.hinweisSection.innerHTML;
         }
       });
 
     } catch (err) {
+      if (!this.canDisplay()) return;
       if (err && typeof err.message === "string" && err.message.includes("Canvas is already in use")) {
         return;
       }
@@ -301,15 +352,12 @@ export class PlotUpdater {
    */
   async step4aFetchAndDisplayLocationName(lat, lon) {
     if (this.locationNameOutput) {
-      const requestId = `${lat.toFixed(6)}|${lon.toFixed(6)}|${Date.now()}`;
-      this.latestLocationNameRequestId = requestId;
       this.locationNameOutput.textContent = "Standortname wird ermittelt...";
       const locationName = await this.locationFetcher.getLocationName(lat, lon);
-      if (this.latestLocationNameRequestId !== requestId) {
-        return;
+      if (this.canDisplay()) {
+        this.locationNameOutput.textContent = "In der Nähe von: " + locationName;
       }
-      this.locationNameOutput.textContent = "In der Nähe von: " + locationName;
-      updateLocation(this.locationId, (current) => {
+      this.storeCalculations((current) => {
         current.calculations.locationLabel = locationName;
       });
     }
@@ -430,7 +478,7 @@ export class PlotUpdater {
     const sortedDates = allDates.sort((a, b) => new Date(a) - new Date(b));
     const sortedTemps = sortedDates.map(d => dataByDate[d]);
 
-    if (sortedTemps.length === 0) {
+    if (sortedTemps.length === 0 && this.canDisplay()) {
       alert("Keine Daten gefunden. Anderen Ort oder anderes Datum wählen.");
     }
 
@@ -602,11 +650,11 @@ export class PlotUpdater {
       return;
     }
 
-    const yearRange = window.gtsYearRange || 1;
+    const yearRange = this.request.yearRange;
     if (yearRange > 1) {
       let multiYearData;
       const selectedYear = endDate.getFullYear();
-      if (yearRange === 20 && window.gtsColorScheme === "temperature") {
+      if (yearRange === 20 && this.request.colorScheme === "temperature") {
         // Use the selected year as anchor for the full-year range.
         multiYearData = await buildFullYearData(
           lat,
@@ -636,6 +684,7 @@ export class PlotUpdater {
       const yRange = window.standortSyncEnabled
         ? this.computeGlobalYRange("gts", this.buildGtsViewKey(endDate))
         : null;
+      if (!this.canDisplay()) return;
       this.chartGTS = plotMultipleYearData(multiYearData, yRange);
     } else {
       this.lastMultiYearData = this.getCachedMultiYearData(viewKey);
@@ -925,7 +974,7 @@ export class PlotUpdater {
       }
     }
 
-    if (!comparisonHtml) {
+    if (!comparisonHtml || !this.canDisplay()) {
       return;
     }
     comparisonEl.innerHTML = `<br>${comparisonHtml}`;
@@ -987,7 +1036,7 @@ export class PlotUpdater {
     if (!Array.isArray(multiYearData)) {
       return;
     }
-    updateLocation(this.locationId, (current) => {
+    this.storeCalculations((current) => {
       if (!current.calculations.gtsYearCurves) {
         current.calculations.gtsYearCurves = {};
       }
@@ -1097,12 +1146,12 @@ export class PlotUpdater {
 
   buildGtsViewKey(endDate) {
     const dateKey = formatDateLocal(endDate);
-    return `${dateKey}|${this.zeitraumSelect.value}|${window.gtsYearRange || 1}`;
+    return `${dateKey}|${this.request.timeframe}|${this.request.yearRange}`;
   }
 
   buildTempViewKey(endDate) {
-    const dateKey = endDate ? formatDateLocal(endDate) : (this.datumInput.value || "");
-    return `${dateKey}|${this.zeitraumSelect.value}`;
+    const dateKey = endDate ? formatDateLocal(endDate) : (this.request.date || "");
+    return `${dateKey}|${this.request.timeframe}`;
   }
 
   computeStatsFromValues(values) {
@@ -1138,7 +1187,7 @@ export class PlotUpdater {
       return;
     }
     const key = chartType === "gts" ? this.buildGtsViewKey(endDate) : this.buildTempViewKey();
-    updateLocation(this.locationId, (current) => {
+    this.storeCalculations((current) => {
       if (!current.calculations.axisStats) {
         current.calculations.axisStats = {};
       }

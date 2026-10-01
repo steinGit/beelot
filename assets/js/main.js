@@ -1521,6 +1521,7 @@ function activateComparisonTab() {
     return;
   }
   comparisonActive = true;
+  if (plotUpdater) plotUpdater.invalidatePendingDisplay();
   const activeLocation = getActiveLocation();
   if (activeLocation) {
     applyLocationState(activeLocation);
