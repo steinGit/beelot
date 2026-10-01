@@ -30,7 +30,7 @@ import { PlotUpdater } from './plotUpdater.js';
 import { plotComparisonData } from './charts.js';
 import { calculateGTS } from './logic.js';
 import { fetchHistoricalData, fetchRecentData, isOpenMeteoError } from './dataService.js';
-import { formatDateLocal, formatDayMonth } from './utils.js';
+import { formatDateLocal, formatDayMonth, parseDateStringLocal } from './utils.js';
 import { getNextTabTarget } from './locationTabNavigation.js';
 import { createTooltipGate } from './tooltipFrequency.js';
 import { shouldSwitchLocation } from './locationSwitching.js';
@@ -1143,7 +1143,7 @@ async function fetchAllDataForRange(lat, lon, fetchStartDate, endDate, recentSta
     const lastHistDateStr = histData.daily.time[histData.daily.time.length - 1];
     const endDateStr = formatDateLocal(endDate);
     if (lastHistDateStr < endDateStr) {
-      const lastHistDate = new Date(lastHistDateStr);
+      const lastHistDate = parseDateStringLocal(lastHistDateStr);
       const recentStart = new Date(lastHistDate);
       recentStart.setDate(recentStart.getDate() + 1);
       const recentData = await fetchRecentData(
@@ -1160,7 +1160,7 @@ async function fetchAllDataForRange(lat, lon, fetchStartDate, endDate, recentSta
   }
 
   const allDates = Object.keys(dataByDate);
-  const sortedDates = allDates.sort((a, b) => new Date(a) - new Date(b));
+  const sortedDates = allDates.sort((a, b) => a.localeCompare(b));
   const sortedTemps = sortedDates.map(d => dataByDate[d]);
   return { allDates: sortedDates, allTemps: sortedTemps };
 }
@@ -1197,8 +1197,8 @@ async function buildComparisonSeriesForLocation(location, endDate, selection, up
   const endOfDay = new Date(endDate);
   endOfDay.setHours(23, 59, 59, 999);
   const filteredResults = gtsResults.filter((entry) => {
-    const d = new Date(entry.date);
-    return d >= plotStartDate && d <= endOfDay;
+    const d = parseDateStringLocal(entry.date);
+    return d && d >= plotStartDate && d <= endOfDay;
   });
   if (filteredResults.length === 0) {
     return null;

@@ -15,7 +15,7 @@ import {
   computeDateRange
 } from './logic.js';
 import { updateHinweisSection } from './information.js';
-import { formatDateLocal, isValidDate } from './utils.js';
+import { formatDateLocal, isValidDate, parseDateStringLocal } from './utils.js';
 import { LocationNameFromGPS } from './location_name_from_gps.js'; // Import the new class
 import { destroyAllCharts } from './chartManager.js';
 import {
@@ -445,7 +445,7 @@ export class PlotUpdater {
       const lastHistDateStr = histData.daily.time[histData.daily.time.length - 1];
       const endDateStr = formatDateLocal(endDate);
       if (lastHistDateStr < endDateStr) {
-        const lastHistDate = new Date(lastHistDateStr);
+        const lastHistDate = parseDateStringLocal(lastHistDateStr);
         const recentStart = new Date(lastHistDate);
         recentStart.setDate(recentStart.getDate() + 1);
         const recentData = await fetchRecentData(
@@ -475,7 +475,7 @@ export class PlotUpdater {
     // Sort by date
     const allDates = Object.keys(dataByDate);
 
-    const sortedDates = allDates.sort((a, b) => new Date(a) - new Date(b));
+    const sortedDates = allDates.sort((a, b) => a.localeCompare(b));
     const sortedTemps = sortedDates.map(d => dataByDate[d]);
 
     if (sortedTemps.length === 0 && this.canDisplay()) {
@@ -508,8 +508,8 @@ export class PlotUpdater {
     endOfDay.setHours(23, 59, 59, 999); // Set to 23:59:59.999
 
     return gtsResults.filter(r => {
-      const d = new Date(r.date);
-      return d >= plotStartDate && d <= endOfDay;
+      const d = parseDateStringLocal(r.date);
+      return d && d >= plotStartDate && d <= endOfDay;
     });
   }
 
@@ -562,8 +562,8 @@ export class PlotUpdater {
     this.filteredTempsDates = [];
     this.filteredTempsData = [];
     for (let i = 0; i < allDates.length; i++) {
-      const d = new Date(allDates[i]);
-      if (d >= plotStartDate && d <= endOfDay) {
+      const d = parseDateStringLocal(allDates[i]);
+      if (d && d >= plotStartDate && d <= endOfDay) {
         this.filteredTempsDates.push(allDates[i]);
         this.filteredTempsData.push(allTemps[i]);
       }

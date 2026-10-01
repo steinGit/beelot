@@ -5,7 +5,7 @@
  * Handles calculations and helper functions related to data processing.
  */
 
-import { formatDateLocal } from './utils.js';
+import { formatDateLocal, parseDateStringLocal } from './utils.js';
 import { fetchHistoricalData } from './dataService.js';
 
 /**
@@ -94,7 +94,10 @@ export function calculateGTS(dates, values) {
 
     for (let i = 0; i < values.length; i++) {
         let val = Math.max(0, values[i]); // Replace negative values with 0.0
-        const currentDate = new Date(dates[i]);
+        const currentDate = parseDateStringLocal(dates[i]);
+        if (!currentDate) {
+            continue;
+        }
         const month = currentDate.getMonth() + 1;
 
         // Apply weights based on the month
@@ -177,15 +180,15 @@ export async function fetchGTSForYear(
     const endOfDay = new Date(yearPlotEnd);
     endOfDay.setHours(23, 59, 59, 999); // Set to end of the day
     const displayedResults = gtsResults.filter(r => {
-        const d = new Date(r.date);
-        return (d >= yearPlotStart && d <= endOfDay);
+        const d = parseDateStringLocal(r.date);
+        return d && d >= yearPlotStart && d <= endOfDay;
     });
     // console.log("[DEBUG logic.js] => final displayed results for year=", year,
     // " =>", displayedResults.length, " points");
 
     // F) Convert to Chart.js-compatible arrays
     const labels = displayedResults.map(item => {
-        const d = new Date(item.date);
+        const d = parseDateStringLocal(item.date);
         return `${d.getDate()}.${d.getMonth() + 1}`;
     });
     const gtsValues = displayedResults.map(item => item.gts);
@@ -243,8 +246,8 @@ export async function buildYearData(
             endOfDay.setHours(23, 59, 59, 999); // Set to end of the day
 
             const displayedResults = data_current_year.filter(item => {
-                const d = new Date(item.date);
-                return (d >= yearPlotStart && d <= endOfDay);
+                const d = parseDateStringLocal(item.date);
+                return d && d >= yearPlotStart && d <= endOfDay;
             });
 
             // console.log(`[DEBUG build5YearData] Year ${y} - plotStartDate: ${yearPlotStart}, endOfDay: ${endOfDay}`);
@@ -252,7 +255,7 @@ export async function buildYearData(
 
             // Convert to Chart.js data format
             const labels = displayedResults.map(item => {
-                const d = new Date(item.date);
+                const d = parseDateStringLocal(item.date);
                 return `${d.getDate()}.${d.getMonth() + 1}`;
             });
             const gtsValues = displayedResults.map(item => item.gts);
@@ -346,11 +349,11 @@ export async function buildFullYearData(
                 const endOfDay = new Date(yearPlotEnd);
                 endOfDay.setHours(23, 59, 59, 999);
                 const displayedResults = data_current_year.filter((item) => {
-                    const d = new Date(item.date);
-                    return d >= yearPlotStart && d <= endOfDay;
+                    const d = parseDateStringLocal(item.date);
+                    return d && d >= yearPlotStart && d <= endOfDay;
                 });
                 const labels = displayedResults.map((item) => {
-                    const d = new Date(item.date);
+                    const d = parseDateStringLocal(item.date);
                     return `${d.getDate()}.${d.getMonth() + 1}`;
                 });
                 const gtsValues = displayedResults.map((item) => item.gts);

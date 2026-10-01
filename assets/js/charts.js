@@ -1,6 +1,6 @@
 // --- FILE: /home/fridtjofstein/privat/beelot/assets/js/charts.js ---
 
-import { formatDayMonth } from './utils.js';
+import { formatDayMonth, parseDateStringLocal } from './utils.js';
 import { createChart } from './chartManager.js';
 
 /**
@@ -209,7 +209,7 @@ export function plotData(results, yRange = null) {
     const data = results.map(r => r.gts);
 
     // Use the last date's year for color
-    const endDate = new Date(results[results.length - 1].date);
+    const endDate = parseDateStringLocal(results[results.length - 1].date);
     const yearColor = getColorForIndex(0, 1, endDate.getFullYear(), window.gtsColorScheme || "queen");
     const isMobile = isMobileLayout();
     const isSmallMobile = isSmallMobileLayout();
@@ -307,7 +307,7 @@ export function plotDailyTemps(dates, temps, yRange = null) {
 
     let yearLabel = '';
     if (dates.length > 0) {
-        const lastDate = new Date(dates[dates.length - 1]);
+        const lastDate = parseDateStringLocal(dates[dates.length - 1]);
         yearLabel = String(lastDate.getFullYear());
     }
     const isMobile = isMobileLayout();

@@ -23,7 +23,10 @@ export function formatDateLocal(date) {
  * @returns {string} - Formatted date as "day.month"
  */
 export function formatDayMonth(dateStr) {
-    const d = new Date(dateStr);
+    const d = parseDateStringLocal(dateStr);
+    if (!d) {
+        return "";
+    }
     const day = d.getDate();
     const month = d.getMonth() + 1;
     return `${day}.${month}`;
@@ -61,7 +64,7 @@ export function calculateStartDate(endDate, days) {
     return startDate;
 }
 
-function parseDateStringLocal(value) {
+export function parseDateStringLocal(value) {
     if (typeof value !== "string") {
         return null;
     }
