@@ -35,4 +35,28 @@ describe('locationStore', () => {
         expect(getLocationsInOrder()).toHaveLength(1);
         expect(getActiveLocation().id).toBe(first.id);
     });
+
+    test('normalizes a wrapped western longitude from stored location data', async () => {
+        localStorage.setItem('beelotLocations', JSON.stringify({
+            version: 1,
+            nextId: 2,
+            order: ['loc-1'],
+            activeId: 'loc-1',
+            locations: {
+                'loc-1': {
+                    id: 'loc-1',
+                    name: 'Minneapolis',
+                    coordinates: { lat: 44.87535, lon: 266.54348 }
+                }
+            }
+        }));
+
+        const { formatCoordinates, getActiveLocation } = await import('../assets/js/locationStore');
+        const coordinates = getActiveLocation().coordinates;
+
+        expect(coordinates.lat).toBe(44.87535);
+        expect(coordinates.lon).toBeCloseTo(-93.45652, 5);
+        expect(formatCoordinates(44.87535, 266.54348))
+            .toBe('Lat: 44.87535°, Lon: -93.45652°');
+    });
 });

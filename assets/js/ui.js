@@ -3,7 +3,12 @@
  * UI-Interaktionen, DOM-Referenzen, Anzeigen/Verstecken von Elementen
  */
 
-import { formatCoordinates, getActiveLocation, updateLocation } from './locationStore.js';
+import {
+  formatCoordinates,
+  getActiveLocation,
+  normalizeCoordinates,
+  updateLocation
+} from './locationStore.js';
 
 // DOM references
 export const ortInput          = document.getElementById('ort');
@@ -48,10 +53,7 @@ function parseStoredPosition(lastPos) {
   const coords = lastPos.split(",");
   const lat = parseFloat(coords[0]);
   const lon = parseFloat(coords[1]);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    return null;
-  }
-  return { lat, lon };
+  return normalizeCoordinates(lat, lon);
 }
 
 function setMarkerForLocation(lat, lon) {
@@ -143,18 +145,26 @@ window.initOrUpdateMap = () => {
     }).addTo(map);
 
     map.on('click', (e) => {
+      const coordinates = normalizeCoordinates(e.latlng.lat, e.latlng.lng);
+      if (!coordinates) {
+        return;
+      }
       if (marker) {
         map.removeLayer(marker);
       }
-      marker = L.marker(e.latlng).addTo(map);
-      selectedLatLng = e.latlng;
+      selectedLatLng = { lat: coordinates.lat, lng: coordinates.lon };
+      marker = L.marker(selectedLatLng).addTo(map);
     });
 
     map.on('moveend', () => {
       const center = map.getCenter();
+      const coordinates = normalizeCoordinates(center.lat, center.lng);
+      if (!coordinates) {
+        return;
+      }
       localStorage.setItem(
         GLOBAL_MAP_VIEW_KEY,
-        JSON.stringify({ lat: center.lat, lon: center.lng, zoom: map.getZoom() })
+        JSON.stringify({ lat: coordinates.lat, lon: coordinates.lon, zoom: map.getZoom() })
       );
     });
 
@@ -186,16 +196,21 @@ window.initOrUpdateMap = () => {
  */
 window.saveMapSelection = () => {
   if (selectedLatLng) {
-    const locString = formatCoordinates(selectedLatLng.lat, selectedLatLng.lng);
+    const coordinates = normalizeCoordinates(selectedLatLng.lat, selectedLatLng.lng);
+    if (!coordinates) {
+      return;
+    }
+    const locString = formatCoordinates(coordinates.lat, coordinates.lon);
     ortInput.value = locString;
     const activeLocation = getActiveLocation();
     if (activeLocation) {
       updateLocation(activeLocation.id, (location) => {
         location.coordinates = {
-          lat: selectedLatLng.lat,
-          lon: selectedLatLng.lng
+          lat: coordinates.lat,
+          lon: coordinates.lon
         };
-        location.ui.map.lastPos = `${map.getCenter().lat},${map.getCenter().lng}`;
+        const center = normalizeCoordinates(map.getCenter().lat, map.getCenter().lng);
+        location.ui.map.lastPos = center ? `${center.lat},${center.lon}` : null;
         location.ui.map.lastZoom = map.getZoom();
         location.ui.map.addressViewportMeters = null;
       });

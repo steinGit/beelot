@@ -74,6 +74,17 @@ function buildDefaultState() {
   };
 }
 
+export function normalizeCoordinates(lat, lon) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90) {
+    return null;
+  }
+  let normalizedLon = lon;
+  if (lon < -180 || lon > 180) {
+    normalizedLon = ((lon + 180) % 360 + 360) % 360 - 180;
+  }
+  return { lat, lon: normalizedLon };
+}
+
 function parseLegacyCoordinates(coordString) {
   if (!coordString || typeof coordString !== "string") {
     return null;
@@ -92,12 +103,14 @@ function parseLegacyCoordinates(coordString) {
   if (Number.isNaN(lat) || Number.isNaN(lon)) {
     return null;
   }
-  return { lat, lon };
+  return normalizeCoordinates(lat, lon);
 }
 
 function ensureLocationShape(location) {
   const normalized = location || {};
-  normalized.coordinates = normalized.coordinates || null;
+  normalized.coordinates = normalized.coordinates
+    ? normalizeCoordinates(normalized.coordinates.lat, normalized.coordinates.lon)
+    : null;
   normalized.cache = normalized.cache || buildDefaultCache();
   normalized.cache.weather = normalized.cache.weather || {};
   normalized.cache.locationName = normalized.cache.locationName || {};
@@ -200,7 +213,11 @@ function sanitizeName(name, fallback) {
 }
 
 export function formatCoordinates(lat, lon) {
-  return `Lat: ${lat.toFixed(5)}°, Lon: ${lon.toFixed(5)}°`;
+  const coordinates = normalizeCoordinates(lat, lon);
+  if (!coordinates) {
+    return "";
+  }
+  return `Lat: ${coordinates.lat.toFixed(5)}°, Lon: ${coordinates.lon.toFixed(5)}°`;
 }
 
 export function getActiveLocationId() {

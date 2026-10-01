@@ -21,6 +21,8 @@ describe('ui module exports', () => {
             <output id="location-name"></output>
             <div id="location-tabs"></div>
             <div id="location-panel"></div>
+            <div id="map"></div>
+            <div id="map-popup"></div>
             <label><input type="radio" name="gts-range" value="1" checked /></label>
             <label><input type="radio" name="gts-range" value="5" /></label>
             <label><input type="radio" name="gts-range" value="10" /></label>
@@ -43,5 +45,32 @@ describe('ui module exports', () => {
         await import('../assets/js/ui');
         expect(typeof window.initOrUpdateMap).toBe('function');
         expect(typeof window.saveMapSelection).toBe('function');
+    });
+
+    test('normalizes a longitude from a repeated map world before saving', async () => {
+        const handlers = {};
+        const map = {
+            setView: jest.fn().mockReturnThis(),
+            on: jest.fn((eventName, handler) => { handlers[eventName] = handler; }),
+            getCenter: jest.fn(() => ({ lat: 44.87535, lng: 266.54348 })),
+            getZoom: jest.fn(() => 12),
+            removeLayer: jest.fn()
+        };
+        const marker = { addTo: jest.fn().mockReturnThis() };
+        global.L = {
+            map: jest.fn(() => map),
+            tileLayer: jest.fn(() => ({ addTo: jest.fn() })),
+            marker: jest.fn(() => marker)
+        };
+
+        await import('../assets/js/ui');
+        const { getActiveLocation } = await import('../assets/js/locationStore');
+        window.initOrUpdateMap();
+        handlers.click({ latlng: { lat: 44.87535, lng: 266.54348 } });
+        window.saveMapSelection();
+
+        expect(getActiveLocation().coordinates.lon).toBeCloseTo(-93.45652, 5);
+        expect(document.querySelector('#ort').value)
+            .toBe('Lat: 44.87535°, Lon: -93.45652°');
     });
 });
