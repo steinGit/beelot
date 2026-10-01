@@ -59,4 +59,61 @@ describe('locationStore', () => {
         expect(formatCoordinates(44.87535, 266.54348))
             .toBe('Lat: 44.87535°, Lon: -93.45652°');
     });
+
+    test('invalidates derived calculations when coordinates change', async () => {
+        const { getActiveLocation, updateLocation } = await import('../assets/js/locationStore');
+        const locationId = getActiveLocation().id;
+        updateLocation(locationId, (location) => {
+            location.coordinates = { lat: 48, lon: 9 };
+        });
+        updateLocation(locationId, (location) => {
+            location.cache.weather.keep = { daily: true };
+            location.cache.locationName.keep = 'Old place';
+            location.calculations = {
+                gtsResults: [{ date: '2026-01-01', gts: 5 }],
+                filteredResults: [{ date: '2026-01-01', gts: 5 }],
+                temps: { dates: ['2026-01-01'], values: [10] },
+                hinweisHtml: '<p>Old location</p>',
+                locationLabel: 'Old place',
+                lastGtsKey: '2026-01-01|ytd',
+                gtsYearCurves: { '2026-01-01|ytd|1': [{ year: 2026 }] },
+                axisStats: { gts: { key: 'old', min: 0, max: 5, count: 1 } }
+            };
+        });
+
+        updateLocation(locationId, (location) => {
+            location.coordinates = { lat: 52, lon: 13 };
+        });
+
+        const updated = getActiveLocation();
+        expect(updated.calculations).toEqual({
+            gtsResults: null,
+            filteredResults: null,
+            temps: { dates: [], values: [] },
+            hinweisHtml: '',
+            locationLabel: '',
+            lastGtsKey: '',
+            gtsYearCurves: {}
+        });
+        expect(updated.cache.weather.keep).toEqual({ daily: true });
+        expect(updated.cache.locationName.keep).toBe('Old place');
+    });
+
+    test('retains calculations when an update keeps equivalent coordinates', async () => {
+        const { getActiveLocation, updateLocation } = await import('../assets/js/locationStore');
+        const locationId = getActiveLocation().id;
+        updateLocation(locationId, (location) => {
+            location.coordinates = { lat: 44.87535, lon: -93.45652 };
+        });
+        updateLocation(locationId, (location) => {
+            location.calculations.gtsResults = [{ date: '2026-01-01', gts: 5 }];
+        });
+
+        updateLocation(locationId, (location) => {
+            location.coordinates = { lat: 44.87535, lon: 266.54348 };
+        });
+
+        expect(getActiveLocation().calculations.gtsResults)
+            .toEqual([{ date: '2026-01-01', gts: 5 }]);
+    });
 });

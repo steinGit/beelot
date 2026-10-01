@@ -85,6 +85,15 @@ export function normalizeCoordinates(lat, lon) {
   return { lat, lon: normalizedLon };
 }
 
+function coordinatesEqual(left, right) {
+  if (!left || !right) {
+    return left === right;
+  }
+  const epsilon = 1e-10;
+  return Math.abs(left.lat - right.lat) < epsilon
+    && Math.abs(left.lon - right.lon) < epsilon;
+}
+
 function parseLegacyCoordinates(coordString) {
   if (!coordString || typeof coordString !== "string") {
     return null;
@@ -249,7 +258,17 @@ export function updateLocation(id, updater) {
   if (!location) {
     return;
   }
+  const previousCoordinates = location.coordinates
+    ? normalizeCoordinates(location.coordinates.lat, location.coordinates.lon)
+    : null;
   updater(location);
+  const nextCoordinates = location.coordinates
+    ? normalizeCoordinates(location.coordinates.lat, location.coordinates.lon)
+    : null;
+  location.coordinates = nextCoordinates;
+  if (!coordinatesEqual(previousCoordinates, nextCoordinates)) {
+    location.calculations = buildDefaultCalculations();
+  }
   state.locations[id] = ensureLocationShape(location);
   persist();
 }
