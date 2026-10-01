@@ -165,19 +165,6 @@
     background: #ffffff;
 }
 
-.sync-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-left: 12px;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.sync-toggle input {
-    cursor: pointer;
-}
-
 .legend-location-label {
     font-weight: bold;
     margin: 6px 0 4px;

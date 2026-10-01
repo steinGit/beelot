@@ -681,18 +681,14 @@ export class PlotUpdater {
       this.storeMultiYearData(viewKey, multiYearData);
       const gtsStats = this.computeStatsFromMultiYear(multiYearData);
       this.storeAxisStats("gts", endDate, gtsStats);
-      const yRange = window.standortSyncEnabled
-        ? this.computeGlobalYRange("gts", this.buildGtsViewKey(endDate))
-        : null;
+      const yRange = this.computeGlobalYRange("gts", this.buildGtsViewKey(endDate));
       if (!this.canDisplay()) return;
       this.chartGTS = plotMultipleYearData(multiYearData, yRange);
     } else {
       this.lastMultiYearData = this.getCachedMultiYearData(viewKey);
       const gtsStats = this.computeStatsFromValues(filteredResults.map((item) => item.gts));
       this.storeAxisStats("gts", endDate, gtsStats);
-      const yRange = window.standortSyncEnabled
-        ? this.computeGlobalYRange("gts", this.buildGtsViewKey(endDate))
-        : null;
+      const yRange = this.computeGlobalYRange("gts", this.buildGtsViewKey(endDate));
       this.chartGTS = plotData(filteredResults, yRange);
     }
   }
@@ -1131,9 +1127,7 @@ export class PlotUpdater {
     }
     const tempStats = this.computeStatsFromValues(this.filteredTempsData);
     this.storeAxisStats("temp", endDate, tempStats);
-    const yRange = window.standortSyncEnabled
-      ? this.computeGlobalYRange("temp", this.buildTempViewKey(endDate))
-      : null;
+    const yRange = this.computeGlobalYRange("temp", this.buildTempViewKey(endDate));
     this.chartTemp = plotDailyTemps(this.filteredTempsDates, this.filteredTempsData, yRange);
   }
 

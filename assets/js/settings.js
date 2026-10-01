@@ -31,15 +31,15 @@ async function loadTrachtData() {
   // Check localStorage for existing data
   const stored = localStorage.getItem(TRACT_DATA_KEY);
   if (stored) {
-    let data = [];
+    let data = null;
     try {
       const parsed = JSON.parse(stored);
-      data = Array.isArray(parsed) ? parsed : [];
+      data = Array.isArray(parsed) ? parsed : null;
     } catch (error) {
       console.warn("[settings.js] Invalid trachtData in localStorage. Resetting to defaults.", error);
       localStorage.removeItem(TRACT_DATA_KEY);
     }
-    if (data.length === 0) {
+    if (data === null) {
       try {
         const module = await import(`./tracht_data.js?ts=${Date.now()}`);
         data = module.defaultTrachtData;

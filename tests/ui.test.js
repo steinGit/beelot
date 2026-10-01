@@ -13,7 +13,6 @@ describe('ui module exports', () => {
             <button id="datum-plus"></button>
             <button id="datum-minus"></button>
             <button id="datum-heute"></button>
-            <input type="checkbox" id="standort-sync-toggle" />
             <button id="toggle-gts-plot"></button>
             <div id="gts-plot-container"></div>
             <button id="toggle-temp-plot"></button>

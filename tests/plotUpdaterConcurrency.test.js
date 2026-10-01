@@ -46,7 +46,6 @@ beforeEach(() => {
     <div id="temp"><canvas id="tempChart"></canvas></div>`;
   window.gtsYearRange = 1;
   window.gtsColorScheme = 'year';
-  window.standortSyncEnabled = false;
   global.Chart = { getChart: jest.fn() };
   buildYearData.mockResolvedValue([]);
   fetchHistoricalData.mockReset();
@@ -114,8 +113,8 @@ test('a normal run stores calculations and displays both charts and hints', asyn
   expect(result.gtsResults.at(-1).gts).toBe(10);
   expect(result.lastGtsKey).toBe('2025-01-02|ytd');
   expect(result.hinweisHtml).toBe('10');
-  expect(plotData).toHaveBeenCalledWith(result.filteredResults, null);
-  expect(plotDailyTemps).toHaveBeenCalledWith(result.temps.dates, [10, 10], null);
+  expect(plotData).toHaveBeenCalledWith(result.filteredResults, { min: 0, max: 10 });
+  expect(plotDailyTemps).toHaveBeenCalledWith(result.temps.dates, [10, 10], { min: 10, max: 10 });
   expect(document.querySelector('#result').textContent).toContain('10.0');
 });
 

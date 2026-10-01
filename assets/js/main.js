@@ -20,7 +20,6 @@ import {
   tempPlotContainer,
   gtsRangeInputs,
   gtsColorInputs,
-  standortSyncToggle,
   locationNameOutput,
   locationTabsContainer,
   locationPanel
@@ -144,12 +143,9 @@ let ergebnisTextEl = null;
 let gtsYearRange = 1;
 let gtsRange20Active = false;
 let gtsColorScheme = "queen";
-let standortSyncEnabled = false;
 let lastNarrowLayout = null;
 let comparisonActive = false;
 let offlineStatusActive = false;
-const STANDORT_SYNC_KEY = "beelotStandortSync";
-const STANDORT_SYNC_CONTROL_ID = "standort-sync-control";
 const REGULAR_GTS_RANGES = new Set([1, 5, 10]);
 const GTS_RANGE_20 = 20;
 const COMPARISON_COLORS = ["red", "orange", "gold", "green", "cyan", "blue", "magenta"];
@@ -813,18 +809,6 @@ async function geocodeAddress({ street, city, country, forcedSettlement = null }
   return { lat, lon, normalized: canonical };
 }
 
-function loadStandortSyncState() {
-  const stored = localStorage.getItem(STANDORT_SYNC_KEY);
-  if (stored === null) {
-    return false;
-  }
-  return stored === "true";
-}
-
-function persistStandortSyncState() {
-  localStorage.setItem(STANDORT_SYNC_KEY, String(standortSyncEnabled));
-}
-
 function getSyncPayload() {
   return {
     selectedDate: datumInput.value,
@@ -972,9 +956,7 @@ function updateActiveLocationUiState(partial) {
     };
   });
 
-  if (standortSyncEnabled) {
-    applySyncToAllLocations(getSyncPayload());
-  }
+  applySyncToAllLocations(getSyncPayload());
 }
 
 function updateAllLocationsUiState(partial) {
@@ -1477,15 +1459,6 @@ function updateMobileLabels(force = false) {
   });
 }
 
-function updateStandortSyncVisibility() {
-  const control = document.getElementById(STANDORT_SYNC_CONTROL_ID);
-  if (!control) {
-    return;
-  }
-  const locations = getLocationsInOrder();
-  control.style.display = locations.length > 1 ? "inline-block" : "none";
-}
-
 function startEditingLocationName(locationId, nameElement) {
   const location = getLocationById(locationId);
   if (!location || !nameElement) {
@@ -1588,7 +1561,9 @@ function renderLocationTabs() {
   addTab.setAttribute("aria-controls", "location-panel");
   addTab.textContent = "+";
   addTab.addEventListener("click", () => {
+    const syncPayload = getSyncPayload();
     createLocationEntry();
+    applySyncToAllLocations(syncPayload);
     window.location.reload();
   });
   locationTabsContainer.appendChild(addTab);
@@ -1651,7 +1626,6 @@ function renderLocationTabs() {
     updateLegendLocationLabel();
   }
 
-  updateStandortSyncVisibility();
 }
 
 function switchLocation(locationId) {
@@ -1758,17 +1732,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   renderLocationTabs();
 
-  updateStandortSyncVisibility();
-
-  standortSyncEnabled = loadStandortSyncState();
-  window.standortSyncEnabled = standortSyncEnabled;
-  if (standortSyncToggle) {
-    standortSyncToggle.checked = standortSyncEnabled;
-  }
-
-  if (standortSyncEnabled) {
-    applySyncToAllLocations(getSyncPayload());
-  }
+  applySyncToAllLocations(getSyncPayload());
 
   // Now set up event listeners
   setupEventListeners();
@@ -1805,28 +1769,10 @@ function setupEventListeners() {
     }, 120);
   });
 
-  if (standortSyncToggle) {
-    standortSyncToggle.addEventListener("change", () => {
-      standortSyncEnabled = standortSyncToggle.checked;
-      window.standortSyncEnabled = standortSyncEnabled;
-      persistStandortSyncState();
-      if (standortSyncEnabled) {
-        applySyncToAllLocations(getSyncPayload());
-        if (getLocationsInOrder().length > 1) {
-          refreshAllLocationCalculations();
-        }
-      }
-      if (comparisonActive) {
-        renderComparisonPlot();
-      }
-    });
-  }
-
   const tooltipPairs = [
     { labelId: "gts-queen-label", tooltipId: "gts-queen-tooltip" },
     { labelId: "gts-rainbow-label", tooltipId: "gts-rainbow-tooltip" },
     { labelId: "gts-temp-label", tooltipId: "gts-temp-tooltip" },
-    { labelId: "standort-sync-label", tooltipId: "standort-sync-tooltip" },
     { labelId: "datum-label", tooltipId: "datum-tooltip" }
   ];
 

@@ -1,4 +1,5 @@
 import { updateHinweisSection } from '../assets/js/information';
+import { defaultTrachtData } from '../assets/js/tracht_data';
 
 describe('updateHinweisSection', () => {
   beforeEach(() => {
@@ -59,5 +60,71 @@ describe('updateHinweisSection', () => {
     expect(section.innerHTML).toContain("&lt;img src=x onerror=alert(\"xss\")&gt;");
     expect(section.innerHTML).not.toContain("javascript:alert");
     expect(section.querySelector("a[href^='javascript:']")).toBeNull();
+  });
+
+  test("preserves a custom entry without a URL", async () => {
+    const customData = [{
+      TS_start: 6,
+      TS_end: 6,
+      plant: "Eigene Trachtpflanze",
+      url: "",
+      active: true
+    }];
+    localStorage.setItem("trachtData", JSON.stringify(customData));
+
+    await updateHinweisSection([
+      { date: "2026-01-01", gts: 1 },
+      { date: "2026-01-07", gts: 7 }
+    ], new Date(2026, 0, 7));
+
+    expect(JSON.parse(localStorage.getItem("trachtData"))).toEqual(customData);
+    expect(document.querySelector(".hinweis-section").textContent)
+      .toContain("Eigene Trachtpflanze");
+  });
+
+  test("preserves an intentionally empty custom list", async () => {
+    localStorage.setItem("trachtData", "[]");
+
+    await updateHinweisSection([
+      { date: "2026-01-07", gts: 7 }
+    ], new Date(2026, 0, 7));
+
+    expect(localStorage.getItem("trachtData")).toBe("[]");
+    expect(document.querySelector(".hinweis-section").textContent)
+      .not.toContain(defaultTrachtData[0].plant);
+  });
+
+  test("renders safely without overwriting malformed stored data", async () => {
+    const warning = jest.spyOn(console, "warn").mockImplementation(() => {});
+    localStorage.setItem("trachtData", "{broken json");
+
+    await expect(updateHinweisSection([
+      { date: "2026-01-07", gts: 7 }
+    ], new Date(2026, 0, 7))).resolves.toBeUndefined();
+
+    expect(localStorage.getItem("trachtData")).toBe("{broken json");
+    expect(document.querySelector(".hinweis-section").textContent)
+      .toContain("Imkerliche Information");
+    expect(warning).toHaveBeenCalled();
+    warning.mockRestore();
+  });
+
+  test("adds a missing URL to a known default plant without replacing the list", async () => {
+    const defaultRow = defaultTrachtData.find((row) => row.url);
+    const storedRow = {
+      active: defaultRow.active,
+      TS_start: defaultRow.TS_start,
+      TS_end: defaultRow.TS_end,
+      plant: defaultRow.plant
+    };
+    localStorage.setItem("trachtData", JSON.stringify([storedRow]));
+
+    await updateHinweisSection([
+      { date: "2026-01-07", gts: 7 }
+    ], new Date(2026, 0, 7));
+
+    expect(JSON.parse(localStorage.getItem("trachtData"))).toEqual([
+      { ...storedRow, url: defaultRow.url }
+    ]);
   });
 });

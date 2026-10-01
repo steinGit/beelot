@@ -13,10 +13,7 @@ const DEFAULT_URL_BY_PLANT = new Map(
 );
 
 export async function updateHinweisSection(gtsResults, endDate) {
-    // STEP 0A) If localStorage has no "trachtData", set it to default.
-    ensureTrachtDataInLocalStorage();
-
-    // 0B) Grab the <section> element
+    // 0) Grab the <section> element
     const hinweisSection = document.querySelector(".hinweis-section");
     if (!hinweisSection) {
         return;
@@ -86,10 +83,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
     const TSUM_max = D_E[m] || TSUM_current;
 
     // 3) Load Tracht data => relevant_list
-    const rawTrachtData = loadTrachtData("trachtData");
-    const merged = mergeMissingUrls(rawTrachtData);
-    let trachtData = merged.data;
-    trachtData = trachtData.filter(row => row.active);
+    const trachtData = loadTrachtData("trachtData").filter(row => row.active);
 
     const relevant_list = trachtData
         .filter(row => row.TS_start <= TSUM_max)
@@ -359,31 +353,6 @@ export async function updateHinweisSection(gtsResults, endDate) {
     hinweisSection.innerHTML = html;
 }
 
-// ------------------------------------------------
-// Helper: ensure localStorage has defaultTrachtData
-// ------------------------------------------------
-function ensureTrachtDataInLocalStorage() {
-  const TRACT_DATA_KEY = "trachtData";
-  const stored = localStorage.getItem(TRACT_DATA_KEY);
-  if (!stored) {
-    localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(defaultTrachtData));
-    return;
-  }
-  try {
-    const parsed = JSON.parse(stored);
-    if (!hasAnyUrl(parsed)) {
-      localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(defaultTrachtData));
-      return;
-    }
-    const merged = mergeMissingUrls(parsed);
-    if (merged.changed) {
-      localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(merged.data));
-    }
-  } catch (error) {
-    console.warn("[information.js] Failed to parse trachtData for URL migration.", error);
-  }
-}
-
 // ----------------------
 // Remaining helper funcs
 // ----------------------
@@ -403,10 +372,26 @@ function dayOfYear(d) {
 
 function loadTrachtData(key) {
     const stored = localStorage.getItem(key);
-    if (!stored) {
+    if (stored === null) {
+        localStorage.setItem(key, JSON.stringify(defaultTrachtData));
+        return defaultTrachtData;
+    }
+    let parsed;
+    try {
+        parsed = JSON.parse(stored);
+    } catch (error) {
+        console.warn("[information.js] Invalid trachtData in localStorage.", error);
         return [];
     }
-    return JSON.parse(stored);
+    if (!Array.isArray(parsed)) {
+        console.warn("[information.js] Stored trachtData is not an array.");
+        return [];
+    }
+    const merged = mergeMissingUrls(parsed);
+    if (merged.changed) {
+        localStorage.setItem(key, JSON.stringify(merged.data));
+    }
+    return merged.data;
 }
 
 function mergeMissingUrls(trachtData) {
@@ -433,21 +418,6 @@ function mergeMissingUrls(trachtData) {
         return row;
     });
     return { data, changed };
-}
-
-function hasAnyUrl(trachtData) {
-    if (!Array.isArray(trachtData)) {
-        return false;
-    }
-    return trachtData.some((row) => {
-        if (!row || typeof row !== "object") {
-            return false;
-        }
-        if (typeof row.url !== "string") {
-            return false;
-        }
-        return row.url.trim().length > 0;
-    });
 }
 
 function buildPlantLabel(row) {

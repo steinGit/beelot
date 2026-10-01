@@ -29,7 +29,6 @@ export const gtsPlotContainer  = document.getElementById('gts-plot-container');
 
 export const gtsRangeInputs = Array.from(document.querySelectorAll('input[name="gts-range"]'));
 export const gtsColorInputs = Array.from(document.querySelectorAll('input[name="gts-color-scheme"]'));
-export const standortSyncToggle = document.getElementById('standort-sync-toggle');
 
 export const toggleTempPlotBtn = document.getElementById('toggle-temp-plot');
 export const tempPlotContainer = document.getElementById('temp-plot-container');
