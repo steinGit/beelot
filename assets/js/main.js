@@ -36,10 +36,17 @@ import {
   isOpenMeteoError,
   mergeValidDailyTemperatures
 } from './dataService.js';
-import { formatDateLocal, formatDayMonth, parseDateStringLocal } from './utils.js';
+import {
+  fetchWithTimeout,
+  formatDateLocal,
+  formatDayMonth,
+  parseDateStringLocal
+} from './utils.js';
 import { getNextTabTarget } from './locationTabNavigation.js';
 import { createTooltipGate } from './tooltipFrequency.js';
 import { shouldSwitchLocation } from './locationSwitching.js';
+import { blocksGlobalShortcut } from './keyboardShortcuts.js';
+import { createLatestRequestGuard } from './latestRequest.js';
 import {
   buildAddressQueries,
   buildCanonicalAddressFromResult,
@@ -152,6 +159,7 @@ let gtsRange20Active = false;
 let gtsColorScheme = "queen";
 let lastNarrowLayout = null;
 let comparisonActive = false;
+const comparisonRequestGuard = createLatestRequestGuard();
 let offlineStatusActive = false;
 const REGULAR_GTS_RANGES = new Set([1, 5, 10]);
 const GTS_RANGE_20 = 20;
@@ -322,7 +330,7 @@ async function geocodeAddress({ street, city, country, forcedSettlement = null }
       params.set("country", normalized.country);
     }
 
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+    const response = await fetchWithTimeout(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
       headers: {
         "Accept-Language": "de"
       }
@@ -409,7 +417,7 @@ async function geocodeAddress({ street, city, country, forcedSettlement = null }
       lang: "de",
       limit: "10"
     });
-    const response = await fetch(`https://photon.komoot.io/api/?${params.toString()}`);
+    const response = await fetchWithTimeout(`https://photon.komoot.io/api/?${params.toString()}`);
     if (!response.ok) {
       photonSettlementCandidates = [];
       return photonSettlementCandidates;
@@ -1201,6 +1209,7 @@ async function renderComparisonPlot() {
   if (!comparisonActive) {
     return;
   }
+  const renderGeneration = comparisonRequestGuard.start();
   try {
     const endDate = parseDateInput(datumInput.value);
     if (
@@ -1214,6 +1223,9 @@ async function renderComparisonPlot() {
     const seriesResults = await Promise.all(
       locations.map((location) => buildComparisonSeriesForLocation(location, endDate, selection, true))
     );
+    if (!comparisonActive || !comparisonRequestGuard.isCurrent(renderGeneration)) {
+      return;
+    }
 
     const normalized = seriesResults.filter(Boolean);
     if (normalized.length === 0) {
@@ -1246,6 +1258,9 @@ async function renderComparisonPlot() {
     plotComparisonData(masterLabels, series, null);
     clearOfflineStatusMessage();
   } catch (error) {
+    if (!comparisonActive || !comparisonRequestGuard.isCurrent(renderGeneration)) {
+      return;
+    }
     if (isOpenMeteoError(error)) {
       showOfflineStatusMessage();
       return;
@@ -2097,17 +2112,13 @@ function setupEventListeners() {
 
   // Allow + and - keys for date increment/decrement
   document.addEventListener('keydown', (event) => {
+    if (
+      blocksGlobalShortcut(event.target)
+      || blocksGlobalShortcut(document.activeElement)
+    ) {
+      return;
+    }
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-      const activeElement = document.activeElement;
-      const isEditable = activeElement && (
-        (activeElement.tagName === "INPUT" &&
-          (activeElement.type === "text" || activeElement.type === "number" || activeElement.type === "date")) ||
-        activeElement.tagName === "TEXTAREA" ||
-        activeElement.isContentEditable
-      );
-      if (isEditable) {
-        return;
-      }
       event.preventDefault();
       event.stopPropagation();
       const locations = getLocationsInOrder();

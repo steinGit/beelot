@@ -57,4 +57,23 @@ describe('fetchGTSForYear end-of-year behavior', () => {
             expect(requestedYear).toBeGreaterThanOrEqual(1940);
         });
     });
+
+    test('rejects the whole comparison when a historical year cannot be loaded', async () => {
+        jest.resetModules();
+        localStorage.clear();
+        global.fetch = jest.fn().mockRejectedValue(new Error('Network unavailable'));
+        const { buildYearData } = await import('../assets/js/logic.js');
+
+        await expect(buildYearData(
+            48,
+            9,
+            new Date(2026, 0, 1),
+            new Date(2026, 9, 1),
+            [{ date: '2026-01-01', gts: 5 }],
+            2
+        )).rejects.toMatchObject({
+            name: 'OpenMeteoError',
+            message: 'Weather data unavailable for year 2025.'
+        });
+    });
 });

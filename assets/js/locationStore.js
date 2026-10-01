@@ -205,12 +205,105 @@ function loadState() {
 
 let state = loadState();
 
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.warn("[locationStore] Failed to persist state.", error);
+function buildPersistableState() {
+  const locations = {};
+  state.order.forEach((id) => {
+    const location = state.locations[id];
+    if (location) {
+      locations[id] = {
+        ...location,
+        calculations: buildDefaultCalculations()
+      };
+    }
+  });
+  return {
+    ...state,
+    locations
+  };
+}
+
+function isQuotaExceededError(error) {
+  return Boolean(error && (
+    error.name === "QuotaExceededError"
+    || error.code === 22
+    || error.code === 1014
+  ));
+}
+
+function evictOldestWeatherCacheEntry() {
+  let oldest = null;
+  state.order.forEach((id) => {
+    const weather = state.locations[id]?.cache?.weather || {};
+    Object.entries(weather).forEach(([key, value]) => {
+      const cachedAt = Number.isFinite(value?.cachedAt) ? value.cachedAt : 0;
+      if (!oldest || cachedAt < oldest.cachedAt) {
+        oldest = { id, key, cachedAt };
+      }
+    });
+  });
+  if (!oldest) {
+    return false;
   }
+  delete state.locations[oldest.id].cache.weather[oldest.key];
+  return true;
+}
+
+function persist() {
+  let evictedEntries = 0;
+  let attemptsRemaining = state.order.reduce((count, id) => (
+    count + Object.keys(state.locations[id]?.cache?.weather || {}).length
+  ), 1);
+  while (attemptsRemaining > 0) {
+    attemptsRemaining -= 1;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(buildPersistableState()));
+      if (evictedEntries > 0) {
+        console.warn(
+          `[locationStore] Storage quota reached; evicted ${evictedEntries} weather cache entr${evictedEntries === 1 ? "y" : "ies"}.`
+        );
+      }
+      return true;
+    } catch (error) {
+      if (isQuotaExceededError(error) && evictOldestWeatherCacheEntry()) {
+        evictedEntries += 1;
+        continue;
+      }
+      console.warn("[locationStore] Failed to persist state.", error);
+      return false;
+    }
+  }
+  return false;
+}
+
+function applyExternalState(serializedState) {
+  if (serializedState === null) {
+    state = buildDefaultState();
+    return;
+  }
+  try {
+    const incoming = normalizeState(JSON.parse(serializedState));
+    incoming.order.forEach((id) => {
+      const localLocation = state.locations[id];
+      const incomingLocation = incoming.locations[id];
+      if (
+        localLocation?.calculations
+        && coordinatesEqual(localLocation.coordinates, incomingLocation.coordinates)
+      ) {
+        incomingLocation.calculations = localLocation.calculations;
+      }
+    });
+    state = incoming;
+  } catch (error) {
+    console.warn("[locationStore] Ignoring invalid state from another tab.", error);
+  }
+}
+
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("storage", (event) => {
+    if (event.key === STORAGE_KEY) {
+      applyExternalState(event.newValue);
+    }
+  });
 }
 
 function sanitizeName(name, fallback) {

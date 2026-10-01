@@ -1,8 +1,10 @@
 import {
+    CURRENT_YEAR_CACHE_MAX_AGE_MS,
     fetchHistoricalData,
     findFirstMissingTemperatureDate,
     getCachedData,
     mergeValidDailyTemperatures,
+    RECENT_CACHE_MAX_AGE_MS,
     setCachedData
 } from '../assets/js/dataService';
 
@@ -30,6 +32,48 @@ describe('setCachedData', () => {
         const data = { key: 'value' };
         setCachedData('testKey', data);
         expect(localStorage.getItem('testKey')).toBe(JSON.stringify(data));
+    });
+
+    test('expires provisional cache entries while keeping fresh data', () => {
+        const values = new Map();
+        const cacheStore = {
+            get: (key) => values.get(key),
+            set: (key, value) => values.set(key, value),
+            remove: (key) => values.delete(key)
+        };
+        const data = { daily: { time: [], temperature_2m_mean: [] } };
+        setCachedData('recent', data, cacheStore, 1000);
+
+        expect(getCachedData(
+            'recent',
+            cacheStore,
+            RECENT_CACHE_MAX_AGE_MS,
+            1000 + RECENT_CACHE_MAX_AGE_MS - 1
+        )).toEqual(data);
+        expect(getCachedData(
+            'recent',
+            cacheStore,
+            RECENT_CACHE_MAX_AGE_MS,
+            1000 + RECENT_CACHE_MAX_AGE_MS
+        )).toBeNull();
+        expect(values.has('recent')).toBe(false);
+    });
+
+    test('invalidates legacy current-year entries without timestamps', () => {
+        const values = new Map([['historical', { daily: true }]]);
+        const cacheStore = {
+            get: (key) => values.get(key),
+            set: (key, value) => values.set(key, value),
+            remove: (key) => values.delete(key)
+        };
+
+        expect(getCachedData(
+            'historical',
+            cacheStore,
+            CURRENT_YEAR_CACHE_MAX_AGE_MS,
+            Date.now()
+        )).toBeNull();
+        expect(values.has('historical')).toBe(false);
     });
 });
 

@@ -6,7 +6,11 @@
  */
 
 import { formatDateLocal, parseDateStringLocal } from './utils.js';
-import { fetchHistoricalData, HISTORICAL_DATA_START_YEAR } from './dataService.js';
+import {
+    fetchHistoricalData,
+    HISTORICAL_DATA_START_YEAR,
+    OpenMeteoError
+} from './dataService.js';
 
 /**
  * Creates a Date object set to local midnight to avoid time zone issues.
@@ -284,7 +288,7 @@ export async function buildYearData(
                 //    " => #points=", yearly.gtsValues.length);
                 allResults.push(yearly);
             } catch (err) {
-                console.warn(`[build5YearData] Error year=${y}`, err);
+                throw new OpenMeteoError(`Weather data unavailable for year ${y}.`, err);
             }
         }
     }
@@ -379,7 +383,7 @@ export async function buildFullYearData(
             );
             allResults.push(yearly);
         } catch (err) {
-            console.warn(`[buildFullYearData] Error year=${y}`, err);
+            throw new OpenMeteoError(`Weather data unavailable for year ${y}.`, err);
         }
     }
 

@@ -9,12 +9,10 @@
   </head>
   <body>
     <div id="header-placeholder"></div>
-    <script>
-      fetch("components/header.html")
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById("header-placeholder").innerHTML = html;
-        });
+    <script type="module">
+      import { loadPageHeader } from "./assets/js/pageFragments.js";
+
+      loadPageHeader();
     </script>
 
     <main>
@@ -69,12 +67,10 @@
     </main>
 
     <div id="footer-placeholder"></div>
-    <script>
-      fetch("components/footer.html")
-        .then(response => response.text())
-        .then(html => {
-          document.getElementById("footer-placeholder").innerHTML = html;
-        });
+    <script type="module">
+      import { loadPageFooter } from "./assets/js/pageFragments.js";
+
+      loadPageFooter();
     </script>
 
   </body>

@@ -119,3 +119,35 @@ export function shiftDateStringByDays(value, deltaDays, maxDateValue = null) {
     }
     return formatDateLocal(shifted);
 }
+
+/**
+ * Fetches a resource and aborts requests that exceed the configured duration.
+ * @param {RequestInfo|URL} resource - Resource passed to fetch.
+ * @param {RequestInit} options - Fetch options.
+ * @param {number} timeoutMs - Timeout in milliseconds.
+ * @returns {Promise<Response>} - Fetch response.
+ */
+export async function fetchWithTimeout(resource, options = {}, timeoutMs = 15000) {
+    const controller = new AbortController();
+    let timedOut = false;
+    const timeoutId = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+    }, timeoutMs);
+
+    try {
+        return await fetch(resource, {
+            ...options,
+            signal: controller.signal
+        });
+    } catch (error) {
+        if (timedOut) {
+            const timeoutError = new Error(`Request timed out after ${timeoutMs} ms.`);
+            timeoutError.name = "TimeoutError";
+            throw timeoutError;
+        }
+        throw error;
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}

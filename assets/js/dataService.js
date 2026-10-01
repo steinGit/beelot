@@ -5,10 +5,18 @@
  * Handles fetching and caching of historical and recent weather data.
  */
 
-import { formatDateLocal, isValidDate, parseDateStringLocal } from './utils.js';
+import {
+    fetchWithTimeout,
+    formatDateLocal,
+    isValidDate,
+    parseDateStringLocal
+} from './utils.js';
 
 const DATA_SERVICE_DEBUG = false;
 export const HISTORICAL_DATA_START_YEAR = 1940;
+export const CURRENT_YEAR_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+export const RECENT_CACHE_MAX_AGE_MS = 60 * 60 * 1000;
+const CACHE_ENTRY_VERSION = 1;
 
 function debugLog(message) {
     if (!DATA_SERVICE_DEBUG) {
@@ -117,21 +125,51 @@ export function findFirstMissingTemperatureDate(dataByDate, start, end) {
  * @param {Object|null} cacheStore - Optional cache store with get/set methods.
  * @returns {Object|null} - The parsed data if present, otherwise null.
  */
-export function getCachedData(key, cacheStore = null) {
+export function getCachedData(key, cacheStore = null, maxAgeMs = null, now = Date.now()) {
+    let cached;
     if (cacheStore) {
-        return cacheStore.get(key);
+        cached = cacheStore.get(key);
+    } else {
+        cached = localStorage.getItem(key);
     }
-    const cached = localStorage.getItem(key);
-    if (cached) {
+    if (!cached) {
+        return null;
+    }
+    if (!cacheStore) {
         try {
-            return JSON.parse(cached);
+            cached = JSON.parse(cached);
         } catch (error) {
             console.warn(`[dataService.js] Invalid JSON in cache for key '${key}', clearing entry.`);
             localStorage.removeItem(key);
             return null;
         }
     }
-    return null;
+
+    if (cached?.cacheEntryVersion === CACHE_ENTRY_VERSION) {
+        const isExpired = Number.isFinite(maxAgeMs) && (
+            !Number.isFinite(cached.cachedAt)
+            || now - cached.cachedAt >= maxAgeMs
+        );
+        if (isExpired) {
+            if (cacheStore) {
+                cacheStore.remove(key);
+            } else {
+                localStorage.removeItem(key);
+            }
+            return null;
+        }
+        return cached.data;
+    }
+
+    if (Number.isFinite(maxAgeMs)) {
+        if (cacheStore) {
+            cacheStore.remove(key);
+        } else {
+            localStorage.removeItem(key);
+        }
+        return null;
+    }
+    return cached;
 }
 
 /**
@@ -140,12 +178,15 @@ export function getCachedData(key, cacheStore = null) {
  * @param {Object} data - The data to store.
  * @param {Object|null} cacheStore - Optional cache store with get/set methods.
  */
-export function setCachedData(key, data, cacheStore = null) {
+export function setCachedData(key, data, cacheStore = null, cachedAt = null) {
+    const storedValue = Number.isFinite(cachedAt)
+        ? { cacheEntryVersion: CACHE_ENTRY_VERSION, cachedAt, data }
+        : data;
     if (cacheStore) {
-        cacheStore.set(key, data);
+        cacheStore.set(key, storedValue);
         return;
     }
-    localStorage.setItem(key, JSON.stringify(data));
+    localStorage.setItem(key, JSON.stringify(storedValue));
 }
 
 /**
@@ -227,7 +268,11 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
         lon,
         `${formatDateLocal(start)}_${formatDateLocal(end)}`
     );
-    const cachedData = getCachedData(cacheKey, cacheStore);
+    const cachedData = getCachedData(
+        cacheKey,
+        cacheStore,
+        CURRENT_YEAR_CACHE_MAX_AGE_MS
+    );
     if (cachedData) {
         ensureDailyData(cachedData, "historical-cache");
         debugLog(`Historical data loaded from cache (key=${cacheKey}).`);
@@ -243,13 +288,13 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
     )}&end_date=${formatDateLocal(end)}&daily=temperature_2m_mean&timezone=Europe%2FBerlin`;
 
     try {
-        const response = await fetch(url);
+        const response = await fetchWithTimeout(url);
         if (!response.ok) {
             throw new OpenMeteoError(`Open-Meteo error: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
         ensureDailyData(data, "historical");
-        setCachedData(cacheKey, data, cacheStore);
+        setCachedData(cacheKey, data, cacheStore, Date.now());
         return data;
     } catch (error) {
         debugError(`Error fetching historical data: ${error.message}`);
@@ -284,7 +329,7 @@ async function fetchHistoricalYear(lat, lon, start, end) {
     )}&end_date=${formatDateLocal(end)}&daily=temperature_2m_mean&timezone=Europe%2FBerlin`;
 
     try {
-        const response = await fetch(url);
+        const response = await fetchWithTimeout(url);
         if (!response.ok) {
             throw new OpenMeteoError(`Open-Meteo error: ${response.status} ${response.statusText}`);
         }
@@ -337,7 +382,11 @@ export async function fetchRecentData(lat, lon, start, end, cacheStore = null) {
     }
 
     const cacheKey = computeCacheKey('recent', lat, lon, `${formatDateLocal(start)}_${formatDateLocal(end)}`);
-    const cachedData = getCachedData(cacheKey, cacheStore);
+    const cachedData = getCachedData(
+        cacheKey,
+        cacheStore,
+        RECENT_CACHE_MAX_AGE_MS
+    );
     if (cachedData) {
         ensureDailyData(cachedData, "recent-cache");
         debugLog(`Recent data loaded from cache (key=${cacheKey}).`);
@@ -351,14 +400,14 @@ export async function fetchRecentData(lat, lon, start, end, cacheStore = null) {
     )}&end_date=${formatDateLocal(end)}&daily=temperature_2m_mean&timezone=Europe%2FBerlin`;
 
     try {
-        const response = await fetch(url);
+        const response = await fetchWithTimeout(url);
         if (!response.ok) {
             throw new OpenMeteoError(`Open-Meteo error: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
         ensureDailyData(data, "recent");
-        setCachedData(cacheKey, data, cacheStore);
+        setCachedData(cacheKey, data, cacheStore, Date.now());
         return data;
     } catch (error) {
         debugError(`Error fetching recent data: ${error.message}`);

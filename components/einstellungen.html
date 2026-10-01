@@ -14,17 +14,9 @@
 
     <script type="module">
       import { VERSION } from "./assets/js/version.js";
+      import { loadPageHeader } from "./assets/js/pageFragments.js";
 
-      fetch("components/header.html")
-        .then(response => response.text())
-        .then(html => {
-          document.getElementById("header-placeholder").innerHTML = html;
-
-          const versionElement = document.getElementById("version-placeholder");
-          if (versionElement) {
-            versionElement.textContent = `Version ${VERSION}`;
-          }
-        });
+      loadPageHeader(VERSION);
     </script>
 
     <main>
@@ -87,12 +79,10 @@
 
     <!-- Footer -->
     <div id="footer-placeholder"></div>
-    <script>
-      fetch("components/footer.html")
-    .then(response => response.text())
-    .then(html => {
-        document.getElementById("footer-placeholder").innerHTML = html;
-    });
+    <script type="module">
+      import { loadPageFooter } from "./assets/js/pageFragments.js";
+
+      loadPageFooter();
     </script>
 
 

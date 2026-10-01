@@ -4,6 +4,10 @@ describe('locationStore', () => {
         jest.resetModules();
     });
 
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
     test('initializes with a default location', async () => {
         const {
             getActiveLocation,
@@ -115,5 +119,100 @@ describe('locationStore', () => {
 
         expect(getActiveLocation().calculations.gtsResults)
             .toEqual([{ date: '2026-01-01', gts: 5 }]);
+    });
+
+    test('keeps derived calculations in memory instead of persistent storage', async () => {
+        const { getActiveLocation, updateLocation } = await import('../assets/js/locationStore');
+        const locationId = getActiveLocation().id;
+
+        updateLocation(locationId, (location) => {
+            location.calculations.gtsResults = [{ date: '2026-01-01', gts: 5 }];
+            location.calculations.hinweisHtml = '<p>Derived content</p>';
+        });
+
+        expect(getActiveLocation().calculations.gtsResults)
+            .toEqual([{ date: '2026-01-01', gts: 5 }]);
+        const persisted = JSON.parse(localStorage.getItem('beelotLocations'));
+        expect(persisted.locations[locationId].calculations.gtsResults).toBeNull();
+        expect(persisted.locations[locationId].calculations.hinweisHtml).toBe('');
+    });
+
+    test('evicts the oldest weather cache entry and retries after quota failure', async () => {
+        const store = await import('../assets/js/locationStore');
+        const locationId = store.getActiveLocation().id;
+        const weatherCache = store.createWeatherCacheStore(locationId);
+        weatherCache.set('older', { cachedAt: 1, data: { value: 'old' } });
+        weatherCache.set('newer', { cachedAt: 2, data: { value: 'new' } });
+
+        const originalSetItem = Storage.prototype.setItem;
+        let quotaRaised = false;
+        jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (key, value) {
+            if (key === 'beelotLocations' && !quotaRaised) {
+                quotaRaised = true;
+                throw new DOMException('Storage full', 'QuotaExceededError');
+            }
+            return originalSetItem.call(this, key, value);
+        });
+        jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+        store.renameLocation(locationId, 'After quota retry');
+
+        expect(store.getActiveLocation().name).toBe('After quota retry');
+        expect(weatherCache.get('older')).toBeNull();
+        expect(weatherCache.get('newer')).toEqual({
+            cachedAt: 2,
+            data: { value: 'new' }
+        });
+        expect(localStorage.getItem('beelotLocations')).not.toBeNull();
+    });
+
+    test('applies location changes received from another browser tab', async () => {
+        const store = await import('../assets/js/locationStore');
+        const first = store.getActiveLocation();
+        store.updateLocation(first.id, (location) => {
+            location.calculations.gtsResults = [{ date: '2026-01-01', gts: 5 }];
+        });
+        const external = JSON.parse(localStorage.getItem('beelotLocations'));
+        external.nextId = 3;
+        external.order.push('loc-2');
+        external.locations['loc-2'] = {
+            id: 'loc-2',
+            name: 'Other tab',
+            coordinates: null,
+            cache: { weather: {}, locationName: {} },
+            calculations: null,
+            ui: null
+        };
+
+        window.dispatchEvent(new StorageEvent('storage', {
+            key: 'beelotLocations',
+            newValue: JSON.stringify(external)
+        }));
+
+        expect(store.getLocationsInOrder().map((location) => location.name))
+            .toEqual(['Standort 1', 'Other tab']);
+        expect(store.getLocationById(first.id).calculations.gtsResults)
+            .toEqual([{ date: '2026-01-01', gts: 5 }]);
+    });
+
+    test('discards local calculations when another tab changes the coordinates', async () => {
+        const store = await import('../assets/js/locationStore');
+        const first = store.getActiveLocation();
+        store.updateLocation(first.id, (location) => {
+            location.coordinates = { lat: 48, lon: 9 };
+        });
+        store.updateLocation(first.id, (location) => {
+            location.calculations.gtsResults = [{ date: '2026-01-01', gts: 5 }];
+        });
+        const external = JSON.parse(localStorage.getItem('beelotLocations'));
+        external.locations[first.id].coordinates = { lat: 49, lon: 10 };
+
+        window.dispatchEvent(new StorageEvent('storage', {
+            key: 'beelotLocations',
+            newValue: JSON.stringify(external)
+        }));
+
+        expect(store.getLocationById(first.id).coordinates).toEqual({ lat: 49, lon: 10 });
+        expect(store.getLocationById(first.id).calculations.gtsResults).toBeNull();
     });
 });

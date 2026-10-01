@@ -44,6 +44,7 @@
     <!-- 2) Load the header, THEN set the version, THEN load main.js -->
     <script type="module">
       import { VERSION } from "./assets/js/version.js";
+      import { loadPageHeader } from "./assets/js/pageFragments.js";
 
       // Dynamically set the page title
       const titleElement = document.getElementById("title-placeholder");
@@ -51,19 +52,7 @@
         titleElement.textContent = `BeeLot Version ${VERSION}`;
       }
 
-      // Fetch and inject the header
-      fetch("components/header.html")
-        .then((response) => response.text())
-        .then((html) => {
-          document.getElementById("header-placeholder").innerHTML = html;
-
-          // Now the #version-placeholder exists in the DOM
-          const versionElement = document.getElementById("version-placeholder");
-          if (versionElement) {
-            versionElement.textContent = `Version ${VERSION}`;
-          }
-
-        });
+      loadPageHeader(VERSION);
     </script>
 
     <main>
@@ -274,12 +263,10 @@
     <!-- main.js -->
     <script type="module" src="assets/js/main.js"></script>
     <div id="footer-placeholder"></div>
-    <script>
-      fetch("components/footer.html")
-        .then((response) => response.text())
-        .then((html) => {
-          document.getElementById("footer-placeholder").innerHTML = html;
-        });
+    <script type="module">
+      import { loadPageFooter } from "./assets/js/pageFragments.js";
+
+      loadPageFooter();
     </script>
 
   </body>
