@@ -85,7 +85,11 @@ export function calculateGTS(dates, values) {
     let cumulativeSum = 0;
     const results = [];
 
-    for (let i = 0; i < values.length; i++) {
+    const entryCount = Math.min(dates.length, values.length);
+    for (let i = 0; i < entryCount; i++) {
+        if (typeof values[i] !== "number" || !Number.isFinite(values[i])) {
+            continue;
+        }
         let val = Math.max(0, values[i]); // Replace negative values with 0.0
         const currentDate = parseDateStringLocal(dates[i]);
         if (!currentDate) {

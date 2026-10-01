@@ -4,6 +4,7 @@ import { fetchHistoricalData, fetchRecentData } from '../assets/js/dataService.j
 import { plotData, plotDailyTemps, plotMultipleYearData } from '../assets/js/charts.js';
 import { buildYearData } from '../assets/js/logic.js';
 import { LocationNameFromGPS } from '../assets/js/location_name_from_gps.js';
+import { formatDateLocal } from '../assets/js/utils.js';
 
 jest.mock('../assets/js/charts.js', () => ({
   plotData: jest.fn(), plotDailyTemps: jest.fn(), plotMultipleYearData: jest.fn()
@@ -116,6 +117,49 @@ test('a normal run stores calculations and displays both charts and hints', asyn
   expect(plotData).toHaveBeenCalledWith(result.filteredResults, { min: 0, max: 10 });
   expect(plotDailyTemps).toHaveBeenCalledWith(result.temps.dates, [10, 10], { min: 10, max: 10 });
   expect(document.querySelector('#result').textContent).toContain('10.0');
+});
+
+test('a trailing missing historical temperature is repaired with recent data', async () => {
+  const endDate = new Date();
+  endDate.setHours(0, 0, 0, 0);
+  const recentStartDate = new Date(endDate);
+  recentStartDate.setDate(recentStartDate.getDate() - 2);
+  const middleDate = new Date(recentStartDate);
+  middleDate.setDate(middleDate.getDate() + 1);
+  const historicalDates = [recentStartDate, middleDate, endDate].map(formatDateLocal);
+  fetchHistoricalData.mockResolvedValueOnce({
+    daily: {
+      time: historicalDates,
+      temperature_2m_mean: [8, 10, null]
+    }
+  });
+  fetchRecentData.mockResolvedValueOnce({
+    daily: {
+      time: [formatDateLocal(endDate)],
+      temperature_2m_mean: [12]
+    }
+  });
+
+  const result = await updater.step7FetchAllData(
+    48,
+    9,
+    new Date(endDate.getFullYear(), 0, 1),
+    endDate,
+    recentStartDate,
+    0
+  );
+
+  expect(fetchRecentData).toHaveBeenCalledWith(
+    48,
+    9,
+    endDate,
+    endDate,
+    expect.any(Object)
+  );
+  expect(result).toEqual({
+    allDates: historicalDates,
+    allTemps: [8, 10, 12]
+  });
 });
 
 test('an impossible calendar date does not start a weather request', async () => {

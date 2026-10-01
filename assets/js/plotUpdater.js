@@ -9,8 +9,10 @@ import { plotData, plotDailyTemps, plotMultipleYearData } from './charts.js';
 import {
   fetchHistoricalData,
   fetchRecentData,
+  findFirstMissingTemperatureDate,
   HISTORICAL_DATA_START_YEAR,
-  isOpenMeteoError
+  isOpenMeteoError,
+  mergeValidDailyTemperatures
 } from './dataService.js';
 import {
   calculateGTS,
@@ -408,18 +410,6 @@ export class PlotUpdater {
    */
   async step7FetchAllData(lat, lon, fetchStartDate, endDate, recentStartDate, differenceInDays) {
     const dataByDate = {};
-    const addToMap = (dates, temps, overwrite) => {
-      if (!dates || !temps) {
-        return;
-      }
-      for (let i = 0; i < dates.length; i++) {
-        const dateKey = dates[i];
-        if (!overwrite && Object.prototype.hasOwnProperty.call(dataByDate, dateKey)) {
-          continue;
-        }
-        dataByDate[dateKey] = temps[i];
-      }
-    };
 
     let histData = null;
     try {
@@ -447,23 +437,23 @@ export class PlotUpdater {
     }
 
     if (histData && histData.daily && histData.daily.time.length > 0) {
-      addToMap(histData.daily.time, histData.daily.temperature_2m_mean, true);
+      mergeValidDailyTemperatures(dataByDate, histData, true);
 
-      const lastHistDateStr = histData.daily.time[histData.daily.time.length - 1];
-      const endDateStr = formatDateLocal(endDate);
-      if (lastHistDateStr < endDateStr) {
-        const lastHistDate = parseDateStringLocal(lastHistDateStr);
-        const recentStart = new Date(lastHistDate);
-        recentStart.setDate(recentStart.getDate() + 1);
+      const firstMissingDate = findFirstMissingTemperatureDate(
+        dataByDate,
+        recentStartDate,
+        endDate
+      );
+      if (firstMissingDate) {
         const recentData = await fetchRecentData(
           lat,
           lon,
-          recentStart,
+          firstMissingDate,
           endDate,
           this.weatherCacheStore
         );
         if (recentData && recentData.daily) {
-          addToMap(recentData.daily.time, recentData.daily.temperature_2m_mean, false);
+          mergeValidDailyTemperatures(dataByDate, recentData, false);
         }
       }
     } else if (differenceInDays <= 10) {
@@ -475,7 +465,7 @@ export class PlotUpdater {
         this.weatherCacheStore
       );
       if (recentData && recentData.daily) {
-        addToMap(recentData.daily.time, recentData.daily.temperature_2m_mean, true);
+        mergeValidDailyTemperatures(dataByDate, recentData, true);
       }
     }
 

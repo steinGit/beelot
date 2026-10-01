@@ -39,6 +39,17 @@ describe('calculateGTS', () => {
         const result = calculateGTS(dates, values);
         expect(result[0].gts).toBe(result[1].gts);
     });
+
+    test('omits missing temperatures instead of treating them as measured zeroes', () => {
+        const dates = ['2025-01-01', '2025-01-02', '2025-01-03', '2025-01-04'];
+        const values = [10, null, 0, 20];
+
+        expect(calculateGTS(dates, values)).toEqual([
+            { date: '2025-01-01', gts: 5 },
+            { date: '2025-01-03', gts: 5 },
+            { date: '2025-01-04', gts: 15 }
+        ]);
+    });
 });
 
 describe('calculateGTS with larger dataset', () => {

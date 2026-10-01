@@ -5,7 +5,7 @@
  * Handles fetching and caching of historical and recent weather data.
  */
 
-import { formatDateLocal, isValidDate } from './utils.js';
+import { formatDateLocal, isValidDate, parseDateStringLocal } from './utils.js';
 
 const DATA_SERVICE_DEBUG = false;
 export const HISTORICAL_DATA_START_YEAR = 1940;
@@ -47,9 +47,68 @@ export function isOpenMeteoError(error) {
 }
 
 function ensureDailyData(data, context) {
-    if (!data || !data.daily || !Array.isArray(data.daily.time)) {
+    const dates = data?.daily?.time;
+    const temperatures = data?.daily?.temperature_2m_mean;
+    if (
+        !Array.isArray(dates)
+        || !Array.isArray(temperatures)
+        || dates.length !== temperatures.length
+    ) {
         throw new OpenMeteoError(`Invalid Open-Meteo response${context ? ` (${context})` : ""}.`);
     }
+}
+
+/**
+ * Adds valid daily temperatures to a date-keyed collection.
+ * Missing values are omitted so that they remain distinguishable from measured zeroes.
+ * @param {Object} target - Date-keyed temperature collection.
+ * @param {Object} data - Open-Meteo daily response.
+ * @param {boolean} overwrite - Whether valid existing entries may be replaced.
+ */
+export function mergeValidDailyTemperatures(target, data, overwrite = true) {
+    ensureDailyData(data, "daily-merge");
+    const { time, temperature_2m_mean: temperatures } = data.daily;
+
+    for (let index = 0; index < time.length; index++) {
+        const dateKey = time[index];
+        const temperature = temperatures[index];
+        if (
+            !parseDateStringLocal(dateKey)
+            || typeof temperature !== "number"
+            || !Number.isFinite(temperature)
+        ) {
+            continue;
+        }
+        if (!overwrite && Object.prototype.hasOwnProperty.call(target, dateKey)) {
+            continue;
+        }
+        target[dateKey] = temperature;
+    }
+}
+
+/**
+ * Finds the first calendar day without a valid temperature in a date range.
+ * @param {Object} dataByDate - Date-keyed temperature collection.
+ * @param {Date} start - First date to inspect.
+ * @param {Date} end - Last date to inspect.
+ * @returns {Date|null} - The first missing date, or null when the range is complete.
+ */
+export function findFirstMissingTemperatureDate(dataByDate, start, end) {
+    if (!isValidDate(start) || !isValidDate(end) || start > end) {
+        return null;
+    }
+
+    const current = new Date(start);
+    current.setHours(0, 0, 0, 0);
+    const last = new Date(end);
+    last.setHours(0, 0, 0, 0);
+    while (current <= last) {
+        if (!Object.prototype.hasOwnProperty.call(dataByDate, formatDateLocal(current))) {
+            return new Date(current);
+        }
+        current.setDate(current.getDate() + 1);
+    }
+    return null;
 }
 
 /**
