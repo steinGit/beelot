@@ -47,3 +47,30 @@ export function getNextTabTarget({
   const nextIndex = (currentIndex + offset + tabOrder.length) % tabOrder.length;
   return tabOrder[nextIndex];
 }
+
+/**
+ * Creates a location action that remains reachable through normal Tab navigation.
+ * @param {Object} options - Button attributes.
+ * @param {string} options.id - Element id.
+ * @param {string} options.className - CSS classes.
+ * @param {string} options.label - Accessible name.
+ * @param {string} options.tooltipText - Tooltip text.
+ * @param {string} options.text - Visible button text.
+ * @returns {HTMLButtonElement} - Configured action button.
+ */
+export function createLocationActionButton({
+  id,
+  className,
+  label,
+  tooltipText,
+  text
+}) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.id = id;
+  button.className = className;
+  button.dataset.tooltipText = tooltipText;
+  button.setAttribute("aria-label", label);
+  button.textContent = text;
+  return button;
+}

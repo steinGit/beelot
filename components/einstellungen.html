@@ -3,6 +3,7 @@
   <head>
     <base href="/">
     <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Einstellungen</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/einstellungen.css">
@@ -25,11 +26,17 @@
         <p class="section-description">Hier können blührelevante Parameter eingestellt werden.</p>
 
         <!-- Heading: Tracht -->
-        <div class="settings-heading" data-target="tracht-content">
+        <button
+          type="button"
+          class="settings-heading"
+          data-target="tracht-content"
+          aria-expanded="false"
+          aria-controls="tracht-content"
+        >
           <span>Tracht</span>
-          <span class="arrow">▶</span>
-        </div>
-        <div class="settings-content" id="tracht-content" style="display: none;">
+          <span class="arrow" aria-hidden="true">▶</span>
+        </button>
+        <div class="settings-content" id="tracht-content" hidden>
           <p>Hier kannst du Tracht-Einträge bearbeiten.</p>
           <table id="tracht-table">
             <thead>
@@ -57,12 +64,18 @@
         <p class="section-description">Technische Einstellungen</p>
 
         <!-- Heading: Sonstiges -->
-        <div class="settings-heading" data-target="sonstiges-content">
+        <button
+          type="button"
+          class="settings-heading"
+          data-target="sonstiges-content"
+          aria-expanded="false"
+          aria-controls="sonstiges-content"
+        >
           <span>System</span>
-          <span class="arrow">▶</span>
-        </div>
+          <span class="arrow" aria-hidden="true">▶</span>
+        </button>
 
-        <div class="settings-content" id="sonstiges-content" style="display: none;">
+        <div class="settings-content" id="sonstiges-content" hidden>
           <p>Local Storage</p>
 
           <!-- Clear Local Storage Buttons -->

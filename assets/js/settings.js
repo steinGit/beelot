@@ -11,14 +11,10 @@ document.querySelectorAll('.settings-heading').forEach((heading) => {
     const targetId = heading.dataset.target;
     const content = document.getElementById(targetId);
     const arrow = heading.querySelector('.arrow');
-
-    if (content.style.display === 'none') {
-      content.style.display = 'block';
-      arrow.textContent = '▼';
-    } else {
-      content.style.display = 'none';
-      arrow.textContent = '▶';
-    }
+    const expanded = heading.getAttribute("aria-expanded") === "true";
+    heading.setAttribute("aria-expanded", String(!expanded));
+    content.hidden = expanded;
+    arrow.textContent = expanded ? '▶' : '▼';
   });
 });
 
@@ -87,7 +83,7 @@ async function loadTrachtData() {
 /**
  * Build the entire table from data (the user can see & edit).
  */
-function populateTrachtTable(data) {
+export function populateTrachtTable(data) {
   const tbody = document.querySelector("#tracht-table tbody");
   tbody.innerHTML = "";
 
@@ -101,6 +97,7 @@ function populateTrachtTable(data) {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = row.active;
+    checkbox.setAttribute("aria-label", `Aktiv, Zeile ${idx + 1}: ${row.plant}`);
     checkbox.onclick = () => toggleActive(idx);
     tdCheck.appendChild(checkbox);
     tr.appendChild(tdCheck);
@@ -112,6 +109,7 @@ function populateTrachtTable(data) {
     startInput.type = "text";
     startInput.value = row.TS_start;
     startInput.maxLength = 4;
+    startInput.setAttribute("aria-label", `Temperatursumme Start, Zeile ${idx + 1}: ${row.plant}`);
     startInput.style.textAlign = "right";
     startInput.style.border = "none";
     startInput.style.backgroundColor = row.active ? "#ffffc0" : "#C0C0C0";
@@ -126,6 +124,7 @@ function populateTrachtTable(data) {
     endInput.type = "text";
     endInput.value = row.TS_end;
     endInput.maxLength = 4;
+    endInput.setAttribute("aria-label", `Temperatursumme Ende, Zeile ${idx + 1}: ${row.plant}`);
     endInput.style.textAlign = "right";
     endInput.style.border = "none";
     endInput.style.backgroundColor = row.active ? "#ffffc0" : "#C0C0C0";
@@ -139,6 +138,7 @@ function populateTrachtTable(data) {
     const plantInput = document.createElement("input");
     plantInput.type = "text";
     plantInput.value = row.plant;
+    plantInput.setAttribute("aria-label", `Pflanze, Zeile ${idx + 1}`);
     plantInput.style.width = "100%";
     plantInput.style.border = "none";
     plantInput.style.backgroundColor = "transparent";
@@ -146,14 +146,16 @@ function populateTrachtTable(data) {
     tdPlant.appendChild(plantInput);
     tr.appendChild(tdPlant);
 
-    // Trash icon
+    // Delete action
     const tdTrash = document.createElement("td");
     tdTrash.className = "trash-cell";
-    const trashIcon = document.createElement("span");
-    trashIcon.innerHTML = "🗑️";
-    trashIcon.style.cursor = "pointer";
-    trashIcon.onclick = () => deleteRow(idx);
-    tdTrash.appendChild(trashIcon);
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "delete-row-button";
+    deleteButton.textContent = "Löschen";
+    deleteButton.setAttribute("aria-label", `${row.plant} löschen, Zeile ${idx + 1}`);
+    deleteButton.onclick = () => deleteRow(idx);
+    tdTrash.appendChild(deleteButton);
     tr.appendChild(tdTrash);
 
     // URL
@@ -161,6 +163,7 @@ function populateTrachtTable(data) {
     const urlInput = document.createElement("input");
     urlInput.type = "text";
     urlInput.value = row.url || "";
+    urlInput.setAttribute("aria-label", `URL, Zeile ${idx + 1}: ${row.plant}`);
     urlInput.style.width = "100%";
     urlInput.style.border = "none";
     urlInput.style.backgroundColor = "transparent";

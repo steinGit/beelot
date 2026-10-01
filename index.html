@@ -195,17 +195,34 @@
 
     </main>
 
-    <div class="map-container" id="map-popup">
+    <div
+      class="map-container"
+      id="map-popup"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="map-dialog-title"
+      aria-hidden="true"
+      inert
+    >
       <div class="map-controls">
+        <h3 id="map-dialog-title" class="visually-hidden">Standort auf Karte wählen</h3>
         <button id="map-close-btn">Schließen</button>
         <button id="map-save-btn">Diesen Ort verwenden</button>
       </div>
       <div id="map"></div>
     </div>
 
-    <div id="address-popup" class="address-popup" role="dialog" aria-modal="true" aria-hidden="true">
+    <div
+      id="address-popup"
+      class="address-popup"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="address-dialog-title"
+      aria-hidden="true"
+      inert
+    >
       <div class="address-dialog">
-        <h3>Adresse eingeben</h3>
+        <h3 id="address-dialog-title">Adresse eingeben</h3>
         <div class="address-fields">
           <label for="address-strasse">Strasse:</label>
           <input type="text" id="address-strasse" name="address-strasse" />
@@ -229,7 +246,16 @@
       </div>
     </div>
 
-    <div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+    <div
+      id="confirm-modal"
+      class="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-modal-title"
+      aria-describedby="confirm-modal-message"
+      aria-hidden="true"
+      inert
+    >
       <div class="modal-dialog" role="document">
         <h3 id="confirm-modal-title">Eintrag wirklich löschen?</h3>
         <p id="confirm-modal-message">Dies entfernt den Eintrag und alle zugehörigen Daten.</p>

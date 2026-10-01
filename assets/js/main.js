@@ -42,11 +42,15 @@ import {
   formatDayMonth,
   parseDateStringLocal
 } from './utils.js';
-import { getNextTabTarget } from './locationTabNavigation.js';
+import {
+  createLocationActionButton,
+  getNextTabTarget
+} from './locationTabNavigation.js';
 import { createTooltipGate } from './tooltipFrequency.js';
 import { shouldSwitchLocation } from './locationSwitching.js';
 import { blocksGlobalShortcut } from './keyboardShortcuts.js';
 import { createLatestRequestGuard } from './latestRequest.js';
+import { containDialogFocus } from './dialogFocus.js';
 import {
   buildAddressQueries,
   buildCanonicalAddressFromResult,
@@ -904,6 +908,7 @@ function updateColorSchemeAvailability(rangeValue, isTwentyActive = false) {
   }
 }
 let confirmModalResolver = null;
+let releaseConfirmModalFocus = null;
 
 function confirmModal({ title, message, confirmText = "Löschen", cancelText = "Abbrechen" }) {
   const modal = document.getElementById("confirm-modal");
@@ -921,12 +926,16 @@ function confirmModal({ title, message, confirmText = "Löschen", cancelText = "
   acceptBtn.textContent = confirmText;
   cancelBtn.textContent = cancelText;
 
+  modal.removeAttribute("inert");
   modal.classList.add("is-visible");
   modal.setAttribute("aria-hidden", "false");
 
   return new Promise((resolve) => {
     confirmModalResolver = resolve;
-    acceptBtn.focus();
+    releaseConfirmModalFocus = containDialogFocus(modal, {
+      initialFocus: acceptBtn,
+      onEscape: () => closeConfirmModal(false)
+    });
   });
 }
 
@@ -937,6 +946,11 @@ function closeConfirmModal(result) {
   }
   modal.classList.remove("is-visible");
   modal.setAttribute("aria-hidden", "true");
+  modal.setAttribute("inert", "");
+  if (releaseConfirmModalFocus) {
+    releaseConfirmModalFocus();
+    releaseConfirmModalFocus = null;
+  }
   if (confirmModalResolver) {
     confirmModalResolver(result);
     confirmModalResolver = null;
@@ -1569,16 +1583,13 @@ function renderLocationTabs() {
     locationTabsContainer.appendChild(tab);
   });
 
-  const addTab = document.createElement("button");
-  addTab.type = "button";
-  addTab.className = "location-tab location-tab-add";
-  addTab.role = "tab";
-  addTab.id = "location-tab-add";
-  addTab.dataset.tooltipText = "Füge ein en weiteren Standort hinzu.";
-  addTab.setAttribute("aria-selected", "false");
-  addTab.setAttribute("tabindex", "-1");
-  addTab.setAttribute("aria-controls", "location-panel");
-  addTab.textContent = "+";
+  const addTab = createLocationActionButton({
+    id: "location-tab-add",
+    className: "location-tab location-tab-add",
+    label: "Standort hinzufügen",
+    tooltipText: "Füge einen weiteren Standort hinzu.",
+    text: "+"
+  });
   addTab.addEventListener("click", () => {
     const syncPayload = getSyncPayload();
     createLocationEntry();
@@ -1588,16 +1599,13 @@ function renderLocationTabs() {
   locationTabsContainer.appendChild(addTab);
 
   if (locations.length > 1) {
-    const removeTab = document.createElement("button");
-    removeTab.type = "button";
-    removeTab.className = "location-tab location-tab-remove";
-    removeTab.role = "tab";
-    removeTab.id = "location-tab-remove";
-    removeTab.dataset.tooltipText = "Entferne den aktuellen Standort.";
-    removeTab.setAttribute("aria-selected", "false");
-    removeTab.setAttribute("tabindex", "-1");
-    removeTab.setAttribute("aria-controls", "location-panel");
-    removeTab.textContent = "-";
+    const removeTab = createLocationActionButton({
+      id: "location-tab-remove",
+      className: "location-tab location-tab-remove",
+      label: "Aktuellen Standort entfernen",
+      tooltipText: "Entferne den aktuellen Standort.",
+      text: "-"
+    });
     removeTab.addEventListener("click", () => {
       const activeId = getActiveLocationId();
       confirmModal({
@@ -1762,6 +1770,7 @@ document.addEventListener('DOMContentLoaded', () => {
  * Attach event listeners (only if DOM elements exist).
  */
 function setupEventListeners() {
+  let releaseMapDialogFocus = null;
   let resizeTimer = null;
   window.addEventListener("resize", () => {
     if (resizeTimer) {
@@ -2209,21 +2218,36 @@ function setupEventListeners() {
     if (!mapPopup) {
       return;
     }
+    mapPopup.removeAttribute("inert");
     mapPopup.style.display = 'block';
+    mapPopup.setAttribute("aria-hidden", "false");
+    releaseMapDialogFocus = containDialogFocus(mapPopup, {
+      initialFocus: mapCloseBtn,
+      onEscape: () => closeMapPopup()
+    });
     window.initOrUpdateMap();
   });
 
-  mapCloseBtn.addEventListener('click', () => {
+  const closeMapPopup = () => {
     const mapPopup = document.getElementById('map-popup');
     if (!mapPopup) {
       return;
     }
     mapPopup.style.display = 'none';
-  });
+    mapPopup.setAttribute("aria-hidden", "true");
+    mapPopup.setAttribute("inert", "");
+    if (releaseMapDialogFocus) {
+      releaseMapDialogFocus();
+      releaseMapDialogFocus = null;
+    }
+  };
+
+  mapCloseBtn.addEventListener('click', closeMapPopup);
 
   mapSaveBtn.addEventListener('click', () => {
     // Saves lat/lon to ortInput
     window.saveMapSelection();
+    closeMapPopup();
 
     // Force the same logic as if the user had typed in ortInput
     ortInput.dispatchEvent(new Event("change"));
@@ -2246,6 +2270,7 @@ function setupEventListeners() {
   let pendingAddressChoices = [];
   let lastAddressPopupFocusTarget = null;
   let addressResolveInFlight = false;
+  let releaseAddressDialogFocus = null;
 
   if (
     addressInputBtn
@@ -2348,20 +2373,21 @@ function setupEventListeners() {
       addressPopup.removeAttribute("inert");
       addressPopup.classList.add("visible");
       addressPopup.setAttribute("aria-hidden", "false");
-      addressCityInput.focus();
+      releaseAddressDialogFocus = containDialogFocus(addressPopup, {
+        initialFocus: addressCityInput,
+        returnFocus: lastAddressPopupFocusTarget,
+        onEscape: () => closeAddressPopup()
+      });
     };
 
     const closeAddressPopup = () => {
-      const activeElement = document.activeElement;
-      if (activeElement instanceof HTMLElement && addressPopup.contains(activeElement)) {
-        const fallbackTarget = lastAddressPopupFocusTarget instanceof HTMLElement
-          ? lastAddressPopupFocusTarget
-          : addressInputBtn;
-        fallbackTarget.focus();
-      }
       addressPopup.classList.remove("visible");
       addressPopup.setAttribute("aria-hidden", "true");
       addressPopup.setAttribute("inert", "");
+      if (releaseAddressDialogFocus) {
+        releaseAddressDialogFocus();
+        releaseAddressDialogFocus = null;
+      }
       setAddressStatus("");
       hideChoiceBlock();
       lastAddressPopupFocusTarget = null;
