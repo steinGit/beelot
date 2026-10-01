@@ -109,4 +109,24 @@ describe('plotComparisonData', () => {
         expect(lastChartConfig.data.datasets[0].borderColor).toBe('red');
         expect(lastChartConfig.data.datasets[1].borderColor).toBe('green');
     });
+
+    test('recomputes x-axis label spacing after an initially hidden canvas becomes visible', () => {
+        document.body.innerHTML = '<canvas id="plot-canvas" width="0"></canvas>';
+        const canvas = document.querySelector('#plot-canvas');
+        Object.defineProperty(canvas, 'clientWidth', { configurable: true, value: 0 });
+        const labels = Array.from({ length: 365 }, (_, index) => `${index + 1}.1`);
+        const series = [{ label: 'Standort A', values: labels.map((_, index) => index), color: 'red' }];
+
+        plotComparisonData(labels, series);
+        Object.defineProperty(canvas, 'clientWidth', { configurable: true, value: 800 });
+
+        const callback = lastChartConfig.options.scales.x.ticks.callback;
+        const visibleLabels = labels.filter((_, index) => (
+            callback.call({ chart: { canvas } }, index, index, []) !== ''
+        ));
+        expect(visibleLabels.length).toBeGreaterThan(2);
+        expect(visibleLabels.length).toBeLessThanOrEqual(30);
+        expect(visibleLabels[0]).toBe(labels[0]);
+        expect(visibleLabels.at(-1)).toBe(labels.at(-1));
+    });
 });

@@ -91,7 +91,8 @@ const computeTickStep = ({ labels, canvas, fontSize }) => {
     }
     const canvasWidth = getCanvasWidth(canvas);
     if (canvasWidth <= 0) {
-        return { step: 1, maxTicks: Math.min(labels.length, 12) };
+        const maxTicks = Math.min(labels.length, 12);
+        return { step: Math.max(1, Math.ceil(labels.length / maxTicks)), maxTicks };
     }
     const fontFamily = getFontFamily();
     const labelWidth = estimateLabelWidth(labels, fontSize, fontFamily, canvas);
@@ -103,17 +104,29 @@ const computeTickStep = ({ labels, canvas, fontSize }) => {
 };
 
 const buildXAxisTickOptions = (labels, fontSize, canvas) => {
-    const { step, maxTicks } = computeTickStep({ labels, canvas, fontSize });
     const lastIndex = labels.length - 1;
+    let cachedCanvasWidth = null;
+    let cachedTickLayout = null;
+    const resolveTickLayout = (scale) => {
+        const activeCanvas = scale?.chart?.canvas || canvas;
+        const canvasWidth = getCanvasWidth(activeCanvas);
+        if (!cachedTickLayout || canvasWidth !== cachedCanvasWidth) {
+            cachedCanvasWidth = canvasWidth;
+            cachedTickLayout = computeTickStep({ labels, canvas: activeCanvas, fontSize });
+        }
+        return cachedTickLayout;
+    };
+    const initialTickLayout = resolveTickLayout(null);
     return {
         maxRotation: 0,
         minRotation: 0,
         autoSkip: false,
-        maxTicksLimit: maxTicks,
+        maxTicksLimit: initialTickLayout.maxTicks,
         font: {
             size: fontSize
         },
-        callback: (value, index) => {
+        callback(value, index) {
+            const { step } = resolveTickLayout(this);
             if (index === 0 || index === lastIndex || index % step === 0) {
                 return labels[index] ?? value;
             }
