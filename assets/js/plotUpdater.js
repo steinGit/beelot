@@ -753,11 +753,12 @@ export class PlotUpdater {
       }
       let matchIndex = findMatchIndex(entry);
       let labelSource = entry;
-      if (matchIndex === -1) {
+      if (matchIndex <= 0) {
         const fullEntry = await this.getFullYearEntry(year);
         if (fullEntry) {
-          matchIndex = findMatchIndex(fullEntry);
-          if (matchIndex !== -1) {
+          const fullMatchIndex = findMatchIndex(fullEntry);
+          if (fullMatchIndex !== -1) {
+            matchIndex = fullMatchIndex;
             labelSource = fullEntry;
           }
         }
@@ -1045,8 +1046,9 @@ export class PlotUpdater {
   }
 
   getDayOfYear(dateObj) {
-    const start = new Date(dateObj.getFullYear(), 0, 1);
-    const diff = dateObj - start;
+    const start = Date.UTC(dateObj.getFullYear(), 0, 1);
+    const current = Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+    const diff = current - start;
     return Math.floor(diff / 86400000) + 1;
   }
 
