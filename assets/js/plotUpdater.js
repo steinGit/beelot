@@ -6,7 +6,12 @@
  */
 
 import { plotData, plotDailyTemps, plotMultipleYearData } from './charts.js';
-import { fetchHistoricalData, fetchRecentData, isOpenMeteoError } from './dataService.js';
+import {
+  fetchHistoricalData,
+  fetchRecentData,
+  HISTORICAL_DATA_START_YEAR,
+  isOpenMeteoError
+} from './dataService.js';
 import {
   calculateGTS,
   getSelectedEndDate,
@@ -321,7 +326,9 @@ export class PlotUpdater {
   step3GetEndDate(localTodayMidnight) {
     const endDate = getSelectedEndDate();
     if (!isValidDate(endDate)) {
-      console.error("[PlotUpdater] => Invalid endDate:", endDate);
+      return null;
+    }
+    if (endDate.getFullYear() < HISTORICAL_DATA_START_YEAR) {
       return null;
     }
     if (endDate.getTime() > localTodayMidnight.getTime()) {

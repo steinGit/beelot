@@ -1,4 +1,22 @@
-import { calculateGTS } from '../assets/js/logic';
+import { calculateGTS, getSelectedEndDate } from '../assets/js/logic';
+
+describe('getSelectedEndDate', () => {
+    test('rejects an impossible calendar date instead of normalizing it', () => {
+        document.body.innerHTML = '<input id="datum" value="1962-02-30">';
+
+        expect(getSelectedEndDate()).toBeNull();
+    });
+
+    test('returns a valid date at local midnight', () => {
+        document.body.innerHTML = '<input id="datum" value="1962-02-03">';
+
+        const result = getSelectedEndDate();
+        expect(result.getFullYear()).toBe(1962);
+        expect(result.getMonth()).toBe(1);
+        expect(result.getDate()).toBe(3);
+        expect(result.getHours()).toBe(0);
+    });
+});
 
 describe('calculateGTS', () => {
     test('calculates cumulative GTS values correctly', () => {

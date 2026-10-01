@@ -76,7 +76,7 @@
           <!-- Clear Local Storage Buttons -->
           <div style="text-align: center; margin-top: 20px;">
             <button class="red-button" onclick="clearLocalStorage()">Clear Local Storage</button>
-            <button class="red-button" onclick="clearCache()">Clear Cache</button>
+            <button class="red-button" id="clear-cache-button">Clear Cache</button>
           </div>
         </div>
       </div>
@@ -102,18 +102,6 @@
           console.log("[Clear Local Storage] Clearing all local storage...");
           localStorage.clear();
           console.log("[Clear Local Storage] Local storage cleared.");
-      }
-
-      function clearCache() {
-          console.log("[Clear Cache] Clearing cache...");
-          for (const key in localStorage) {
-              if (localStorage.hasOwnProperty(key) &&
-                  (key.includes("historical") || key.includes("recent"))) {
-                  localStorage.removeItem(key);
-                  console.log(`[Clear Cache] Cleared cache for key: ${key}`);
-              }
-          }
-          console.log("[Clear Cache] Cache clearing complete.");
       }
     </script>
 

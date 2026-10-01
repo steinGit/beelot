@@ -1,4 +1,4 @@
-import { getCachedData, setCachedData } from '../assets/js/dataService';
+import { fetchHistoricalData, getCachedData, setCachedData } from '../assets/js/dataService';
 
 describe('getCachedData', () => {
     test('returns null if no data is cached', () => {
@@ -24,5 +24,17 @@ describe('setCachedData', () => {
         const data = { key: 'value' };
         setCachedData('testKey', data);
         expect(localStorage.getItem('testKey')).toBe(JSON.stringify(data));
+    });
+});
+
+describe('historical data boundaries', () => {
+    test('rejects years before the archive boundary without a network request', async () => {
+        global.fetch = jest.fn();
+        const start = new Date(202, 0, 1);
+        const end = new Date(202, 9, 1);
+
+        await expect(fetchHistoricalData(48, 9, start, end))
+            .rejects.toThrow('Historical weather data is available from 1940.');
+        expect(global.fetch).not.toHaveBeenCalled();
     });
 });

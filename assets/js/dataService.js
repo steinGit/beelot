@@ -8,6 +8,7 @@
 import { formatDateLocal, isValidDate } from './utils.js';
 
 const DATA_SERVICE_DEBUG = false;
+export const HISTORICAL_DATA_START_YEAR = 1940;
 
 function debugLog(message) {
     if (!DATA_SERVICE_DEBUG) {
@@ -116,6 +117,14 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
     // Validate Date objects
     if (!isValidDate(start) || !isValidDate(end)) {
         throw new Error("Invalid start or end date provided.");
+    }
+    if (
+        start.getFullYear() < HISTORICAL_DATA_START_YEAR
+        || end.getFullYear() < HISTORICAL_DATA_START_YEAR
+    ) {
+        throw new OpenMeteoError(
+            `Historical weather data is available from ${HISTORICAL_DATA_START_YEAR}.`
+        );
     }
 
     const now = new Date();

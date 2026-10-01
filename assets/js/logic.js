@@ -6,7 +6,7 @@
  */
 
 import { formatDateLocal, parseDateStringLocal } from './utils.js';
-import { fetchHistoricalData } from './dataService.js';
+import { fetchHistoricalData, HISTORICAL_DATA_START_YEAR } from './dataService.js';
 
 /**
  * Creates a Date object set to local midnight to avoid time zone issues.
@@ -23,18 +23,11 @@ function createLocalStartOfDay(year, month, day) {
 /**
  * Retrieves the selected end date from the #datum input.
  * Ensures the date is set to local midnight.
- * @returns {Date} - The selected end date.
+ * @returns {Date|null} - The selected end date, or null for an invalid calendar date.
  */
 export function getSelectedEndDate() {
     const datumInput = document.getElementById('datum');
-
-    const parts = datumInput.value.split('-');
-    const y = parseInt(parts[0], 10);
-    const m = parseInt(parts[1], 10) - 1; // zero-based
-    const d = parseInt(parts[2], 10);
-    const localStartOfDay = createLocalStartOfDay(y, m, d);
-    // console.log("[DEBUG logic.js] getSelectedEndDate() =>", localStartOfDay.toString());
-    return localStartOfDay;
+    return datumInput ? parseDateStringLocal(datumInput.value) : null;
 }
 
 /**
@@ -224,7 +217,11 @@ export async function buildYearData(
 
     // console.log("[DEBUG logic.js] build5YearData() => mainYear=", mainYear);
 
-    for (let y = mainYear; y > mainYear - yearsCount; y--) {
+    for (
+        let y = mainYear;
+        y > mainYear - yearsCount && y >= HISTORICAL_DATA_START_YEAR;
+        y--
+    ) {
         const yearPlotStart = createLocalStartOfDay(
             y,
             baseStartDate.getMonth(),
@@ -333,7 +330,11 @@ export async function buildFullYearData(
 ) {
     const allResults = [];
 
-    for (let y = endYear; y > endYear - yearsCount; y--) {
+    for (
+        let y = endYear;
+        y > endYear - yearsCount && y >= HISTORICAL_DATA_START_YEAR;
+        y--
+    ) {
         try {
             const yearPlotStart = createLocalStartOfDay(
                 y,

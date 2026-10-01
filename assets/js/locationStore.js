@@ -327,6 +327,19 @@ export function deleteLocationEntry(id) {
   return true;
 }
 
+export function clearAllLocationCaches() {
+  const hasStoredLocations = localStorage.getItem(STORAGE_KEY) !== null;
+  state.order.forEach((id) => {
+    const location = state.locations[id];
+    if (location) {
+      location.cache = buildDefaultCache();
+    }
+  });
+  if (hasStoredLocations) {
+    persist();
+  }
+}
+
 export function createWeatherCacheStore(locationId) {
   return {
     get(key) {

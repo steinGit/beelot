@@ -118,6 +118,15 @@ test('a normal run stores calculations and displays both charts and hints', asyn
   expect(document.querySelector('#result').textContent).toContain('10.0');
 });
 
+test('an impossible calendar date does not start a weather request', async () => {
+  document.querySelector('#datum').value = '1962-02-30';
+
+  await updater.run();
+
+  expect(fetchHistoricalData).not.toHaveBeenCalled();
+  expect(fetchRecentData).not.toHaveBeenCalled();
+});
+
 test('an older request for the same location cannot replace newer calculations', async () => {
   const first = deferred();
   fetchHistoricalData.mockReturnValueOnce(first.promise).mockResolvedValueOnce(weather(20));

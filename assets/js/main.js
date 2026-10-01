@@ -28,7 +28,12 @@ import {
 import { PlotUpdater } from './plotUpdater.js';
 import { plotComparisonData } from './charts.js';
 import { calculateGTS } from './logic.js';
-import { fetchHistoricalData, fetchRecentData, isOpenMeteoError } from './dataService.js';
+import {
+  fetchHistoricalData,
+  fetchRecentData,
+  HISTORICAL_DATA_START_YEAR,
+  isOpenMeteoError
+} from './dataService.js';
 import { formatDateLocal, formatDayMonth, parseDateStringLocal } from './utils.js';
 import { getNextTabTarget } from './locationTabNavigation.js';
 import { createTooltipGate } from './tooltipFrequency.js';
@@ -810,8 +815,11 @@ async function geocodeAddress({ street, city, country, forcedSettlement = null }
 }
 
 function getSyncPayload() {
+  const selectedDate = isSupportedHistoricalDate(datumInput.value)
+    ? datumInput.value
+    : getStoredOrTodayDateValue();
   return {
-    selectedDate: datumInput.value,
+    selectedDate,
     zeitraum: zeitraumSelect.value,
     gtsYearRange: gtsYearRange,
     gtsRange20Active: gtsRange20Active,
@@ -1048,20 +1056,17 @@ function setComparisonMode(enabled) {
 }
 
 function parseDateInput(value) {
-  if (!value) {
-    return null;
-  }
-  const parts = value.split("-");
-  if (parts.length !== 3) {
-    return null;
-  }
-  const year = parseInt(parts[0], 10);
-  const month = parseInt(parts[1], 10) - 1;
-  const day = parseInt(parts[2], 10);
-  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
-    return null;
-  }
-  return new Date(year, month, day, 0, 0, 0, 0);
+  return parseDateStringLocal(value);
+}
+
+function isSupportedHistoricalDate(value) {
+  const date = parseDateInput(value);
+  return date instanceof Date && date.getFullYear() >= HISTORICAL_DATA_START_YEAR;
+}
+
+function getStoredOrTodayDateValue() {
+  const storedDate = getActiveLocation()?.ui?.selectedDate;
+  return isSupportedHistoricalDate(storedDate) ? storedDate : getLocalTodayString();
 }
 
 function computeStartDateFromSelection(endDate, selection) {
@@ -1208,7 +1213,10 @@ async function renderComparisonPlot() {
   }
   try {
     const endDate = parseDateInput(datumInput.value);
-    if (!(endDate instanceof Date)) {
+    if (
+      !(endDate instanceof Date)
+      || endDate.getFullYear() < HISTORICAL_DATA_START_YEAR
+    ) {
       return;
     }
     const selection = zeitraumSelect.value;
@@ -1258,7 +1266,10 @@ async function renderComparisonPlot() {
 
 async function refreshAllLocationCalculations() {
   const endDate = parseDateInput(datumInput.value);
-  if (!(endDate instanceof Date)) {
+  if (
+    !(endDate instanceof Date)
+    || endDate.getFullYear() < HISTORICAL_DATA_START_YEAR
+  ) {
     return;
   }
   const selection = zeitraumSelect.value;
@@ -1300,8 +1311,11 @@ function setPlotVisibility(showGts, showTemp) {
 
 function applyLocationState(location) {
   const todayStr = getLocalTodayString();
-  const selectedDate = location.ui.selectedDate || todayStr;
+  const selectedDate = isSupportedHistoricalDate(location.ui.selectedDate)
+    ? location.ui.selectedDate
+    : todayStr;
   datumInput.value = selectedDate;
+  datumInput.min = `${HISTORICAL_DATA_START_YEAR}-01-01`;
   datumInput.max = todayStr;
   if (location.ui.zeitraum) {
     zeitraumSelect.value = location.ui.zeitraum;
@@ -1311,7 +1325,7 @@ function applyLocationState(location) {
     zeitraumSelect.value = location.ui.zeitraum;
   }
 
-  if (!location.ui.selectedDate) {
+  if (location.ui.selectedDate !== selectedDate) {
     updateActiveLocationUiState({
       selectedDate: datumInput.value,
       zeitraum: zeitraumSelect.value
@@ -2003,6 +2017,9 @@ function setupEventListeners() {
   });
 
   datumInput.addEventListener('change', () => {
+    if (!isSupportedHistoricalDate(datumInput.value)) {
+      return;
+    }
     updateZeitraumSelect();
     if (comparisonActive) {
       updateAllLocationsUiState({
@@ -2019,6 +2036,12 @@ function setupEventListeners() {
     plotUpdater.run();
     if (getLocationsInOrder().length > 1) {
       refreshAllLocationCalculations();
+    }
+  });
+
+  datumInput.addEventListener('blur', () => {
+    if (!isSupportedHistoricalDate(datumInput.value)) {
+      datumInput.value = getStoredOrTodayDateValue();
     }
   });
 

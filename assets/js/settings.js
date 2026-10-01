@@ -3,6 +3,7 @@
  * Funktionen für Settings
  */
 
+import { clearAllLocationCaches } from "./locationStore.js";
 
 // Funktion zum Ein-/Ausklappen der Abschnitte
 document.querySelectorAll('.settings-heading').forEach((heading) => {
@@ -22,6 +23,29 @@ document.querySelectorAll('.settings-heading').forEach((heading) => {
 });
 
 const TRACT_DATA_KEY = 'trachtData';
+const clearCacheButton = document.getElementById("clear-cache-button");
+
+function clearCache() {
+  console.log("[Clear Cache] Clearing cache...");
+  clearAllLocationCaches();
+
+  const legacyCacheKeys = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (key && (key.startsWith("historical_") || key.startsWith("recent_"))) {
+      legacyCacheKeys.push(key);
+    }
+  }
+  legacyCacheKeys.forEach((key) => {
+    localStorage.removeItem(key);
+    console.log(`[Clear Cache] Cleared legacy cache for key: ${key}`);
+  });
+  console.log("[Clear Cache] Cache clearing complete.");
+}
+
+if (clearCacheButton) {
+  clearCacheButton.addEventListener("click", clearCache);
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   loadTrachtData();
