@@ -20,6 +20,7 @@ export default [
     languageOptions: {
       globals: {
         ...globals.browser,
+        ...globals.node,
         ...globals.jest,
         global: "readonly",
         Chart: "readonly",

@@ -5,6 +5,7 @@
  */
 
 import { defaultTrachtData } from './tracht_data.js';
+import { normalizeTrachtData } from './trachtDataValidation.js';
 import { parseDateStringLocal } from './utils.js';
 
 const DEFAULT_URL_BY_PLANT = new Map(
@@ -389,10 +390,11 @@ function loadTrachtData(key) {
         return [];
     }
     const merged = mergeMissingUrls(parsed);
-    if (merged.changed) {
-        localStorage.setItem(key, JSON.stringify(merged.data));
+    const normalized = normalizeTrachtData(merged.data);
+    if (merged.changed || JSON.stringify(normalized) !== JSON.stringify(parsed)) {
+        localStorage.setItem(key, JSON.stringify(normalized));
     }
-    return merged.data;
+    return normalized;
 }
 
 function mergeMissingUrls(trachtData) {

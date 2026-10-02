@@ -4,6 +4,7 @@
  */
 
 import { clearAllLocationCaches } from "./locationStore.js";
+import { normalizeTrachtData } from "./trachtDataValidation.js";
 
 // Funktion zum Ein-/Ausklappen der Abschnitte
 document.querySelectorAll('.settings-heading').forEach((heading) => {
@@ -65,7 +66,7 @@ async function loadTrachtData() {
     let data = null;
     try {
       const parsed = JSON.parse(stored);
-      data = Array.isArray(parsed) ? parsed : null;
+      data = Array.isArray(parsed) ? normalizeTrachtData(parsed) : null;
     } catch (error) {
       console.warn("[settings.js] Invalid trachtData in localStorage. Resetting to defaults.", error);
       localStorage.removeItem(TRACT_DATA_KEY);
@@ -193,7 +194,7 @@ function getTrachtData() {
   }
   try {
     const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed : [];
+    return normalizeTrachtData(parsed);
   } catch (error) {
     console.warn("[settings.js] Invalid trachtData in localStorage. Resetting.", error);
     localStorage.removeItem(TRACT_DATA_KEY);
@@ -202,7 +203,7 @@ function getTrachtData() {
 }
 
 function saveTrachtData(data) {
-  localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(data));
+  localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(normalizeTrachtData(data)));
 }
 
 /**

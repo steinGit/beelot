@@ -62,6 +62,26 @@ describe('updateHinweisSection', () => {
     expect(section.querySelector("a[href^='javascript:']")).toBeNull();
   });
 
+  test("rejects non-numeric thresholds before building template HTML", async () => {
+    localStorage.setItem("trachtData", JSON.stringify([{
+      TS_start: '"><img src=x onerror=alert("threshold")>',
+      TS_end: 10,
+      plant: "Injected threshold",
+      url: "https://example.com",
+      active: true
+    }]));
+
+    await updateHinweisSection([
+      { date: "2026-01-01", gts: 1 },
+      { date: "2026-01-07", gts: 7 }
+    ], new Date(2026, 0, 7));
+
+    const section = document.querySelector(".hinweis-section");
+    expect(section.innerHTML).not.toContain("onerror");
+    expect(section.textContent).not.toContain("Injected threshold");
+    expect(JSON.parse(localStorage.getItem("trachtData"))).toEqual([]);
+  });
+
   test("preserves a custom entry without a URL", async () => {
     const customData = [{
       TS_start: 6,

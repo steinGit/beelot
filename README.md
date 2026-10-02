@@ -22,9 +22,10 @@ The production site is hosted with GitHub Pages.
 
 ## Local development
 
-Development and maintenance scripts support Node.js 22 or newer, npm, Python 3,
-and Bash. The website targets current versions of Chrome, Firefox, Safari, and
-Edge; legacy browsers are not supported.
+Development and maintenance scripts support Node.js 22.13 or newer on the
+Node.js 22 line, or Node.js 24 and newer, plus npm, Python 3, and Bash. The
+website targets current versions of Chrome, Firefox, Safari, and Edge; legacy
+browsers are not supported.
 
 Install the exact JavaScript dependency versions and run the quality checks:
 

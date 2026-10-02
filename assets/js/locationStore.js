@@ -6,6 +6,11 @@
 const STORAGE_KEY = "beelotLocations";
 const DEFAULT_NAME_PREFIX = "Standort";
 const DEFAULT_MAX_NAME_LENGTH = 32; // TODO: Make configurable if needed.
+const LOCATION_ID_PATTERN = /^loc-([1-9]\d*)$/;
+const SAFE_RECORD_KEY_PATTERN = /^[A-Za-z0-9_.:|,+-]{1,256}$/;
+const SUPPORTED_TIMEFRAMES = new Set(["ytd", "7", "14", "28"]);
+const SUPPORTED_GTS_RANGES = new Set([1, 5, 10]);
+const SUPPORTED_COLOR_SCHEMES = new Set(["queen", "turbo", "temperature"]);
 
 function buildDefaultUiState() {
   return {
@@ -114,68 +119,161 @@ function parseLegacyCoordinates(coordString) {
   return normalizeCoordinates(lat, lon);
 }
 
-function ensureLocationShape(location) {
-  const normalized = location || {};
-  normalized.coordinates = normalized.coordinates
-    ? normalizeCoordinates(normalized.coordinates.lat, normalized.coordinates.lon)
-    : null;
-  normalized.cache = normalized.cache || buildDefaultCache();
-  normalized.cache.weather = normalized.cache.weather || {};
-  normalized.cache.locationName = normalized.cache.locationName || {};
-  normalized.calculations = normalized.calculations || buildDefaultCalculations();
-  delete normalized.calculations.hinweisHtml;
-  normalized.calculations.temps = normalized.calculations.temps || { dates: [], values: [] };
-  normalized.calculations.gtsYearCurves = normalized.calculations.gtsYearCurves || {};
-  normalized.ui = normalized.ui || buildDefaultUiState();
-  if (typeof normalized.ui.gtsRange20Active !== "boolean") {
-    normalized.ui.gtsRange20Active = false;
-  }
-  normalized.ui.address = normalized.ui.address || {
-    street: "",
-    city: "",
-    country: "Deutschland"
-  };
-  if (typeof normalized.ui.address.street !== "string") {
-    normalized.ui.address.street = "";
-  }
-  if (typeof normalized.ui.address.city !== "string") {
-    normalized.ui.address.city = "";
-  }
-  if (typeof normalized.ui.address.country !== "string" || !normalized.ui.address.country.trim()) {
-    normalized.ui.address.country = "Deutschland";
-  }
-  normalized.ui.map = normalized.ui.map || { lastPos: null, lastZoom: null, addressViewportMeters: null };
-  if (!Number.isFinite(normalized.ui.map.addressViewportMeters)) {
-    normalized.ui.map.addressViewportMeters = null;
-  }
-  return normalized;
+function isRecord(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
-function normalizeState(state) {
-  const normalized = state || buildDefaultState();
-  normalized.version = normalized.version || 1;
-  normalized.nextId = normalized.nextId || 2;
-  normalized.order = Array.isArray(normalized.order) ? normalized.order : [];
-  normalized.locations = normalized.locations || {};
-  normalized.activeId = normalized.activeId || normalized.order[0];
+function sanitizeText(value, fallback = "", maxLength = 200) {
+  return typeof value === "string" ? value.slice(0, maxLength) : fallback;
+}
 
-  if (normalized.order.length === 0) {
-    const fallback = buildDefaultState();
-    return fallback;
+function isSafeRecordKey(key) {
+  return SAFE_RECORD_KEY_PATTERN.test(key)
+    && key !== "__proto__"
+    && key !== "prototype"
+    && key !== "constructor";
+}
+
+function copySafeRecord(value, valueIsValid = () => true) {
+  if (!isRecord(value)) {
+    return {};
   }
+  return Object.fromEntries(Object.entries(value).filter(([key, entry]) => (
+    isSafeRecordKey(key) && valueIsValid(entry)
+  )));
+}
 
-  normalized.order.forEach((id) => {
-    if (!normalized.locations[id]) {
-      normalized.locations[id] = createLocation(id, `${DEFAULT_NAME_PREFIX} ${normalized.order.indexOf(id) + 1}`);
-    }
-    normalized.locations[id] = ensureLocationShape(normalized.locations[id]);
+function normalizeSelectedDate(value) {
+  if (value === "") {
+    return "";
+  }
+  if (typeof value !== "string") {
+    return "";
+  }
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) {
+    return "";
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day
+    ? value
+    : "";
+}
+
+function normalizeMapState(value) {
+  const map = isRecord(value) ? value : {};
+  const positionParts = typeof map.lastPos === "string" ? map.lastPos.split(",") : [];
+  const parsedPosition = positionParts.length === 2
+    ? normalizeCoordinates(Number(positionParts[0]), Number(positionParts[1]))
+    : null;
+  const zoom = typeof map.lastZoom === "number"
+    || (typeof map.lastZoom === "string" && map.lastZoom.trim())
+    ? Number(map.lastZoom)
+    : null;
+  const viewport = typeof map.addressViewportMeters === "number"
+    || (typeof map.addressViewportMeters === "string" && map.addressViewportMeters.trim())
+    ? Number(map.addressViewportMeters)
+    : null;
+  return {
+    lastPos: parsedPosition ? `${parsedPosition.lat},${parsedPosition.lon}` : null,
+    lastZoom: Number.isFinite(zoom) && zoom >= 0 && zoom <= 24 ? zoom : null,
+    addressViewportMeters: Number.isFinite(viewport) && viewport > 0 && viewport <= 10000000
+      ? viewport
+      : null
+  };
+}
+
+function normalizeUiState(value) {
+  const ui = isRecord(value) ? value : {};
+  const defaults = buildDefaultUiState();
+  const address = isRecord(ui.address) ? ui.address : {};
+  const range = Number(ui.gtsYearRange);
+  return {
+    selectedDate: normalizeSelectedDate(ui.selectedDate),
+    zeitraum: SUPPORTED_TIMEFRAMES.has(ui.zeitraum) ? ui.zeitraum : defaults.zeitraum,
+    gtsYearRange: SUPPORTED_GTS_RANGES.has(range) ? range : defaults.gtsYearRange,
+    gtsRange20Active: ui.gtsRange20Active === true,
+    gtsColorScheme: SUPPORTED_COLOR_SCHEMES.has(ui.gtsColorScheme)
+      ? ui.gtsColorScheme
+      : defaults.gtsColorScheme,
+    gtsPlotVisible: ui.gtsPlotVisible === true,
+    tempPlotVisible: ui.tempPlotVisible === true,
+    address: {
+      street: sanitizeText(address.street),
+      city: sanitizeText(address.city),
+      country: sanitizeText(address.country, defaults.address.country).trim()
+        || defaults.address.country
+    },
+    map: normalizeMapState(ui.map)
+  };
+}
+
+function ensureLocationShape(location, id, fallbackName, retainCalculations = false) {
+  const source = isRecord(location) ? location : {};
+  const coordinates = isRecord(source.coordinates)
+    ? normalizeCoordinates(source.coordinates.lat, source.coordinates.lon)
+    : null;
+  const cache = isRecord(source.cache) ? source.cache : {};
+  let calculations = buildDefaultCalculations();
+  if (retainCalculations && isRecord(source.calculations)) {
+    calculations = source.calculations;
+    delete calculations.hinweisHtml;
+    calculations.temps = isRecord(calculations.temps)
+      ? calculations.temps
+      : { dates: [], values: [] };
+    calculations.gtsYearCurves = isRecord(calculations.gtsYearCurves)
+      ? calculations.gtsYearCurves
+      : {};
+  }
+  return {
+    id,
+    name: sanitizeName(source.name, fallbackName),
+    coordinates,
+    cache: {
+      weather: copySafeRecord(cache.weather, isRecord),
+      locationName: copySafeRecord(cache.locationName, (entry) => typeof entry === "string")
+    },
+    calculations,
+    ui: normalizeUiState(source.ui)
+  };
+}
+
+function normalizeState(value) {
+  if (!isRecord(value) || !Array.isArray(value.order) || !isRecord(value.locations)) {
+    return buildDefaultState();
+  }
+  const order = [...new Set(value.order.filter((id) => (
+    typeof id === "string" && LOCATION_ID_PATTERN.test(id)
+  )))];
+  if (order.length === 0) {
+    return buildDefaultState();
+  }
+  const locations = {};
+  order.forEach((id, index) => {
+    locations[id] = ensureLocationShape(
+      value.locations[id],
+      id,
+      `${DEFAULT_NAME_PREFIX} ${index + 1}`
+    );
   });
-
-  if (!normalized.locations[normalized.activeId]) {
-    normalized.activeId = normalized.order[0];
-  }
-
-  return normalized;
+  const highestId = Math.max(...order.map((id) => Number(LOCATION_ID_PATTERN.exec(id)[1])));
+  const requestedNextId = Number(value.nextId);
+  return {
+    version: Number.isSafeInteger(value.version) && value.version > 0 ? value.version : 1,
+    nextId: Number.isSafeInteger(requestedNextId) && requestedNextId > highestId
+      ? requestedNextId
+      : highestId + 1,
+    order,
+    activeId: Object.prototype.hasOwnProperty.call(locations, value.activeId)
+      ? value.activeId
+      : order[0],
+    locations
+  };
 }
 
 function loadState() {
@@ -307,7 +405,7 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
 }
 
 function sanitizeName(name, fallback) {
-  const trimmed = (name || "").trim();
+  const trimmed = typeof name === "string" ? name.trim() : "";
   if (!trimmed) {
     return fallback;
   }
@@ -362,7 +460,7 @@ export function updateLocation(id, updater) {
   if (!coordinatesEqual(previousCoordinates, nextCoordinates)) {
     location.calculations = buildDefaultCalculations();
   }
-  state.locations[id] = ensureLocationShape(location);
+  state.locations[id] = ensureLocationShape(location, id, location.name, true);
   persist();
 }
 

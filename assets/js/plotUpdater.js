@@ -525,16 +525,9 @@ export class PlotUpdater {
     this.currentEndDate = endDate;
 
     const isToday = formatDateLocal(endDate) === localTodayStr;
-    let dateColor = "#802020";
-    let dateWeight = "bold";
-    let betragenStr = "beträgt";
-
-    if (isToday) {
-      dateColor = "#206020";
-      betragenStr = "beträgt";
-    } else {
-      betragenStr = "betrug";
-    }
+    const dateColor = isToday ? "#206020" : "#802020";
+    const dateWeight = "bold";
+    const betragenStr = isToday ? "beträgt" : "betrug";
 
     const heuteButtonHtml = isToday
       ? ""

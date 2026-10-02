@@ -64,6 +64,61 @@ describe('locationStore', () => {
             .toBe('Lat: 44.87535°, Lon: -93.45652°');
     });
 
+    test('rejects malformed persisted location fields and unsafe keys', async () => {
+        const storedState = {
+            version: 'invalid',
+            nextId: 1,
+            order: ['__proto__', 'loc-7', 'loc-7'],
+            activeId: '__proto__',
+            locations: {
+                'loc-7': {
+                    id: 'attacker-controlled',
+                    name: 123,
+                    coordinates: { lat: '48', lon: 9 },
+                    cache: {
+                        weather: {
+                            valid_key: { cachedAt: 1 }
+                        },
+                        locationName: { valid_key: 123 }
+                    },
+                    calculations: { hinweisHtml: '<img src=x onerror=alert(1)>' },
+                    ui: {
+                        selectedDate: '2026-02-30',
+                        zeitraum: '<script>',
+                        gtsYearRange: 999,
+                        gtsColorScheme: 'invalid',
+                        address: { street: 12, city: [], country: '' },
+                        map: { lastPos: 'invalid', lastZoom: 999 }
+                    }
+                }
+            }
+        };
+        Object.defineProperty(storedState.locations['loc-7'].cache.weather, '__proto__', {
+            value: { polluted: true },
+            enumerable: true
+        });
+        localStorage.setItem('beelotLocations', JSON.stringify(storedState));
+
+        const { getActiveLocation, getActiveLocationId } = await import('../assets/js/locationStore');
+        const location = getActiveLocation();
+
+        expect(getActiveLocationId()).toBe('loc-7');
+        expect(location.id).toBe('loc-7');
+        expect(location.name).toBe('Standort 1');
+        expect(location.coordinates).toBeNull();
+        expect(location.cache.weather).toEqual({ valid_key: { cachedAt: 1 } });
+        expect(location.cache.locationName).toEqual({});
+        expect(location.calculations).not.toHaveProperty('hinweisHtml');
+        expect(location.ui).toMatchObject({
+            selectedDate: '',
+            zeitraum: 'ytd',
+            gtsYearRange: 1,
+            gtsColorScheme: 'queen',
+            address: { street: '', city: '', country: 'Deutschland' },
+            map: { lastPos: null, lastZoom: null }
+        });
+    });
+
     test('invalidates derived calculations when coordinates change', async () => {
         const { getActiveLocation, updateLocation } = await import('../assets/js/locationStore');
         const locationId = getActiveLocation().id;
