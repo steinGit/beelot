@@ -1,7 +1,9 @@
 /**
  * @module plotExport
- * Exports the currently visible Chart.js data as spreadsheet-compatible CSV.
+ * Exports the currently visible Chart.js data as spreadsheet-compatible files.
  */
+
+import { formatDateLocal, parseDateStringLocal } from "./utils.js";
 
 const UTF8_BOM = "\uFEFF";
 const VALID_PLOT_TYPES = new Set(["GTS", "temperature", "comparison"]);
@@ -78,7 +80,21 @@ function serializeColor(color) {
  * Builds a wide CSV table from the labels and visible datasets of a chart.
  * Series colors are appended as metadata because CSV cannot encode cell styles.
  */
-function buildPlotRows(chart) {
+function getExportLabels(chart, workbookDates = false) {
+  const labels = Array.isArray(chart?.data?.labels) ? chart.data.labels : [];
+  const exportDates = Array.isArray(chart?.beelotExportDates)
+    ? chart.beelotExportDates
+    : [];
+  return labels.map((label, index) => {
+    const parsedDate = parseDateStringLocal(exportDates[index]);
+    if (!parsedDate) {
+      return label;
+    }
+    return workbookDates ? parsedDate : formatDateLocal(parsedDate);
+  });
+}
+
+function buildPlotRows(chart, workbookDates = false) {
   const labels = Array.isArray(chart?.data?.labels) ? chart.data.labels : [];
   const datasets = getVisibleDatasets(chart);
   if (labels.length === 0 || datasets.length === 0) {
@@ -91,9 +107,10 @@ function buildPlotRows(chart) {
       : `Series ${index + 1}`
   ));
   const columnCount = datasets.length + 1;
+  const exportLabels = getExportLabels(chart, workbookDates);
   return [
     [getAxisTitle(chart, "x", "X"), ...seriesLabels],
-    ...labels.map((label, index) => [
+    ...exportLabels.map((label, index) => [
       label,
       ...datasets.map((dataset) => getDataValue(dataset, index))
     ]),
@@ -158,13 +175,26 @@ function buildWorkbook(chart, xlsxApi) {
   ) {
     throw new Error("The Excel export library is unavailable.");
   }
-  const rows = buildPlotRows(chart).map((row) => row.map(protectSpreadsheetCell));
-  const worksheet = xlsxApi.utils.aoa_to_sheet(rows);
+  const rows = buildPlotRows(chart, true).map((row) => row.map(protectSpreadsheetCell));
+  const worksheet = xlsxApi.utils.aoa_to_sheet(rows, {
+    cellDates: true,
+    dateNF: "yyyy-mm-dd"
+  });
+  const dataRowCount = Array.isArray(chart?.data?.labels) ? chart.data.labels.length : 0;
+  for (let rowIndex = 0; rowIndex < dataRowCount; rowIndex++) {
+    const cell = worksheet[`A${rowIndex + 2}`];
+    if (cell?.v instanceof Date) {
+      cell.z = "yyyy-mm-dd";
+    }
+  }
   const columnCount = Math.max(...rows.map((row) => row.length));
   worksheet["!cols"] = Array.from({ length: columnCount }, (_, columnIndex) => {
     const width = rows.reduce((maximum, row) => {
       const value = row[columnIndex];
-      return Math.max(maximum, value === null || value === undefined ? 0 : String(value).length);
+      const valueWidth = value instanceof Date
+        ? 10
+        : (value === null || value === undefined ? 0 : String(value).length);
+      return Math.max(maximum, valueWidth);
     }, 0);
     return { wch: Math.min(60, Math.max(10, width + 2)) };
   });

@@ -65,6 +65,7 @@ describe('plotMultipleYearData', () => {
         const chart = plotMultipleYearData(multiYearData, null, 'queen');
         expect(chart).not.toBeNull();
         expect(chart.beelotPlotType).toBe('GTS');
+        expect(chart.beelotExportDates).toEqual(['2026-01-01', '2026-01-02']);
         expect(lastChartConfig).not.toBeNull();
         const datasets = lastChartConfig.data.datasets;
 
@@ -115,6 +116,7 @@ describe('plotData', () => {
         const chart = plotData(results, null, 'queen');
         expect(chart).not.toBeNull();
         expect(chart.beelotPlotType).toBe('GTS');
+        expect(chart.beelotExportDates).toEqual(['2025-01-01', '2025-01-02']);
         expect(chart.destroy).toBeDefined(); // Ensures mock is working
     });
 });
@@ -124,6 +126,7 @@ describe('plotDailyTemps', () => {
         document.body.innerHTML = '<canvas id="temp-plot"></canvas>';
         const chart = plotDailyTemps(['2025-01-01'], [4]);
         expect(chart.beelotPlotType).toBe('temperature');
+        expect(chart.beelotExportDates).toEqual(['2025-01-01']);
     });
 });
 
@@ -135,9 +138,10 @@ describe('plotComparisonData', () => {
             { label: 'Standort A', values: [1, 2], color: 'red' },
             { label: 'Standort B', values: [2, 3], color: 'green' }
         ];
-        const chart = plotComparisonData(labels, series);
+        const chart = plotComparisonData(labels, series, null, ['2025-01-01', '2025-01-02']);
         expect(chart).not.toBeNull();
         expect(chart.beelotPlotType).toBe('comparison');
+        expect(chart.beelotExportDates).toEqual(['2025-01-01', '2025-01-02']);
         expect(lastChartConfig.data.labels).toEqual(labels);
         expect(lastChartConfig.data.datasets[0].borderColor).toBe('red');
         expect(lastChartConfig.data.datasets[1].borderColor).toBe('green');

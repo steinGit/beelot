@@ -1174,6 +1174,7 @@ async function buildComparisonSeriesForLocation(location, endDate, selection, up
   return {
     locationId: location.id,
     label: location.name,
+    dates: filteredResults.map((entry) => entry.date),
     labels: filteredResults.map((entry) => formatDayMonth(entry.date)),
     values: filteredResults.map((entry) => entry.gts)
   };
@@ -1229,7 +1230,7 @@ async function renderComparisonPlot() {
       };
     });
 
-    plotComparisonData(masterLabels, series, null);
+    plotComparisonData(masterLabels, series, null, normalized[0].dates);
     clearWeatherServiceStatusMessage();
   } catch (error) {
     if (!comparisonActive || !comparisonRequestGuard.isCurrent(renderGeneration)) {

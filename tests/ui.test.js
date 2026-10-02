@@ -119,7 +119,8 @@ describe('ui module exports', () => {
         };
         const tileLayer = {
             on: jest.fn((eventName, handler) => { tileHandlers[eventName] = handler; }),
-            addTo: jest.fn()
+            addTo: jest.fn(),
+            redraw: jest.fn()
         };
         global.L = {
             map: jest.fn(() => map),
@@ -134,9 +135,38 @@ describe('ui module exports', () => {
         expect(document.getElementById('service-status').textContent)
             .toContain('OpenStreetMap');
 
+        window.dispatchEvent(new Event('online'));
+        expect(tileLayer.redraw).toHaveBeenCalledTimes(1);
+        expect(document.getElementById('service-status').hidden).toBe(false);
+
         tileHandlers.loading();
         tileHandlers.load();
 
         expect(document.getElementById('service-status').hidden).toBe(true);
+    });
+
+    test('does not redraw healthy map tiles after an online event', async () => {
+        const tileLayer = {
+            on: jest.fn(),
+            addTo: jest.fn(),
+            redraw: jest.fn()
+        };
+        const map = {
+            setView: jest.fn().mockReturnThis(),
+            on: jest.fn(),
+            getCenter: jest.fn(() => ({ lat: 48.1, lng: 9.2 })),
+            getZoom: jest.fn(() => 11)
+        };
+        global.L = {
+            map: jest.fn(() => map),
+            tileLayer: jest.fn(() => tileLayer),
+            marker: jest.fn()
+        };
+        const { initOrUpdateMap } = await import('../assets/js/ui');
+
+        initOrUpdateMap();
+        window.dispatchEvent(new Event('online'));
+
+        expect(tileLayer.redraw).not.toHaveBeenCalled();
     });
 });

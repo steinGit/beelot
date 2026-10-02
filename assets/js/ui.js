@@ -51,11 +51,28 @@ export const locationPanel = document.getElementById('location-panel');
 let map = null;
 let marker = null;
 let selectedLatLng = null;
+let mapTileLayer = null;
 const GLOBAL_MAP_VIEW_KEY = "beelotLastMapView";
 const DEFAULT_ADDRESS_VIEWPORT_METERS = 1000;
 const METERS_PER_DEGREE_LAT = 111320;
 const OPEN_STREET_MAP_SOURCE = "openstreetmap-tiles";
 let mapTileLoadFailed = false;
+let mapRecoveryListenerRegistered = false;
+
+function retryFailedMapTiles() {
+  if (!mapTileLoadFailed || !mapTileLayer || typeof mapTileLayer.redraw !== "function") {
+    return;
+  }
+  mapTileLayer.redraw();
+}
+
+function registerMapRecoveryListener() {
+  if (mapRecoveryListenerRegistered) {
+    return;
+  }
+  window.addEventListener("online", retryFailedMapTiles);
+  mapRecoveryListenerRegistered = true;
+}
 
 function parseStoredPosition(lastPos) {
   if (typeof lastPos !== "string" || !lastPos.includes(",")) {
@@ -154,25 +171,26 @@ export function initOrUpdateMap() {
       return;
     }
     map = L.map('map').setView([51.1657, 10.4515], 6);
-    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    mapTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap-Mitwirkende'
     });
-    if (typeof tileLayer.on === "function") {
-      tileLayer.on("loading", () => {
+    if (typeof mapTileLayer.on === "function") {
+      mapTileLayer.on("loading", () => {
         mapTileLoadFailed = false;
       });
-      tileLayer.on("tileerror", () => {
+      mapTileLayer.on("tileerror", () => {
         mapTileLoadFailed = true;
         reportServiceFailure(SERVICE_IDS.OPEN_STREET_MAP, OPEN_STREET_MAP_SOURCE);
       });
-      tileLayer.on("load", () => {
+      mapTileLayer.on("load", () => {
         if (!mapTileLoadFailed) {
           clearServiceFailure(OPEN_STREET_MAP_SOURCE);
         }
       });
     }
-    tileLayer.addTo(map);
+    mapTileLayer.addTo(map);
+    registerMapRecoveryListener();
 
     map.on('click', (e) => {
       const coordinates = normalizeCoordinates(e.latlng.lat, e.latlng.lng);

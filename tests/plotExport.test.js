@@ -7,6 +7,7 @@ import {
 
 function createChart() {
   return {
+    beelotExportDates: ["2026-01-01", "2026-01-02"],
     data: {
       labels: ["01.01", "02.01"],
       datasets: [
@@ -44,8 +45,8 @@ describe("plot CSV export", () => {
   test("exports only visible series and preserves their colors as metadata", () => {
     expect(buildPlotCsv(createChart())).toBe(
       "\uFEFFDatum (Tag.Monat),Standort A,Standort B\r\n"
-      + "01.01,10.5,9\r\n"
-      + "02.01,12,11\r\n"
+      + "2026-01-01,10.5,9\r\n"
+      + "2026-01-02,12,11\r\n"
       + ",,\r\n"
       + "Y axis,Grünland-Temperatur-Summe (°Cd),\r\n"
       + "Colors,Standort A,Standort B\r\n"
@@ -57,6 +58,7 @@ describe("plot CSV export", () => {
   test("neutralizes spreadsheet formulas without changing numeric values", () => {
     const chart = createChart();
     chart.data.labels = ["=1+1"];
+    chart.beelotExportDates = [];
     chart.data.datasets = [{
       label: "@SUM(A1:A2)",
       data: [-2.5],
@@ -118,7 +120,10 @@ describe("plot CSV export", () => {
     ["xlsx", "xlsx", true],
     ["xls", "biff8", false]
   ])("writes an Excel workbook for %s", (exportFormat, bookType, compression) => {
-    const worksheet = {};
+    const worksheet = {
+      A2: { t: "d", v: new Date(2026, 0, 1) },
+      A3: { t: "d", v: new Date(2026, 0, 2) }
+    };
     const workbook = {};
     const xlsxApi = {
       utils: {
@@ -135,10 +140,18 @@ describe("plot CSV export", () => {
     });
 
     expect(filename).toBe(`20261002_070809__beelot_plot_comparison.${exportFormat}`);
-    expect(xlsxApi.utils.aoa_to_sheet).toHaveBeenCalledWith(expect.arrayContaining([
+    const [rows, sheetOptions] = xlsxApi.utils.aoa_to_sheet.mock.calls[0];
+    expect(rows).toEqual(expect.arrayContaining([
       ["Datum (Tag.Monat)", "Standort A", "Standort B"],
       ["Line color", "red", "green"]
     ]));
+    expect(rows[1][0]).toBeInstanceOf(Date);
+    expect(rows[1][0].getFullYear()).toBe(2026);
+    expect(rows[1][0].getMonth()).toBe(0);
+    expect(rows[1][0].getDate()).toBe(1);
+    expect(sheetOptions).toEqual({ cellDates: true, dateNF: "yyyy-mm-dd" });
+    expect(worksheet.A2.z).toBe("yyyy-mm-dd");
+    expect(worksheet.A3.z).toBe("yyyy-mm-dd");
     expect(worksheet["!cols"]).toHaveLength(3);
     expect(xlsxApi.utils.book_append_sheet)
       .toHaveBeenCalledWith(workbook, worksheet, "Plot data");
@@ -176,6 +189,8 @@ describe("plot CSV export", () => {
     expect(text).toContain("CSV (.csv)");
     expect(text).toContain("Excel-Arbeitsmappe (.xlsx)");
     expect(text).toContain("Excel 97–2004 (.xls)");
+    expect(text).toContain("echte, formatierte Datumszellen");
+    expect(text).toContain("JJJJ-MM-TT");
     expect(text).toContain("kein automatisch erzeugtes Excel-Diagramm");
     expect(text).toContain("Standard-Downloadordner");
   });

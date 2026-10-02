@@ -3,12 +3,27 @@
 import { formatDayMonth, parseDateStringLocal } from './utils.js';
 import { createChart } from './chartManager.js';
 
-const tagPlotType = (chart, plotType) => {
+const tagPlotType = (chart, plotType, exportDates = []) => {
     if (chart) {
         chart.beelotPlotType = plotType;
+        chart.beelotExportDates = exportDates;
     }
     return chart;
 };
+
+const buildExportDatesForYear = (labels, year) => labels.map((label) => {
+    if (typeof label !== "string") {
+        return null;
+    }
+    const match = label.match(/^(\d{1,2})\.(\d{1,2})$/);
+    if (!match) {
+        return null;
+    }
+    const month = String(Number(match[2])).padStart(2, "0");
+    const day = String(Number(match[1])).padStart(2, "0");
+    const value = `${year}-${month}-${day}`;
+    return parseDateStringLocal(value) ? value : null;
+});
 
 /**
  * @module charts
@@ -319,7 +334,7 @@ export function plotData(results, yRange = null, colorScheme = "queen") {
                 intersect: false
             }
         }
-    }), "GTS");
+    }), "GTS", results.map((result) => result.date));
 
     return chartGTS;
 }
@@ -413,7 +428,7 @@ export function plotDailyTemps(dates, temps, yRange = null) {
                 intersect: false
             }
         }
-    }), "temperature");
+    }), "temperature", dates);
 
     return chartTemp;
 }
@@ -596,14 +611,14 @@ export function plotMultipleYearData(multiYearData, yRange = null, colorScheme =
                 intersect: false
             }
         }
-    }), "GTS");
+    }), "GTS", buildExportDatesForYear(masterLabels, newestYear));
 
     return chartGTS;
 }
 
 const COMPARISON_COLORS = ["red", "green", "blue", "magenta", "cyan", "orange"];
 
-export function plotComparisonData(labels, series, yRange = null) {
+export function plotComparisonData(labels, series, yRange = null, exportDates = []) {
     if (!Array.isArray(labels) || labels.length === 0) {
         console.warn("[charts.js] plotComparisonData() called with empty labels.");
         return null;
@@ -700,5 +715,5 @@ export function plotComparisonData(labels, series, yRange = null) {
                 intersect: false
             }
         }
-    }), "comparison");
+    }), "comparison", exportDates);
 }
