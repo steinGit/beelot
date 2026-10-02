@@ -103,7 +103,7 @@ describe('LocationNameFromGPS', () => {
     });
 
     const locationName = await instance.getLocationName(0, 0);
-    expect(locationName).toBe("Standort konnte nicht ermittelt werden.");
+    expect(locationName).toBe("Kein Ortsname für diese Koordinaten gefunden.");
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
@@ -121,7 +121,7 @@ describe('LocationNameFromGPS', () => {
     fetch.mockRejectedValueOnce(new Error('Network error'));
 
     const locationName = await instance.getLocationName(48.72, 9.28);
-    expect(locationName).toBe("Standort konnte nicht ermittelt werden.");
+    expect(locationName).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
@@ -160,7 +160,7 @@ describe('LocationNameFromGPS', () => {
     });
 
     const locationName = await instance.getLocationName(48.72, 9.28);
-    expect(locationName).toBe("Standort konnte nicht ermittelt werden.");
+    expect(locationName).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 });

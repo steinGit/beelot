@@ -3,6 +3,15 @@
  * Handles reverse geocoding to convert GPS coordinates into human-readable location names with caching and verbose logging.
  */
 
+import { fetchWithTimeout } from './utils.js';
+import {
+  clearServiceFailure,
+  reportServiceFailure,
+  SERVICE_IDS
+} from './externalServiceStatus.js';
+
+const NOMINATIM_REVERSE_SOURCE = "nominatim-reverse";
+
 export class LocationNameFromGPS {
   /**
    * Constructs a new LocationNameFromGPS instance.
@@ -38,7 +47,7 @@ export class LocationNameFromGPS {
    * Utilizes localStorage to cache results and minimize API calls.
    * @param {number} lat - Latitude.
    * @param {number} lon - Longitude.
-   * @returns {Promise<string>} - The human-readable location name.
+   * @returns {Promise<string|null>} - The human-readable location name, or null when unavailable.
    */
   async getLocationName(lat, lon) {
     if (typeof lat !== 'number' || typeof lon !== 'number') {
@@ -71,7 +80,7 @@ export class LocationNameFromGPS {
     const url = `${this.apiUrl}?${params.toString()}`;
 
     try {
-      const response = await fetch(url, {
+      const response = await fetchWithTimeout(url, {
         headers: {
           'Accept-Language': 'de' // Set response language to German
         }
@@ -83,8 +92,9 @@ export class LocationNameFromGPS {
 
       const data = await response.json();
 
+      clearServiceFailure(NOMINATIM_REVERSE_SOURCE);
       if (data.error || !data.address) {
-        throw new Error('No address found for the given coordinates.');
+        return 'Kein Ortsname für diese Koordinaten gefunden.';
       }
 
       // Extract address components
@@ -127,7 +137,8 @@ export class LocationNameFromGPS {
       return locationName;
     } catch (error) {
       console.error(`[LocationNameFromGPS] Error: ${error.message}`);
-      return 'Standort konnte nicht ermittelt werden.';
+      reportServiceFailure(SERVICE_IDS.NOMINATIM, NOMINATIM_REVERSE_SOURCE);
+      return null;
     }
   }
 

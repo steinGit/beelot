@@ -21,7 +21,7 @@ export function createTooltipGate({ key, every, storage }) {
       if (Number.isFinite(stored) && stored >= 0) {
         count = stored;
       }
-    } catch (error) {
+      } catch {
       // Ignore storage access issues; fallback to memory counter.
     }
   }
@@ -32,7 +32,7 @@ export function createTooltipGate({ key, every, storage }) {
     }
     try {
       storage.setItem(key, String(count));
-    } catch (error) {
+      } catch {
       // Ignore storage access issues; fallback to memory counter.
     }
   };

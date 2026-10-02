@@ -3,6 +3,8 @@
  * Funktionen für Settings
  */
 
+import { clearAllLocationCaches } from "./locationStore.js";
+import { normalizeTrachtData } from "./trachtDataValidation.js";
 
 // Funktion zum Ein-/Ausklappen der Abschnitte
 document.querySelectorAll('.settings-heading').forEach((heading) => {
@@ -10,18 +12,48 @@ document.querySelectorAll('.settings-heading').forEach((heading) => {
     const targetId = heading.dataset.target;
     const content = document.getElementById(targetId);
     const arrow = heading.querySelector('.arrow');
-
-    if (content.style.display === 'none') {
-      content.style.display = 'block';
-      arrow.textContent = '▼';
-    } else {
-      content.style.display = 'none';
-      arrow.textContent = '▶';
-    }
+    const expanded = heading.getAttribute("aria-expanded") === "true";
+    heading.setAttribute("aria-expanded", String(!expanded));
+    content.hidden = expanded;
+    arrow.textContent = expanded ? '▶' : '▼';
   });
 });
 
 const TRACT_DATA_KEY = 'trachtData';
+const clearCacheButton = document.getElementById("clear-cache-button");
+const clearLocalStorageButton = document.getElementById("clear-local-storage-button");
+const addTrachtRowButton = document.getElementById("add-tracht-row-button");
+const resetTrachtDataButton = document.getElementById("reset-tracht-data-button");
+
+function clearCache() {
+  console.log("[Clear Cache] Clearing cache...");
+  clearAllLocationCaches();
+
+  const legacyCacheKeys = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (key && (key.startsWith("historical_") || key.startsWith("recent_"))) {
+      legacyCacheKeys.push(key);
+    }
+  }
+  legacyCacheKeys.forEach((key) => {
+    localStorage.removeItem(key);
+    console.log(`[Clear Cache] Cleared legacy cache for key: ${key}`);
+  });
+  console.log("[Clear Cache] Cache clearing complete.");
+}
+
+if (clearCacheButton) {
+  clearCacheButton.addEventListener("click", clearCache);
+}
+
+if (clearLocalStorageButton) {
+  clearLocalStorageButton.addEventListener("click", () => {
+    console.log("[Clear Local Storage] Clearing all local storage...");
+    localStorage.clear();
+    console.log("[Clear Local Storage] Local storage cleared.");
+  });
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   loadTrachtData();
@@ -31,15 +63,15 @@ async function loadTrachtData() {
   // Check localStorage for existing data
   const stored = localStorage.getItem(TRACT_DATA_KEY);
   if (stored) {
-    let data = [];
+    let data = null;
     try {
       const parsed = JSON.parse(stored);
-      data = Array.isArray(parsed) ? parsed : [];
+      data = Array.isArray(parsed) ? normalizeTrachtData(parsed) : null;
     } catch (error) {
       console.warn("[settings.js] Invalid trachtData in localStorage. Resetting to defaults.", error);
       localStorage.removeItem(TRACT_DATA_KEY);
     }
-    if (data.length === 0) {
+    if (data === null) {
       try {
         const module = await import(`./tracht_data.js?ts=${Date.now()}`);
         data = module.defaultTrachtData;
@@ -63,7 +95,7 @@ async function loadTrachtData() {
 /**
  * Build the entire table from data (the user can see & edit).
  */
-function populateTrachtTable(data) {
+export function populateTrachtTable(data) {
   const tbody = document.querySelector("#tracht-table tbody");
   tbody.innerHTML = "";
 
@@ -77,7 +109,8 @@ function populateTrachtTable(data) {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = row.active;
-    checkbox.onclick = () => toggleActive(idx);
+    checkbox.setAttribute("aria-label", `Aktiv, Zeile ${idx + 1}: ${row.plant}`);
+    checkbox.addEventListener("click", () => toggleActive(idx));
     tdCheck.appendChild(checkbox);
     tr.appendChild(tdCheck);
 
@@ -88,10 +121,11 @@ function populateTrachtTable(data) {
     startInput.type = "text";
     startInput.value = row.TS_start;
     startInput.maxLength = 4;
+    startInput.setAttribute("aria-label", `Temperatursumme Start, Zeile ${idx + 1}: ${row.plant}`);
     startInput.style.textAlign = "right";
     startInput.style.border = "none";
     startInput.style.backgroundColor = row.active ? "#ffffc0" : "#C0C0C0";
-    startInput.onchange = () => updateStart(idx, startInput.value);
+    startInput.addEventListener("change", () => updateStart(idx, startInput.value));
     tdStart.appendChild(startInput);
     tr.appendChild(tdStart);
 
@@ -102,10 +136,11 @@ function populateTrachtTable(data) {
     endInput.type = "text";
     endInput.value = row.TS_end;
     endInput.maxLength = 4;
+    endInput.setAttribute("aria-label", `Temperatursumme Ende, Zeile ${idx + 1}: ${row.plant}`);
     endInput.style.textAlign = "right";
     endInput.style.border = "none";
     endInput.style.backgroundColor = row.active ? "#ffffc0" : "#C0C0C0";
-    endInput.onchange = () => updateEnd(idx, endInput.value);
+    endInput.addEventListener("change", () => updateEnd(idx, endInput.value));
     tdEnd.appendChild(endInput);
     tr.appendChild(tdEnd);
 
@@ -115,21 +150,24 @@ function populateTrachtTable(data) {
     const plantInput = document.createElement("input");
     plantInput.type = "text";
     plantInput.value = row.plant;
+    plantInput.setAttribute("aria-label", `Pflanze, Zeile ${idx + 1}`);
     plantInput.style.width = "100%";
     plantInput.style.border = "none";
     plantInput.style.backgroundColor = "transparent";
-    plantInput.onchange = () => updatePlant(idx, plantInput.value);
+    plantInput.addEventListener("change", () => updatePlant(idx, plantInput.value));
     tdPlant.appendChild(plantInput);
     tr.appendChild(tdPlant);
 
-    // Trash icon
+    // Delete action
     const tdTrash = document.createElement("td");
     tdTrash.className = "trash-cell";
-    const trashIcon = document.createElement("span");
-    trashIcon.innerHTML = "🗑️";
-    trashIcon.style.cursor = "pointer";
-    trashIcon.onclick = () => deleteRow(idx);
-    tdTrash.appendChild(trashIcon);
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "delete-row-button";
+    deleteButton.textContent = "Löschen";
+    deleteButton.setAttribute("aria-label", `${row.plant} löschen, Zeile ${idx + 1}`);
+    deleteButton.addEventListener("click", () => deleteRow(idx));
+    tdTrash.appendChild(deleteButton);
     tr.appendChild(tdTrash);
 
     // URL
@@ -137,10 +175,11 @@ function populateTrachtTable(data) {
     const urlInput = document.createElement("input");
     urlInput.type = "text";
     urlInput.value = row.url || "";
+    urlInput.setAttribute("aria-label", `URL, Zeile ${idx + 1}: ${row.plant}`);
     urlInput.style.width = "100%";
     urlInput.style.border = "none";
     urlInput.style.backgroundColor = "transparent";
-    urlInput.onchange = () => updateUrl(idx, urlInput.value);
+    urlInput.addEventListener("change", () => updateUrl(idx, urlInput.value));
     tdUrl.appendChild(urlInput);
     tr.appendChild(tdUrl);
 
@@ -155,7 +194,7 @@ function getTrachtData() {
   }
   try {
     const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed : [];
+    return normalizeTrachtData(parsed);
   } catch (error) {
     console.warn("[settings.js] Invalid trachtData in localStorage. Resetting.", error);
     localStorage.removeItem(TRACT_DATA_KEY);
@@ -164,7 +203,7 @@ function getTrachtData() {
 }
 
 function saveTrachtData(data) {
-  localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(data));
+  localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(normalizeTrachtData(data)));
 }
 
 /**
@@ -263,9 +302,12 @@ async function resetTrachtData() {
   }
 }
 
-/**
- * If you’re using <button onclick="addTrachtRow()"> in einstellungen.html,
- * we must expose them globally:
- */
-window.addTrachtRow = addTrachtRow;
-window.resetTrachtData = resetTrachtData;
+if (addTrachtRowButton) {
+  addTrachtRowButton.addEventListener("click", addTrachtRow);
+}
+
+if (resetTrachtDataButton) {
+  resetTrachtDataButton.addEventListener("click", () => {
+    resetTrachtData();
+  });
+}

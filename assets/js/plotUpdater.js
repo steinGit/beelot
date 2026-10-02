@@ -6,18 +6,24 @@
  */
 
 import { plotData, plotDailyTemps, plotMultipleYearData } from './charts.js';
-import { fetchHistoricalData, fetchRecentData, isOpenMeteoError } from './dataService.js';
+import { HISTORICAL_DATA_START_YEAR, isOpenMeteoError } from './dataService.js';
 import {
   calculateGTS,
-  getSelectedEndDate,
   buildYearData,
   buildFullYearData,
-  computeDateRange
+  computeStartDate
 } from './logic.js';
 import { updateHinweisSection } from './information.js';
-import { formatDateLocal, isValidDate } from './utils.js';
+import { formatDateLocal, isValidDate, parseDateStringLocal } from './utils.js';
 import { LocationNameFromGPS } from './location_name_from_gps.js'; // Import the new class
 import { destroyAllCharts } from './chartManager.js';
+import { fetchMergedWeatherData } from './weatherData.js';
+import {
+  clearServiceFailure,
+  getServiceMessage,
+  reportServiceFailure,
+  SERVICE_IDS
+} from './externalServiceStatus.js';
 import {
   createLocationNameCacheStore,
   createWeatherCacheStore,
@@ -26,7 +32,7 @@ import {
   updateLocation
 } from './locationStore.js';
 
-const OFFLINE_TEXT = "Offline-Modus: Für diese Funktion ist eine Internetverbindung erforderlich.";
+const OPEN_METEO_SOURCE = "open-meteo-weather";
 
 /**
  * Helper to forcibly destroy any leftover chart using a given canvas ID.
@@ -57,8 +63,11 @@ export class PlotUpdater {
     gtsPlotContainer,
     tempPlotContainer,
     chartRefs = {},
-    locationNameOutput // Add locationNameOutput to constructor
+    locationNameOutput,
+    getViewSettings = null
   }) {
+    this.displayGeneration = 0;
+    this.locationGenerations = new Map();
     this.verbose = false;
     this.debugGts = false; // set to true for temporary debugging only.
     this.locationId = locationId;
@@ -70,6 +79,14 @@ export class PlotUpdater {
     this.gtsPlotContainer = gtsPlotContainer;
     this.tempPlotContainer = tempPlotContainer;
     this.locationNameOutput = locationNameOutput; // Assign the new output element
+    this.getViewSettings = getViewSettings || (() => {
+      const ui = this.getLocation()?.ui || {};
+      const colorScheme = ui.gtsColorScheme || "queen";
+      const yearRange = colorScheme === "temperature" && ui.gtsRange20Active
+        ? 20
+        : ui.gtsYearRange || 1;
+      return { yearRange, colorScheme };
+    });
 
     // Chart.js object references
     this.chartGTS = chartRefs.chartGTS || null;
@@ -88,6 +105,7 @@ export class PlotUpdater {
   }
 
   setLocationId(locationId) {
+    this.invalidatePendingDisplay();
     this.locationId = locationId;
     this.weatherCacheStore = createWeatherCacheStore(this.locationId);
     this.locationNameCacheStore = createLocationNameCacheStore(this.locationId);
@@ -101,10 +119,45 @@ export class PlotUpdater {
     return getLocationById(this.locationId);
   }
 
+  invalidatePendingDisplay() {
+    this.displayGeneration += 1;
+  }
+
+  canDisplay() {
+    return !this.request || this.request.canDisplay();
+  }
+
+  storeCalculations(update) {
+    if (!this.request || this.request.canStore()) {
+      updateLocation(this.locationId, update);
+    }
+  }
+
   /**
-   * Main entry point: orchestrates the entire plotting process.
+   * Main entry point: start an isolated execution for the selected location.
    */
   async run() {
+    const locationId = this.locationId;
+    const generation = ++this.displayGeneration;
+    this.locationGenerations.set(locationId, generation);
+    // Each execution owns its caches and intermediate results across every await.
+    // Display freshness is global; storage freshness is specific to the location.
+    const execution = new PlotUpdater(this);
+    execution.verbose = this.verbose;
+    execution.debugGts = this.debugGts;
+    const viewSettings = this.getViewSettings();
+    execution.request = Object.freeze({
+      timeframe: this.zeitraumSelect.value,
+      date: this.datumInput.value,
+      yearRange: viewSettings.yearRange || 1,
+      colorScheme: viewSettings.colorScheme || "queen",
+      canDisplay: () => this.displayGeneration === generation,
+      canStore: () => this.locationGenerations.get(locationId) === generation
+    });
+    return execution.executeRun();
+  }
+
+  async executeRun() {
     try {
       destroyAllCharts();
       const location = this.getLocation();
@@ -127,10 +180,12 @@ export class PlotUpdater {
       this.currentLon = lon;
 
       // Fetch and display location name
-      this.step4aFetchAndDisplayLocationName(lat, lon);
+      this.step4aFetchAndDisplayLocationName(lat, lon).catch((error) => {
+        console.error("[PlotUpdater] Location name lookup failed:", error);
+      });
 
       // Step 5) Date range logic
-      const { differenceInDays, plotStartDate } = this.step5ComputeDateRange(endDate);
+      const { plotStartDate } = this.step5ComputeDateRange(endDate);
       this.currentPlotStartDate = plotStartDate;
 
       // Step 6) fetchStartDate & recentStartDate
@@ -138,8 +193,12 @@ export class PlotUpdater {
 
       // Step 7) fetch data
       const { allDates, allTemps } = await this.step7FetchAllData(
-        lat, lon, fetchStartDate, endDate, recentStartDate, differenceInDays
+        lat, lon, fetchStartDate, endDate, recentStartDate
       );
+      clearServiceFailure(OPEN_METEO_SOURCE);
+      if (this.ergebnisTextEl) {
+        this.ergebnisTextEl.classList.remove("service-error-text");
+      }
       if (allDates.length === 0) return;
       if (this.debugGts) {
         console.log("[GTS DEBUG] endDate", formatDateLocal(endDate));
@@ -160,10 +219,25 @@ export class PlotUpdater {
       }
 
       // Step 10) If empty, bail
-      if (!this.step10CheckIfEmpty(filteredResults, endDate)) return;
+      if (filteredResults.length === 0) {
+        if (this.canDisplay()) this.step10CheckIfEmpty(filteredResults, endDate);
+        return;
+      }
 
       // Step 11) Filter daily temps
       this.step11FilterDailyTemps(allDates, allTemps, plotStartDate, endDate);
+
+      // Keep valid inactive-location results, independently of display freshness.
+      this.storeCalculations((current) => {
+        current.calculations.gtsResults = gtsResults;
+        current.calculations.filteredResults = filteredResults;
+        current.calculations.temps = {
+          dates: [...this.filteredTempsDates],
+          values: [...this.filteredTempsData]
+        };
+        current.calculations.lastGtsKey = `${formatDateLocal(endDate)}|${this.request.timeframe}`;
+      });
+      if (!this.canDisplay()) return;
 
       // Step 12) Update text
       this.step12UpdateErgebnisText(gtsResults, endDate);
@@ -173,7 +247,9 @@ export class PlotUpdater {
 
       // Step 14) GTS chart creation
       await this.step14CreateGTSChart(lat, lon, plotStartDate, endDate, filteredResults);
+      if (!this.canDisplay()) return;
       await this.step14bUpdateGtsComparison();
+      if (!this.canDisplay()) return;
 
       // Step 15) Temp chart creation
       this.step15CreateTemperatureChart(endDate);
@@ -181,25 +257,13 @@ export class PlotUpdater {
       // Step 16) Update hints
       await this.step16UpdateHinweisSection(gtsResults, endDate);
 
-      updateLocation(this.locationId, (current) => {
-        current.calculations.gtsResults = gtsResults;
-        current.calculations.filteredResults = filteredResults;
-        current.calculations.temps = {
-          dates: [...this.filteredTempsDates],
-          values: [...this.filteredTempsData]
-        };
-        current.calculations.lastGtsKey = `${formatDateLocal(endDate)}|${this.zeitraumSelect.value}`;
-        if (this.hinweisSection) {
-          current.calculations.hinweisHtml = this.hinweisSection.innerHTML;
-        }
-      });
-
     } catch (err) {
+      if (!this.canDisplay()) return;
       if (err && typeof err.message === "string" && err.message.includes("Canvas is already in use")) {
         return;
       }
       if (isOpenMeteoError(err)) {
-        this.showOfflineMessage();
+        this.showWeatherServiceMessage();
         return;
       }
       this.ergebnisTextEl.textContent = "Ein Fehler ist aufgetreten. Bitte versuche es später erneut.";
@@ -216,9 +280,11 @@ export class PlotUpdater {
     }
   }
 
-  showOfflineMessage() {
+  showWeatherServiceMessage() {
+    reportServiceFailure(SERVICE_IDS.OPEN_METEO, OPEN_METEO_SOURCE);
     if (this.ergebnisTextEl) {
-      this.ergebnisTextEl.innerHTML = `<span style="color: #b00000;">${OFFLINE_TEXT}</span>`;
+      this.ergebnisTextEl.textContent = getServiceMessage(SERVICE_IDS.OPEN_METEO);
+      this.ergebnisTextEl.classList.add("service-error-text");
     }
   }
 
@@ -268,9 +334,11 @@ export class PlotUpdater {
    * @returns {Date|null} - The validated end date or null if invalid.
    */
   step3GetEndDate(localTodayMidnight) {
-    const endDate = getSelectedEndDate();
+    const endDate = parseDateStringLocal(this.request.date);
     if (!isValidDate(endDate)) {
-      console.error("[PlotUpdater] => Invalid endDate:", endDate);
+      return null;
+    }
+    if (endDate.getFullYear() < HISTORICAL_DATA_START_YEAR) {
       return null;
     }
     if (endDate.getTime() > localTodayMidnight.getTime()) {
@@ -301,15 +369,20 @@ export class PlotUpdater {
    */
   async step4aFetchAndDisplayLocationName(lat, lon) {
     if (this.locationNameOutput) {
-      const requestId = `${lat.toFixed(6)}|${lon.toFixed(6)}|${Date.now()}`;
-      this.latestLocationNameRequestId = requestId;
       this.locationNameOutput.textContent = "Standortname wird ermittelt...";
+      this.locationNameOutput.classList.remove("service-error-text");
       const locationName = await this.locationFetcher.getLocationName(lat, lon);
-      if (this.latestLocationNameRequestId !== requestId) {
+      if (locationName === null) {
+        if (this.canDisplay()) {
+          this.locationNameOutput.textContent = getServiceMessage(SERVICE_IDS.NOMINATIM);
+          this.locationNameOutput.classList.add("service-error-text");
+        }
         return;
       }
-      this.locationNameOutput.textContent = "In der Nähe von: " + locationName;
-      updateLocation(this.locationId, (current) => {
+      if (this.canDisplay()) {
+        this.locationNameOutput.textContent = "In der Nähe von: " + locationName;
+      }
+      this.storeCalculations((current) => {
         current.calculations.locationLabel = locationName;
       });
     }
@@ -318,10 +391,10 @@ export class PlotUpdater {
   /**
    * Step 5: Compute the date range based on the selected end date.
    * @param {Date} endDate - The selected end date.
-   * @returns {Object} - An object containing differenceInDays and plotStartDate.
+   * @returns {Object} - An object containing plotStartDate.
    */
   step5ComputeDateRange(endDate) {
-    return computeDateRange(endDate);
+    return { plotStartDate: computeStartDate(endDate, this.request.timeframe) };
   }
 
   /**
@@ -348,93 +421,23 @@ export class PlotUpdater {
    * @param {Date} fetchStartDate - Start date for fetching data.
    * @param {Date} endDate - End date for fetching data.
    * @param {Date} recentStartDate - Start date for recent data.
-   * @param {number} differenceInDays - Difference in days between today and end date.
    * @returns {Promise<Object>} - An object containing allDates and allTemps arrays.
    */
-  async step7FetchAllData(lat, lon, fetchStartDate, endDate, recentStartDate, differenceInDays) {
-    const dataByDate = {};
-    const addToMap = (dates, temps, overwrite) => {
-      if (!dates || !temps) {
-        return;
-      }
-      for (let i = 0; i < dates.length; i++) {
-        const dateKey = dates[i];
-        if (!overwrite && Object.prototype.hasOwnProperty.call(dataByDate, dateKey)) {
-          continue;
-        }
-        dataByDate[dateKey] = temps[i];
-      }
-    };
+  async step7FetchAllData(lat, lon, fetchStartDate, endDate, recentStartDate) {
+    const { allDates, allTemps } = await fetchMergedWeatherData(
+      lat,
+      lon,
+      fetchStartDate,
+      endDate,
+      recentStartDate,
+      this.weatherCacheStore
+    );
 
-    let histData = null;
-    try {
-      histData = await fetchHistoricalData(
-        lat,
-        lon,
-        fetchStartDate,
-        endDate,
-        this.weatherCacheStore
-      );
-    } catch (error) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (endDate >= today) {
-        histData = await fetchRecentData(
-          lat,
-          lon,
-          fetchStartDate,
-          endDate,
-          this.weatherCacheStore
-        );
-      } else {
-        throw error;
-      }
-    }
-
-    if (histData && histData.daily && histData.daily.time.length > 0) {
-      addToMap(histData.daily.time, histData.daily.temperature_2m_mean, true);
-
-      const lastHistDateStr = histData.daily.time[histData.daily.time.length - 1];
-      const endDateStr = formatDateLocal(endDate);
-      if (lastHistDateStr < endDateStr) {
-        const lastHistDate = new Date(lastHistDateStr);
-        const recentStart = new Date(lastHistDate);
-        recentStart.setDate(recentStart.getDate() + 1);
-        const recentData = await fetchRecentData(
-          lat,
-          lon,
-          recentStart,
-          endDate,
-          this.weatherCacheStore
-        );
-        if (recentData && recentData.daily) {
-          addToMap(recentData.daily.time, recentData.daily.temperature_2m_mean, false);
-        }
-      }
-    } else if (differenceInDays <= 10) {
-      const recentData = await fetchRecentData(
-        lat,
-        lon,
-        recentStartDate,
-        endDate,
-        this.weatherCacheStore
-      );
-      if (recentData && recentData.daily) {
-        addToMap(recentData.daily.time, recentData.daily.temperature_2m_mean, true);
-      }
-    }
-
-    // Sort by date
-    const allDates = Object.keys(dataByDate);
-
-    const sortedDates = allDates.sort((a, b) => new Date(a) - new Date(b));
-    const sortedTemps = sortedDates.map(d => dataByDate[d]);
-
-    if (sortedTemps.length === 0) {
+    if (allTemps.length === 0 && this.canDisplay()) {
       alert("Keine Daten gefunden. Anderen Ort oder anderes Datum wählen.");
     }
 
-    return { allDates: sortedDates, allTemps: sortedTemps };
+    return { allDates, allTemps };
   }
 
   /**
@@ -460,8 +463,8 @@ export class PlotUpdater {
     endOfDay.setHours(23, 59, 59, 999); // Set to 23:59:59.999
 
     return gtsResults.filter(r => {
-      const d = new Date(r.date);
-      return d >= plotStartDate && d <= endOfDay;
+      const d = parseDateStringLocal(r.date);
+      return d && d >= plotStartDate && d <= endOfDay;
     });
   }
 
@@ -514,8 +517,8 @@ export class PlotUpdater {
     this.filteredTempsDates = [];
     this.filteredTempsData = [];
     for (let i = 0; i < allDates.length; i++) {
-      const d = new Date(allDates[i]);
-      if (d >= plotStartDate && d <= endOfDay) {
+      const d = parseDateStringLocal(allDates[i]);
+      if (d && d >= plotStartDate && d <= endOfDay) {
         this.filteredTempsDates.push(allDates[i]);
         this.filteredTempsData.push(allTemps[i]);
       }
@@ -542,16 +545,9 @@ export class PlotUpdater {
     this.currentEndDate = endDate;
 
     const isToday = formatDateLocal(endDate) === localTodayStr;
-    let dateColor = "#802020";
-    let dateWeight = "bold";
-    let betragenStr = "beträgt";
-
-    if (isToday) {
-      dateColor = "#206020";
-      betragenStr = "beträgt";
-    } else {
-      betragenStr = "betrug";
-    }
+    const dateColor = isToday ? "#206020" : "#802020";
+    const dateWeight = "bold";
+    const betragenStr = isToday ? "beträgt" : "betrug";
 
     const heuteButtonHtml = isToday
       ? ""
@@ -598,15 +594,14 @@ export class PlotUpdater {
   async step14CreateGTSChart(lat, lon, plotStartDate, endDate, filteredResults) {
     const viewKey = this.buildGtsViewKey(endDate);
     if (this.gtsPlotContainer.style.display === "none") {
-      this.lastMultiYearData = this.getCachedMultiYearData(viewKey);
       return;
     }
 
-    const yearRange = window.gtsYearRange || 1;
+    const yearRange = this.request.yearRange;
     if (yearRange > 1) {
       let multiYearData;
       const selectedYear = endDate.getFullYear();
-      if (yearRange === 20 && window.gtsColorScheme === "temperature") {
+      if (yearRange === 20 && this.request.colorScheme === "temperature") {
         // Use the selected year as anchor for the full-year range.
         multiYearData = await buildFullYearData(
           lat,
@@ -629,22 +624,17 @@ export class PlotUpdater {
           this.weatherCacheStore
         );
       }
-      this.lastMultiYearData = multiYearData;
       this.storeMultiYearData(viewKey, multiYearData);
       const gtsStats = this.computeStatsFromMultiYear(multiYearData);
       this.storeAxisStats("gts", endDate, gtsStats);
-      const yRange = window.standortSyncEnabled
-        ? this.computeGlobalYRange("gts", this.buildGtsViewKey(endDate))
-        : null;
-      this.chartGTS = plotMultipleYearData(multiYearData, yRange);
+      const yRange = this.computeGlobalYRange("gts", this.buildGtsViewKey(endDate));
+      if (!this.canDisplay()) return;
+      this.chartGTS = plotMultipleYearData(multiYearData, yRange, this.request.colorScheme);
     } else {
-      this.lastMultiYearData = this.getCachedMultiYearData(viewKey);
       const gtsStats = this.computeStatsFromValues(filteredResults.map((item) => item.gts));
       this.storeAxisStats("gts", endDate, gtsStats);
-      const yRange = window.standortSyncEnabled
-        ? this.computeGlobalYRange("gts", this.buildGtsViewKey(endDate))
-        : null;
-      this.chartGTS = plotData(filteredResults, yRange);
+      const yRange = this.computeGlobalYRange("gts", this.buildGtsViewKey(endDate));
+      this.chartGTS = plotData(filteredResults, yRange, this.request.colorScheme);
     }
   }
 
@@ -704,11 +694,12 @@ export class PlotUpdater {
       }
       let matchIndex = findMatchIndex(entry);
       let labelSource = entry;
-      if (matchIndex === -1) {
+      if (matchIndex <= 0) {
         const fullEntry = await this.getFullYearEntry(year);
         if (fullEntry) {
-          matchIndex = findMatchIndex(fullEntry);
-          if (matchIndex !== -1) {
+          const fullMatchIndex = findMatchIndex(fullEntry);
+          if (fullMatchIndex !== -1) {
+            matchIndex = fullMatchIndex;
             labelSource = fullEntry;
           }
         }
@@ -754,7 +745,7 @@ export class PlotUpdater {
       const candidates = locations.map((location) => {
         const selectedDateStr = location.ui?.selectedDate;
         const selectedDate = selectedDateStr
-          ? this.parseDateStringLocal(selectedDateStr)
+          ? parseDateStringLocal(selectedDateStr)
           : null;
         const currentGts = this.findGtsValueForDate(location.calculations?.gtsResults, selectedDate);
         return {
@@ -786,7 +777,7 @@ export class PlotUpdater {
                 continue;
               }
               if (Number(item.gts) >= targetGts) {
-                matchDate = this.parseDateStringLocal(item.date);
+                matchDate = parseDateStringLocal(item.date);
                 break;
               }
             }
@@ -925,7 +916,7 @@ export class PlotUpdater {
       }
     }
 
-    if (!comparisonHtml) {
+    if (!comparisonHtml || !this.canDisplay()) {
       return;
     }
     comparisonEl.innerHTML = `<br>${comparisonHtml}`;
@@ -949,14 +940,6 @@ export class PlotUpdater {
       .map((key) => location.calculations.gtsYearCurves[key])
       .filter((entry) => Array.isArray(entry));
     return candidates.length > 0 ? candidates[0] : null;
-  }
-
-  getCachedMultiYearKeys() {
-    const location = this.getLocation();
-    if (!location || !location.calculations || !location.calculations.gtsYearCurves) {
-      return [];
-    }
-    return Object.keys(location.calculations.gtsYearCurves);
   }
 
   async getFullYearEntry(year) {
@@ -987,7 +970,7 @@ export class PlotUpdater {
     if (!Array.isArray(multiYearData)) {
       return;
     }
-    updateLocation(this.locationId, (current) => {
+    this.storeCalculations((current) => {
       if (!current.calculations.gtsYearCurves) {
         current.calculations.gtsYearCurves = {};
       }
@@ -996,8 +979,9 @@ export class PlotUpdater {
   }
 
   getDayOfYear(dateObj) {
-    const start = new Date(dateObj.getFullYear(), 0, 1);
-    const diff = dateObj - start;
+    const start = Date.UTC(dateObj.getFullYear(), 0, 1);
+    const current = Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+    const diff = current - start;
     return Math.floor(diff / 86400000) + 1;
   }
 
@@ -1017,23 +1001,6 @@ export class PlotUpdater {
     return new Date(year, month - 1, day);
   }
 
-  parseDateStringLocal(dateStr) {
-    if (typeof dateStr !== "string") {
-      return null;
-    }
-    const parts = dateStr.split("-");
-    if (parts.length !== 3) {
-      return null;
-    }
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const day = parseInt(parts[2], 10);
-    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
-      return null;
-    }
-    return new Date(year, month, day, 0, 0, 0, 0);
-  }
-
   getUtcDayStamp(dateObj) {
     return Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
   }
@@ -1046,7 +1013,7 @@ export class PlotUpdater {
     let latestValue = null;
     let latestStamp = null;
     for (const item of gtsResults) {
-      const parsed = this.parseDateStringLocal(item.date);
+      const parsed = parseDateStringLocal(item.date);
       if (!parsed) {
         continue;
       }
@@ -1080,9 +1047,7 @@ export class PlotUpdater {
     }
     const tempStats = this.computeStatsFromValues(this.filteredTempsData);
     this.storeAxisStats("temp", endDate, tempStats);
-    const yRange = window.standortSyncEnabled
-      ? this.computeGlobalYRange("temp", this.buildTempViewKey(endDate))
-      : null;
+    const yRange = this.computeGlobalYRange("temp", this.buildTempViewKey(endDate));
     this.chartTemp = plotDailyTemps(this.filteredTempsDates, this.filteredTempsData, yRange);
   }
 
@@ -1097,12 +1062,12 @@ export class PlotUpdater {
 
   buildGtsViewKey(endDate) {
     const dateKey = formatDateLocal(endDate);
-    return `${dateKey}|${this.zeitraumSelect.value}|${window.gtsYearRange || 1}`;
+    return `${dateKey}|${this.request.timeframe}|${this.request.yearRange}`;
   }
 
   buildTempViewKey(endDate) {
-    const dateKey = endDate ? formatDateLocal(endDate) : (this.datumInput.value || "");
-    return `${dateKey}|${this.zeitraumSelect.value}`;
+    const dateKey = endDate ? formatDateLocal(endDate) : (this.request.date || "");
+    return `${dateKey}|${this.request.timeframe}`;
   }
 
   computeStatsFromValues(values) {
@@ -1138,7 +1103,7 @@ export class PlotUpdater {
       return;
     }
     const key = chartType === "gts" ? this.buildGtsViewKey(endDate) : this.buildTempViewKey();
-    updateLocation(this.locationId, (current) => {
+    this.storeCalculations((current) => {
       if (!current.calculations.axisStats) {
         current.calculations.axisStats = {};
       }

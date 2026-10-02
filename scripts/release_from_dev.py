@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Release automation script for creating a release from dev branch.
 
-This script reads version values from assets/js/version.js and package.json on dev,
-uses the maximum of the two as the release version, merges dev into main,
-commits the version update if needed, creates
-an annotated git tag, pushes changes and tags, and finally merges
-main back into dev.
+This script synchronizes dev and main, reads version values from assets/js/version.js
+and package.json on both branches, and uses their maximum as the release version.
+It merges dev into main, commits the version update if needed, validates or creates
+an annotated git tag, pushes changes and tags, and finally merges main back into dev.
 """
 
 from __future__ import annotations
@@ -16,8 +15,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Final, List, Sequence, Tuple
-
+from typing import Final, List, Optional, Sequence, Tuple
 
 VERSION_FILE: Final[Path] = Path("assets/js/version.js")
 PACKAGE_FILE: Final[Path] = Path("package.json")
@@ -144,7 +142,11 @@ def parse_version(
     if not match:
         raise ValueError(f"Invalid version format: {version}")
 
-    major, minor, patch = (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+    major, minor, patch = (
+        int(match.group(1)),
+        int(match.group(2)),
+        int(match.group(3)),
+    )
     prerelease = match.group(4)
     if prerelease is None:
         return (major, minor, patch), tuple(), True
@@ -213,6 +215,16 @@ def read_versions_from_branch(branch: str) -> Tuple[str, str]:
     return version_js, package_version
 
 
+def determine_release_version() -> str:
+    """Return the highest version found on the synchronized release branches."""
+    dev_versions = read_versions_from_branch(DEV_BRANCH)
+    main_versions = read_versions_from_branch(MAIN_BRANCH)
+    version = dev_versions[0]
+    for candidate in (*dev_versions[1:], *main_versions):
+        version = max_version(version, candidate)
+    return version
+
+
 def ensure_clean_worktree() -> None:
     """Ensure git working tree is clean."""
     result = subprocess.run(
@@ -228,30 +240,228 @@ def ensure_clean_worktree() -> None:
         )
 
 
-def local_tag_exists(tag_name: str, dryrun: bool) -> bool:
-    """Check if a local tag already exists."""
-    if dryrun:
-        return False
+def current_branch() -> str:
+    """Return the checked-out branch name, rejecting detached HEAD."""
     result = subprocess.run(
-        ["git", "rev-parse", "-q", "--verify", f"refs/tags/{tag_name}"],
+        ["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
         capture_output=True,
         text=True,
         check=False,
     )
-    return result.returncode == 0
+    branch = result.stdout.strip()
+    if result.returncode != 0 or not branch:
+        detail = result.stderr.strip() or "HEAD is detached."
+        raise RuntimeError(f"Unable to determine the current branch: {detail}")
+    return branch
 
 
-def remote_tag_exists(tag_name: str, dryrun: bool) -> bool:
-    """Check if a remote tag already exists on origin."""
+def run_dev_merge(dryrun: bool) -> None:
+    """Start the dev-authoritative merge and allow expected conflict state."""
+    command = ["merge", "--no-ff", "--no-commit", "-X", "theirs", DEV_BRANCH]
+    print_info(f"git {' '.join(command)}")
     if dryrun:
-        return False
+        return
+
     result = subprocess.run(
-        ["git", "ls-remote", "--tags", "origin", tag_name],
+        ["git", *command],
         capture_output=True,
         text=True,
         check=False,
     )
-    return bool(result.stdout.strip())
+    if result.stdout.strip():
+        print(result.stdout.strip())
+    if result.returncode == 0:
+        return
+
+    merge_head = subprocess.run(
+        ["git", "rev-parse", "--verify", "MERGE_HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if merge_head.returncode == 0:
+        print_warning(
+            "Git reported merge conflicts; resolving the complete tracked tree in favor of dev."
+        )
+        return
+
+    detail = result.stderr.strip() or "Git did not start a merge."
+    print_error(detail)
+    raise RuntimeError(f"Git merge failed: git {' '.join(command)}")
+
+
+def merge_dev_tree(dryrun: bool) -> None:
+    """Merge dev and make its tracked tree authoritative on main."""
+    run_dev_merge(dryrun)
+    run_git_command(["read-tree", "--reset", "-u", DEV_BRANCH], dryrun)
+    run_git_command(["add", "--all"], dryrun)
+
+
+def ensure_index_matches_branch(branch: str, dryrun: bool) -> None:
+    """Verify the staged tree is byte-for-byte equal to a branch tree."""
+    print_info(f"git write-tree (verify against {branch})")
+    if dryrun:
+        return
+
+    index_result = subprocess.run(
+        ["git", "write-tree"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if index_result.returncode != 0 or not index_result.stdout.strip():
+        detail = index_result.stderr.strip() or "Git returned no index tree."
+        raise RuntimeError(f"Failed to write the release index tree: {detail}")
+
+    branch_result = subprocess.run(
+        ["git", "rev-parse", f"{branch}^{{tree}}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if branch_result.returncode != 0 or not branch_result.stdout.strip():
+        detail = branch_result.stderr.strip() or "Git returned no branch tree."
+        raise RuntimeError(f"Failed to resolve the {branch} tree: {detail}")
+
+    index_tree = index_result.stdout.strip()
+    branch_tree = branch_result.stdout.strip()
+    if index_tree != branch_tree:
+        raise RuntimeError(
+            f"Release tree mismatch: staged={index_tree}, {branch}={branch_tree}. "
+            "The release was not committed."
+        )
+
+
+def restore_after_failure(branch: str) -> None:
+    """Best-effort cleanup after a failed local release step."""
+    merge_head = subprocess.run(
+        ["git", "rev-parse", "--verify", "MERGE_HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if merge_head.returncode == 0:
+        subprocess.run(
+            ["git", "merge", "--abort"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    current = subprocess.run(
+        ["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if current.stdout.strip() != branch:
+        subprocess.run(
+            ["git", "checkout", branch],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if status.stdout.strip():
+        print_warning(
+            "Release stopped, but local changes remain. Inspect `git status --short`; "
+            "no cleanup reset was performed."
+        )
+    else:
+        print_info(f"Release stopped; restored branch '{branch}' with a clean worktree.")
+
+
+def current_head_commit() -> str:
+    """Return the commit currently checked out."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        detail = result.stderr.strip() or "Git returned no commit."
+        raise RuntimeError(f"Failed to resolve the release commit: {detail}")
+    return result.stdout.strip()
+
+
+def local_tag_target(tag_name: str) -> Optional[str]:
+    """Return the commit targeted by a local tag, or None if it does not exist."""
+    result = subprocess.run(
+        ["git", "rev-parse", "-q", "--verify", f"refs/tags/{tag_name}^{{commit}}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
+    if result.returncode == 1 and not result.stdout.strip():
+        return None
+    detail = result.stderr.strip() or "Git returned an unexpected result."
+    raise RuntimeError(f"Failed to inspect local tag {tag_name}: {detail}")
+
+
+def remote_tag_target(tag_name: str) -> Optional[str]:
+    """Return the commit targeted by a tag on origin, or None if absent."""
+    direct_ref = f"refs/tags/{tag_name}"
+    peeled_ref = f"{direct_ref}^{{}}"
+    result = subprocess.run(
+        ["git", "ls-remote", "--tags", "origin", direct_ref, peeled_ref],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "Git returned an unexpected result."
+        raise RuntimeError(f"Failed to inspect remote tag {tag_name}: {detail}")
+
+    targets = {}
+    for line in result.stdout.splitlines():
+        fields = line.split()
+        if len(fields) == 2:
+            targets[fields[1]] = fields[0]
+    return targets.get(peeled_ref, targets.get(direct_ref))
+
+
+def prepare_release_tag(tag_name: str, dryrun: bool) -> bool:
+    """Validate or create a release tag and report whether it needs pushing."""
+    if dryrun:
+        print_info(f"Creating tag {tag_name}")
+        run_git_command(["tag", "-a", tag_name, "-m", f"Release {tag_name[1:]}"], True)
+        return True
+
+    release_commit = current_head_commit()
+    local_target = local_tag_target(tag_name)
+    remote_target = remote_tag_target(tag_name)
+
+    if local_target is not None and local_target != release_commit:
+        raise RuntimeError(
+            f"Local tag {tag_name} targets {local_target}, expected {release_commit}."
+        )
+    if remote_target is not None and remote_target != release_commit:
+        raise RuntimeError(
+            f"Remote tag {tag_name} targets {remote_target}, expected {release_commit}."
+        )
+
+    if local_target is None and remote_target is None:
+        print_info(f"Creating tag {tag_name}")
+        run_git_command(
+            ["tag", "-a", tag_name, "-m", f"Release {tag_name[1:]}"],
+            False,
+        )
+        return True
+
+    if local_target is not None:
+        print_warning(f"Local tag {tag_name} already targets the release commit")
+    if remote_target is not None:
+        print_warning(f"Remote tag {tag_name} already targets the release commit")
+    return remote_target is None
 
 
 def main(argv: Sequence[str]) -> None:
@@ -259,73 +469,55 @@ def main(argv: Sequence[str]) -> None:
     try:
         args = parse_args(argv)
         ensure_beelot_directory()
-        version_js, package_version = read_versions_from_branch(DEV_BRANCH)
-        version = max_version(version_js, package_version)
     except Exception as exc:
         print_error(f"Error preparing release: {exc}")
         sys.exit(1)
 
-    tag_name = f"v{version}"
-
-    print_info(f"Releasing version {version}")
-
     try:
         ensure_clean_worktree()
+        starting_branch = current_branch()
 
         print_info("Checking out dev branch")
         run_git_command(["checkout", DEV_BRANCH], args.dryrun)
-        run_git_command(["pull"], args.dryrun)
+        run_git_command(["pull", "--ff-only"], args.dryrun)
 
         print_info("Checking out main branch")
         run_git_command(["checkout", MAIN_BRANCH], args.dryrun)
-        run_git_command(["pull"], args.dryrun)
+        run_git_command(["pull", "--ff-only"], args.dryrun)
+
+        version = determine_release_version()
+        tag_name = f"v{version}"
+        print_info(f"Releasing version {version}")
 
         print_info("Merging dev into main")
-        run_git_command(["merge", DEV_BRANCH], args.dryrun)
+        merge_dev_tree(args.dryrun)
 
         run_sync_versions(args.dryrun)
 
-        print_info("Committing version update if needed")
-        result = subprocess.run(
-            ["git", "status", "--porcelain"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.stdout.strip() and not args.dryrun:
-            run_git_command(["add", str(VERSION_FILE), str(PACKAGE_FILE)], args.dryrun)
-            run_git_command(["commit", "-m", f"Release version {version}"], args.dryrun)
-        else:
-            print_warning("No version file changes to commit")
+        print_info("Verifying dev-authoritative release tree")
+        run_git_command(["add", "--all"], args.dryrun)
+        ensure_index_matches_branch(DEV_BRANCH, args.dryrun)
+        run_git_command(["commit", "-m", f"Release version {version}"], args.dryrun)
 
-        tag_created = False
-        if local_tag_exists(tag_name, args.dryrun):
-            print_warning(f"Local tag {tag_name} already exists; skipping tag creation")
-        elif remote_tag_exists(tag_name, args.dryrun):
-            print_warning(f"Remote tag {tag_name} already exists; skipping local tag creation")
-        else:
-            print_info(f"Creating tag {tag_name}")
-            run_git_command(
-                ["tag", "-a", tag_name, "-m", f"Release {version}"],
-                args.dryrun,
-            )
-            tag_created = True
+        tag_needs_push = prepare_release_tag(tag_name, args.dryrun)
 
         print_info("Pushing main branch")
-        run_git_command(["push"], args.dryrun)
+        run_git_command(["push", "origin", MAIN_BRANCH], args.dryrun)
 
-        if tag_created:
+        if tag_needs_push:
             print_info(f"Pushing tag {tag_name}")
             run_git_command(["push", "origin", tag_name], args.dryrun)
         else:
-            print_warning("Skipping tag push; tag already existed")
+            print_warning("Skipping tag push; the remote tag is already correct")
 
         print_info("Merging main back into dev")
         run_git_command(["checkout", DEV_BRANCH], args.dryrun)
-        run_git_command(["merge", MAIN_BRANCH], args.dryrun)
-        run_git_command(["push"], args.dryrun)
+        run_git_command(["merge", "--ff-only", MAIN_BRANCH], args.dryrun)
+        run_git_command(["push", "origin", DEV_BRANCH], args.dryrun)
 
     except Exception as exc:
+        if not args.dryrun and "starting_branch" in locals():
+            restore_after_failure(starting_branch)
         print_error(f"Release failed: {exc}")
         sys.exit(1)
 

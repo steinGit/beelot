@@ -40,8 +40,13 @@ main {
     user-select: none;
     border-radius: 5px;
     margin-bottom: 10px;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    text-align: left;
 }
-.settings-heading:hover {
+.settings-heading:hover,
+.settings-heading:focus-visible {
     background-color: #ff8000;
 }
 .settings-heading span.arrow {
@@ -50,13 +55,17 @@ main {
 
 /* Collapsible content area */
 .settings-content {
-    display: none;
+    display: block;
     max-width: 1000px;  /* also limit content width */
     padding: 10px;
     border: 1px solid #ddd;
     background: #fff;
     border-radius: 5px;
     margin-bottom: 20px;
+}
+
+.settings-content[hidden] {
+    display: none;
 }
 
 
@@ -107,7 +116,11 @@ h1 {
     outline: 1px solid #ff8000; /* Highlight on focus */
 }
 #tracht-table .trash-cell {
-    width: 50px; /* Keep "Löschen" column width */
+    width: 90px;
+}
+
+.delete-row-button {
+    cursor: pointer;
 }
 
 /* row-active, row-inactive, .add-button, etc. */

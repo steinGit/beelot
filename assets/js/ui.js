@@ -3,7 +3,17 @@
  * UI-Interaktionen, DOM-Referenzen, Anzeigen/Verstecken von Elementen
  */
 
-import { formatCoordinates, getActiveLocation, updateLocation } from './locationStore.js';
+import {
+  formatCoordinates,
+  getActiveLocation,
+  normalizeCoordinates,
+  updateLocation
+} from './locationStore.js';
+import {
+  clearServiceFailure,
+  reportServiceFailure,
+  SERVICE_IDS
+} from './externalServiceStatus.js';
 
 // DOM references
 export const ortInput          = document.getElementById('ort');
@@ -21,13 +31,17 @@ export const datumHeuteBtn     = document.getElementById('datum-heute');
 
 export const toggleGtsPlotBtn  = document.getElementById('toggle-gts-plot');
 export const gtsPlotContainer  = document.getElementById('gts-plot-container');
+export const exportGtsPlotBtn  = document.getElementById('export-gts-plot');
+export const exportComparisonPlotBtn = document.getElementById('export-comparison-plot');
+export const gtsExportFormatSelect = document.getElementById('gts-export-format');
 
 export const gtsRangeInputs = Array.from(document.querySelectorAll('input[name="gts-range"]'));
 export const gtsColorInputs = Array.from(document.querySelectorAll('input[name="gts-color-scheme"]'));
-export const standortSyncToggle = document.getElementById('standort-sync-toggle');
 
 export const toggleTempPlotBtn = document.getElementById('toggle-temp-plot');
 export const tempPlotContainer = document.getElementById('temp-plot-container');
+export const exportTemperaturePlotBtn = document.getElementById('export-temperature-plot');
+export const temperatureExportFormatSelect = document.getElementById('temperature-export-format');
 
 export const locationNameOutput = document.getElementById('location-name');
 export const locationTabsContainer = document.getElementById('location-tabs');
@@ -37,9 +51,28 @@ export const locationPanel = document.getElementById('location-panel');
 let map = null;
 let marker = null;
 let selectedLatLng = null;
+let mapTileLayer = null;
 const GLOBAL_MAP_VIEW_KEY = "beelotLastMapView";
 const DEFAULT_ADDRESS_VIEWPORT_METERS = 1000;
 const METERS_PER_DEGREE_LAT = 111320;
+const OPEN_STREET_MAP_SOURCE = "openstreetmap-tiles";
+let mapTileLoadFailed = false;
+let mapRecoveryListenerRegistered = false;
+
+function retryFailedMapTiles() {
+  if (!mapTileLoadFailed || !mapTileLayer || typeof mapTileLayer.redraw !== "function") {
+    return;
+  }
+  mapTileLayer.redraw();
+}
+
+function registerMapRecoveryListener() {
+  if (mapRecoveryListenerRegistered) {
+    return;
+  }
+  window.addEventListener("online", retryFailedMapTiles);
+  mapRecoveryListenerRegistered = true;
+}
 
 function parseStoredPosition(lastPos) {
   if (typeof lastPos !== "string" || !lastPos.includes(",")) {
@@ -48,10 +81,7 @@ function parseStoredPosition(lastPos) {
   const coords = lastPos.split(",");
   const lat = parseFloat(coords[0]);
   const lon = parseFloat(coords[1]);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    return null;
-  }
-  return { lat, lon };
+  return normalizeCoordinates(lat, lon);
 }
 
 function setMarkerForLocation(lat, lon) {
@@ -133,28 +163,56 @@ function applyActiveLocationMapView(activeLocation) {
 /**
  * Initializes or updates the Leaflet map overlay.
  */
-window.initOrUpdateMap = () => {
+export function initOrUpdateMap() {
   const activeLocation = getActiveLocation();
   if (!map) {
+    if (typeof L === "undefined") {
+      reportServiceFailure(SERVICE_IDS.OPEN_STREET_MAP, OPEN_STREET_MAP_SOURCE);
+      return;
+    }
     map = L.map('map').setView([51.1657, 10.4515], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    mapTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap-Mitwirkende'
-    }).addTo(map);
+    });
+    if (typeof mapTileLayer.on === "function") {
+      mapTileLayer.on("loading", () => {
+        mapTileLoadFailed = false;
+      });
+      mapTileLayer.on("tileerror", () => {
+        mapTileLoadFailed = true;
+        reportServiceFailure(SERVICE_IDS.OPEN_STREET_MAP, OPEN_STREET_MAP_SOURCE);
+      });
+      mapTileLayer.on("load", () => {
+        if (!mapTileLoadFailed) {
+          clearServiceFailure(OPEN_STREET_MAP_SOURCE);
+        }
+      });
+    }
+    mapTileLayer.addTo(map);
+    registerMapRecoveryListener();
 
     map.on('click', (e) => {
+      const coordinates = normalizeCoordinates(e.latlng.lat, e.latlng.lng);
+      if (!coordinates) {
+        return;
+      }
       if (marker) {
         map.removeLayer(marker);
       }
-      marker = L.marker(e.latlng).addTo(map);
-      selectedLatLng = e.latlng;
+      selectedLatLng = { lat: coordinates.lat, lng: coordinates.lon };
+      marker = L.marker(selectedLatLng).addTo(map);
     });
 
     map.on('moveend', () => {
       const center = map.getCenter();
+      const coordinates = normalizeCoordinates(center.lat, center.lng);
+      if (!coordinates) {
+        return;
+      }
       localStorage.setItem(
         GLOBAL_MAP_VIEW_KEY,
-        JSON.stringify({ lat: center.lat, lon: center.lng, zoom: map.getZoom() })
+        JSON.stringify({ lat: coordinates.lat, lon: coordinates.lon, zoom: map.getZoom() })
       );
     });
 
@@ -179,23 +237,28 @@ window.initOrUpdateMap = () => {
       applyActiveLocationMapView(activeLocation);
     }, 100);
   }
-};
+}
 
 /**
  * Saves the currently selected map location back to #ort + localStorage
  */
-window.saveMapSelection = () => {
+export function saveMapSelection() {
   if (selectedLatLng) {
-    const locString = formatCoordinates(selectedLatLng.lat, selectedLatLng.lng);
+    const coordinates = normalizeCoordinates(selectedLatLng.lat, selectedLatLng.lng);
+    if (!coordinates) {
+      return;
+    }
+    const locString = formatCoordinates(coordinates.lat, coordinates.lon);
     ortInput.value = locString;
     const activeLocation = getActiveLocation();
     if (activeLocation) {
       updateLocation(activeLocation.id, (location) => {
         location.coordinates = {
-          lat: selectedLatLng.lat,
-          lon: selectedLatLng.lng
+          lat: coordinates.lat,
+          lon: coordinates.lon
         };
-        location.ui.map.lastPos = `${map.getCenter().lat},${map.getCenter().lng}`;
+        const center = normalizeCoordinates(map.getCenter().lat, map.getCenter().lng);
+        location.ui.map.lastPos = center ? `${center.lat},${center.lon}` : null;
         location.ui.map.lastZoom = map.getZoom();
         location.ui.map.addressViewportMeters = null;
       });
@@ -205,4 +268,4 @@ window.saveMapSelection = () => {
   if (mapPopup) {
     mapPopup.style.display = 'none';
   }
-};
+}

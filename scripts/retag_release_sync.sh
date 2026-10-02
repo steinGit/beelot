@@ -2,6 +2,8 @@
 set -euo pipefail
 
 PROG="$(basename "$0")"
+PATTERN="v*"
+MODE=""
 
 COLOR_RESET=""
 COLOR_ERROR=""
@@ -20,81 +22,80 @@ if [[ -t 1 ]]; then
 fi
 
 print_error() {
-  printf "%b\n" "${COLOR_ERROR}Error:${COLOR_RESET} $*" >&2
+  printf '%b\n' "${COLOR_ERROR}ERROR:${COLOR_RESET} $*" >&2
 }
 
 print_warning() {
-  printf "%b\n" "${COLOR_WARNING}Warning:${COLOR_RESET} $*" >&2
+  printf '%b\n' "${COLOR_WARNING}WARNING:${COLOR_RESET} $*" >&2
 }
 
 print_info() {
-  printf "%b\n" "${COLOR_INFO}Info:${COLOR_RESET} $*"
+  printf '%b\n' "${COLOR_INFO}INFO:${COLOR_RESET} $*"
 }
 
 print_success() {
-  printf "%b\n" "${COLOR_SUCCESS}Success:${COLOR_RESET} $*"
+  printf '%b\n' "${COLOR_SUCCESS}SUCCESS:${COLOR_RESET} $*"
 }
 
 print_debug() {
-  printf "%b\n" "${COLOR_DEBUG}Debug:${COLOR_RESET} $*"
+  printf '%b\n' "${COLOR_DEBUG}DEBUG:${COLOR_RESET} $*"
 }
 
-show_help() {
+usage() {
   cat <<EOF
-Usage: $PROG [OPTIONS]
+Usage: $PROG (--dryrun | --apply) [--pattern GLOB]
 
-Retag existing git tags and force-push them to trigger GitHub Releases.
+Recreate existing release tags as annotated tags on the same commits and push
+them with an exact force-with-lease guard. Local and remote tag targets must
+match before any tag is changed.
 
 Options:
-  --pattern GLOB  Tag glob pattern (default: v*)
-  --dryrun        Print intended actions without changing anything.
-  --apply         Perform tag updates and push (required for changes).
+  --pattern GLOB  Tag glob pattern (default: v*).
+  --dryrun        Validate tags and print commands without changing anything.
+  --apply         Recreate and safely push the selected tags.
   -h, --help, -?  Show this help message and exit.
 
 Examples:
   $PROG --dryrun
-  $PROG --apply
-  $PROG --pattern v0.2.* --apply
+      Validate all v* tags and preview the guarded retag operation.
+
+  $PROG --pattern 'v0.3.*' --apply
+      Recreate matching tags after confirmation and update only unchanged refs.
 EOF
 }
-
-PATTERN="v*"
-DRYRUN=0
-APPLY=0
-
-if [[ $# -eq 0 ]]; then
-  show_help
-  exit 0
-fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --pattern)
-      PATTERN="${2:-}"
+      if [[ $# -lt 2 || -z "$2" ]]; then
+        print_error "--pattern requires a non-empty glob."
+        exit 1
+      fi
+      PATTERN="$2"
       shift 2
       ;;
-    --dryrun)
-      DRYRUN=1
+    --dryrun|--apply)
+      if [[ -n "$MODE" ]]; then
+        print_error "Choose exactly one of --dryrun or --apply."
+        exit 1
+      fi
+      MODE="$1"
       shift
       ;;
-    --apply)
-      APPLY=1
-      shift
-      ;;
-    -h|--help|-\?)
-      show_help
+    -h|--help|-?)
+      usage
       exit 0
       ;;
     *)
       print_error "Unknown option: $1"
-      show_help >&2
+      usage >&2
       exit 1
       ;;
   esac
 done
 
-if [[ "$DRYRUN" -eq 0 && "$APPLY" -eq 0 ]]; then
-  show_help
+if [[ -z "$MODE" ]]; then
+  usage
   exit 0
 fi
 
@@ -102,38 +103,67 @@ if ! command -v git >/dev/null 2>&1; then
   print_error "git not found in PATH."
   exit 1
 fi
-
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  print_error "Not inside a git repository."
+  print_error "Not inside a Git repository."
   exit 1
 fi
-
 if ! git remote get-url origin >/dev/null 2>&1; then
-  print_error "Missing git remote 'origin'."
+  print_error "Missing Git remote 'origin'."
   exit 1
 fi
 
-print_info "Fetching tags from origin..."
-if [[ "$DRYRUN" -eq 1 ]]; then
-  print_debug "DRYRUN: git fetch --tags"
-else
-  if ! git fetch --tags; then
-    print_error "Failed to fetch tags. Check network/DNS or credentials."
-    exit 1
-  fi
-fi
-
-tags="$(git tag -l "$PATTERN")"
-if [[ -z "$tags" ]]; then
-  print_warning "No tags found matching pattern: ${PATTERN}"
+mapfile -t TAGS < <(git tag -l "$PATTERN")
+if [[ ${#TAGS[@]} -eq 0 ]]; then
+  print_warning "No tags found matching pattern: $PATTERN"
   exit 0
 fi
 
-print_info "Tags to retag/push:"
-printf "%b\n" "${COLOR_DEBUG}${tags}${COLOR_RESET}"
+declare -a TARGET_COMMITS=()
+declare -a REMOTE_OBJECTS=()
 
-if [[ "$DRYRUN" -eq 0 ]]; then
-  print_warning "This will force-push tags to origin."
+print_info "Validating local and remote tag targets..."
+for tag in "${TAGS[@]}"; do
+  if ! target_commit="$(git rev-list -n 1 "$tag")" || [[ -z "$target_commit" ]]; then
+    print_error "Failed to resolve local tag: $tag"
+    exit 1
+  fi
+
+  direct_ref="refs/tags/$tag"
+  peeled_ref="$direct_ref^{}"
+  if ! remote_output="$(git ls-remote --tags origin "$direct_ref" "$peeled_ref")"; then
+    print_error "Failed to inspect remote tag: $tag"
+    exit 1
+  fi
+
+  remote_object=""
+  remote_target=""
+  while read -r object_id ref_name; do
+    if [[ "$ref_name" == "$direct_ref" ]]; then
+      remote_object="$object_id"
+    elif [[ "$ref_name" == "$peeled_ref" ]]; then
+      remote_target="$object_id"
+    fi
+  done <<< "$remote_output"
+
+  if [[ -z "$remote_object" ]]; then
+    print_error "Remote tag does not exist: $tag"
+    exit 1
+  fi
+  if [[ -z "$remote_target" ]]; then
+    remote_target="$remote_object"
+  fi
+  if [[ "$remote_target" != "$target_commit" ]]; then
+    print_error "Tag target mismatch for $tag: local=$target_commit remote=$remote_target"
+    exit 1
+  fi
+
+  TARGET_COMMITS+=("$target_commit")
+  REMOTE_OBJECTS+=("$remote_object")
+done
+
+print_info "Validated ${#TAGS[@]} tag(s) matching '$PATTERN'."
+if [[ "$MODE" == "--apply" ]]; then
+  print_warning "Selected remote tag objects will be replaced on their existing commits."
   read -r -p "Continue? [y/N]: " reply
   if [[ ! "$reply" =~ ^[Yy]$ ]]; then
     print_info "Aborted by user."
@@ -141,19 +171,23 @@ if [[ "$DRYRUN" -eq 0 ]]; then
   fi
 fi
 
-while IFS= read -r tag; do
-  if [[ -z "$tag" ]]; then
-    continue
-  fi
-  if [[ "$DRYRUN" -eq 1 ]]; then
-    print_debug "DRYRUN: git tag -f $tag $tag"
-    print_debug "DRYRUN: git push -f origin $tag"
-    continue
-  fi
-  print_info "Retagging ${tag}"
-  git tag -f "$tag" "$tag"
-  print_info "Pushing ${tag}"
-  git push -f origin "$tag"
-done <<< "$tags"
+for index in "${!TAGS[@]}"; do
+  tag="${TAGS[$index]}"
+  target_commit="${TARGET_COMMITS[$index]}"
+  remote_object="${REMOTE_OBJECTS[$index]}"
+  lease="--force-with-lease=refs/tags/$tag:$remote_object"
+  message="Retrigger release $tag at $(date -u +'%Y-%m-%dT%H:%M:%S.%N%z')"
 
-print_success "Done."
+  if [[ "$MODE" == "--dryrun" ]]; then
+    print_debug "DRYRUN: git tag -f -a $tag $target_commit -m '$message'"
+    print_debug "DRYRUN: git push $lease origin refs/tags/$tag"
+    continue
+  fi
+
+  print_info "Recreating $tag on $target_commit"
+  git tag -f -a "$tag" "$target_commit" -m "$message"
+  print_info "Pushing $tag with an exact lease"
+  git push "$lease" origin "refs/tags/$tag"
+done
+
+print_success "Retag operation completed."
