@@ -19,7 +19,6 @@ from typing import Final, List, Optional, Sequence, Tuple
 
 VERSION_FILE: Final[Path] = Path("assets/js/version.js")
 PACKAGE_FILE: Final[Path] = Path("package.json")
-PACKAGE_LOCK_FILE: Final[Path] = Path("package-lock.json")
 SYNC_SCRIPT: Final[Path] = Path("scripts/sync_versions.py")
 DEV_BRANCH: Final[str] = "dev"
 MAIN_BRANCH: Final[str] = "main"
@@ -256,9 +255,9 @@ def current_branch() -> str:
     return branch
 
 
-def ensure_mergeable(target_branch: str, source_branch: str, dryrun: bool) -> None:
-    """Verify a merge has no conflicts without modifying the worktree."""
-    command = ["merge-tree", "--write-tree", target_branch, source_branch]
+def run_dev_merge(dryrun: bool) -> None:
+    """Start the dev-authoritative merge and allow expected conflict state."""
+    command = ["merge", "--no-ff", "--no-commit", "-X", "theirs", DEV_BRANCH]
     print_info(f"git {' '.join(command)}")
     if dryrun:
         return
@@ -269,18 +268,68 @@ def ensure_mergeable(target_branch: str, source_branch: str, dryrun: bool) -> No
         text=True,
         check=False,
     )
+    if result.stdout.strip():
+        print(result.stdout.strip())
     if result.returncode == 0:
         return
 
-    details = (result.stdout + result.stderr).strip()
-    if len(details) > 2000:
-        details = f"{details[:2000]}..."
-    suffix = f"\nGit details:\n{details}" if details else ""
-    raise RuntimeError(
-        f"Cannot merge {source_branch} into {target_branch} without conflicts. "
-        "No merge was started. Resolve the branch divergence manually, then retry."
-        f"{suffix}"
+    merge_head = subprocess.run(
+        ["git", "rev-parse", "--verify", "MERGE_HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
     )
+    if merge_head.returncode == 0:
+        print_warning(
+            "Git reported merge conflicts; resolving the complete tracked tree in favor of dev."
+        )
+        return
+
+    detail = result.stderr.strip() or "Git did not start a merge."
+    print_error(detail)
+    raise RuntimeError(f"Git merge failed: git {' '.join(command)}")
+
+
+def merge_dev_tree(dryrun: bool) -> None:
+    """Merge dev and make its tracked tree authoritative on main."""
+    run_dev_merge(dryrun)
+    run_git_command(["read-tree", "--reset", "-u", DEV_BRANCH], dryrun)
+    run_git_command(["add", "--all"], dryrun)
+
+
+def ensure_index_matches_branch(branch: str, dryrun: bool) -> None:
+    """Verify the staged tree is byte-for-byte equal to a branch tree."""
+    print_info(f"git write-tree (verify against {branch})")
+    if dryrun:
+        return
+
+    index_result = subprocess.run(
+        ["git", "write-tree"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if index_result.returncode != 0 or not index_result.stdout.strip():
+        detail = index_result.stderr.strip() or "Git returned no index tree."
+        raise RuntimeError(f"Failed to write the release index tree: {detail}")
+
+    branch_result = subprocess.run(
+        ["git", "rev-parse", f"{branch}^{{tree}}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if branch_result.returncode != 0 or not branch_result.stdout.strip():
+        detail = branch_result.stderr.strip() or "Git returned no branch tree."
+        raise RuntimeError(f"Failed to resolve the {branch} tree: {detail}")
+
+    index_tree = index_result.stdout.strip()
+    branch_tree = branch_result.stdout.strip()
+    if index_tree != branch_tree:
+        raise RuntimeError(
+            f"Release tree mismatch: staged={index_tree}, {branch}={branch_tree}. "
+            "The release was not committed."
+        )
 
 
 def restore_after_failure(branch: str) -> None:
@@ -440,32 +489,20 @@ def main(argv: Sequence[str]) -> None:
         tag_name = f"v{version}"
         print_info(f"Releasing version {version}")
 
-        ensure_mergeable(MAIN_BRANCH, DEV_BRANCH, args.dryrun)
         print_info("Merging dev into main")
-        run_git_command(["merge", DEV_BRANCH], args.dryrun)
+        merge_dev_tree(args.dryrun)
 
         run_sync_versions(args.dryrun)
 
-        print_info("Committing version update if needed")
-        result = subprocess.run(
-            ["git", "status", "--porcelain"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.stdout.strip() and not args.dryrun:
-            run_git_command(
-                ["add", str(VERSION_FILE), str(PACKAGE_FILE), str(PACKAGE_LOCK_FILE)],
-                args.dryrun,
-            )
-            run_git_command(["commit", "-m", f"Release version {version}"], args.dryrun)
-        else:
-            print_warning("No version file changes to commit")
+        print_info("Verifying dev-authoritative release tree")
+        run_git_command(["add", "--all"], args.dryrun)
+        ensure_index_matches_branch(DEV_BRANCH, args.dryrun)
+        run_git_command(["commit", "-m", f"Release version {version}"], args.dryrun)
 
         tag_needs_push = prepare_release_tag(tag_name, args.dryrun)
 
         print_info("Pushing main branch")
-        run_git_command(["push"], args.dryrun)
+        run_git_command(["push", "origin", MAIN_BRANCH], args.dryrun)
 
         if tag_needs_push:
             print_info(f"Pushing tag {tag_name}")
@@ -475,7 +512,7 @@ def main(argv: Sequence[str]) -> None:
 
         print_info("Merging main back into dev")
         run_git_command(["checkout", DEV_BRANCH], args.dryrun)
-        run_git_command(["merge", MAIN_BRANCH], args.dryrun)
+        run_git_command(["merge", "--ff-only", MAIN_BRANCH], args.dryrun)
         run_git_command(["push", "origin", DEV_BRANCH], args.dryrun)
 
     except Exception as exc:

@@ -10,7 +10,7 @@ import subprocess
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "release_from_dev.py"
 SPEC = importlib.util.spec_from_file_location("release_from_dev", SCRIPT_PATH)
@@ -66,7 +66,8 @@ class ReleaseVersionTests(unittest.TestCase):
             patch.object(release_from_dev, "ensure_beelot_directory"),
             patch.object(release_from_dev, "ensure_clean_worktree"),
             patch.object(release_from_dev, "current_branch", return_value="dev"),
-            patch.object(release_from_dev, "ensure_mergeable"),
+            patch.object(release_from_dev, "merge_dev_tree") as merge_dev,
+            patch.object(release_from_dev, "ensure_index_matches_branch"),
             patch.object(release_from_dev, "run_git_command", side_effect=record_git),
             patch.object(
                 release_from_dev,
@@ -90,36 +91,83 @@ class ReleaseVersionTests(unittest.TestCase):
         preceding_git_commands = [
             event[1] for event in events[:determine_index] if event[0] == "git"
         ]
-        following_git_commands = [
-            event[1] for event in events[determine_index + 1 :] if event[0] == "git"
-        ]
         self.assertEqual(preceding_git_commands.count(("pull", "--ff-only")), 2)
-        self.assertIn(("merge", release_from_dev.DEV_BRANCH), following_git_commands)
+        merge_dev.assert_called_once_with(False)
         self.assertIn(("tag", "v2.0.0", False), events)
 
 
 class MergeSafetyTests(unittest.TestCase):
-    """Verify merge preflight does not modify the repository."""
+    """Verify dev-authoritative merge preparation and tree validation."""
 
-    def test_conflicting_merge_is_rejected_before_merge(self) -> None:
-        result = subprocess.CompletedProcess(
-            args=["git", "merge-tree"],
-            returncode=1,
-            stdout="CONFLICT (content): Merge conflict in index.html\n",
-            stderr="",
+    def test_merge_conflict_with_merge_head_is_resolved_by_tree_reset(self) -> None:
+        results = [
+            subprocess.CompletedProcess(
+                args=["git", "merge"], returncode=1, stdout="CONFLICT\n", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=["git", "rev-parse"], returncode=0, stdout="merge-head\n", stderr=""
+            ),
+        ]
+        with patch.object(release_from_dev.subprocess, "run", side_effect=results):
+            release_from_dev.run_dev_merge(False)
+
+    def test_merge_failure_without_merge_head_is_fatal(self) -> None:
+        results = [
+            subprocess.CompletedProcess(
+                args=["git", "merge"], returncode=1, stdout="", stderr="fatal: failed\n"
+            ),
+            subprocess.CompletedProcess(
+                args=["git", "rev-parse"], returncode=1, stdout="", stderr=""
+            ),
+        ]
+        with patch.object(release_from_dev.subprocess, "run", side_effect=results):
+            with self.assertRaisesRegex(RuntimeError, "Git merge failed"):
+                release_from_dev.run_dev_merge(False)
+
+    def test_merge_preparation_prefers_dev_and_resets_tree(self) -> None:
+        commands = []
+        with patch.object(
+            release_from_dev,
+            "run_git_command",
+            side_effect=lambda command, dryrun: commands.append((command, dryrun)),
+        ), patch.object(release_from_dev, "run_dev_merge") as run_merge:
+            release_from_dev.merge_dev_tree(False)
+
+        run_merge.assert_called_once_with(False)
+        self.assertEqual(
+            commands,
+            [
+                (["read-tree", "--reset", "-u", "dev"], False),
+                (["add", "--all"], False),
+            ],
         )
-        with patch.object(release_from_dev.subprocess, "run", return_value=result):
-            with self.assertRaisesRegex(
-                RuntimeError,
-                "Cannot merge dev into main without conflicts",
-            ):
-                release_from_dev.ensure_mergeable("main", "dev", False)
 
-    def test_dryrun_does_not_execute_merge_preflight(self) -> None:
-        with patch.object(release_from_dev.subprocess, "run") as run_process:
-            release_from_dev.ensure_mergeable("main", "dev", True)
+    def test_dryrun_merge_preparation_executes_no_git_commands(self) -> None:
+        with (
+            patch.object(release_from_dev, "run_git_command") as run_git,
+            patch.object(release_from_dev, "run_dev_merge") as run_merge,
+        ):
+            release_from_dev.merge_dev_tree(True)
 
-        run_process.assert_not_called()
+        run_merge.assert_called_once_with(True)
+        run_git.assert_has_calls([
+            call(["read-tree", "--reset", "-u", "dev"], True),
+            call(["add", "--all"], True),
+        ])
+        self.assertEqual(run_git.call_count, 2)
+
+    def test_tree_mismatch_is_rejected(self) -> None:
+        results = [
+            subprocess.CompletedProcess(
+                args=["git", "write-tree"], returncode=0, stdout="staged\n", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=["git", "rev-parse"], returncode=0, stdout="dev-tree\n", stderr=""
+            ),
+        ]
+        with patch.object(release_from_dev.subprocess, "run", side_effect=results):
+            with self.assertRaisesRegex(RuntimeError, "Release tree mismatch"):
+                release_from_dev.ensure_index_matches_branch("dev", False)
 
 
 class ReleaseTagTests(unittest.TestCase):
