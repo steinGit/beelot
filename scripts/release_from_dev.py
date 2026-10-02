@@ -241,6 +241,93 @@ def ensure_clean_worktree() -> None:
         )
 
 
+def current_branch() -> str:
+    """Return the checked-out branch name, rejecting detached HEAD."""
+    result = subprocess.run(
+        ["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    branch = result.stdout.strip()
+    if result.returncode != 0 or not branch:
+        detail = result.stderr.strip() or "HEAD is detached."
+        raise RuntimeError(f"Unable to determine the current branch: {detail}")
+    return branch
+
+
+def ensure_mergeable(target_branch: str, source_branch: str, dryrun: bool) -> None:
+    """Verify a merge has no conflicts without modifying the worktree."""
+    command = ["merge-tree", "--write-tree", target_branch, source_branch]
+    print_info(f"git {' '.join(command)}")
+    if dryrun:
+        return
+
+    result = subprocess.run(
+        ["git", *command],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        return
+
+    details = (result.stdout + result.stderr).strip()
+    if len(details) > 2000:
+        details = f"{details[:2000]}..."
+    suffix = f"\nGit details:\n{details}" if details else ""
+    raise RuntimeError(
+        f"Cannot merge {source_branch} into {target_branch} without conflicts. "
+        "No merge was started. Resolve the branch divergence manually, then retry."
+        f"{suffix}"
+    )
+
+
+def restore_after_failure(branch: str) -> None:
+    """Best-effort cleanup after a failed local release step."""
+    merge_head = subprocess.run(
+        ["git", "rev-parse", "--verify", "MERGE_HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if merge_head.returncode == 0:
+        subprocess.run(
+            ["git", "merge", "--abort"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    current = subprocess.run(
+        ["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if current.stdout.strip() != branch:
+        subprocess.run(
+            ["git", "checkout", branch],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if status.stdout.strip():
+        print_warning(
+            "Release stopped, but local changes remain. Inspect `git status --short`; "
+            "no cleanup reset was performed."
+        )
+    else:
+        print_info(f"Release stopped; restored branch '{branch}' with a clean worktree.")
+
+
 def current_head_commit() -> str:
     """Return the commit currently checked out."""
     result = subprocess.run(
@@ -339,19 +426,21 @@ def main(argv: Sequence[str]) -> None:
 
     try:
         ensure_clean_worktree()
+        starting_branch = current_branch()
 
         print_info("Checking out dev branch")
         run_git_command(["checkout", DEV_BRANCH], args.dryrun)
-        run_git_command(["pull"], args.dryrun)
+        run_git_command(["pull", "--ff-only"], args.dryrun)
 
         print_info("Checking out main branch")
         run_git_command(["checkout", MAIN_BRANCH], args.dryrun)
-        run_git_command(["pull"], args.dryrun)
+        run_git_command(["pull", "--ff-only"], args.dryrun)
 
         version = determine_release_version()
         tag_name = f"v{version}"
         print_info(f"Releasing version {version}")
 
+        ensure_mergeable(MAIN_BRANCH, DEV_BRANCH, args.dryrun)
         print_info("Merging dev into main")
         run_git_command(["merge", DEV_BRANCH], args.dryrun)
 
@@ -387,9 +476,11 @@ def main(argv: Sequence[str]) -> None:
         print_info("Merging main back into dev")
         run_git_command(["checkout", DEV_BRANCH], args.dryrun)
         run_git_command(["merge", MAIN_BRANCH], args.dryrun)
-        run_git_command(["push"], args.dryrun)
+        run_git_command(["push", "origin", DEV_BRANCH], args.dryrun)
 
     except Exception as exc:
+        if not args.dryrun and "starting_branch" in locals():
+            restore_after_failure(starting_branch)
         print_error(f"Release failed: {exc}")
         sys.exit(1)
 

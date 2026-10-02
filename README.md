@@ -107,4 +107,7 @@ beelot
   after synchronizing both `dev` and `main`.
 - The script synchronizes that version into `package-lock.json`, tags `v<version>`,
   and pushes.
+- Run it from a clean worktree with `--dryrun` first. The script uses
+  fast-forward-only pulls, checks the merge tree before starting a merge, and
+  aborts without choosing sides when `dev` and `main` conflict.
 - GitHub Actions publishes a GitHub Release automatically on tag push.

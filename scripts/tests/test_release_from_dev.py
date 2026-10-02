@@ -65,6 +65,8 @@ class ReleaseVersionTests(unittest.TestCase):
             ),
             patch.object(release_from_dev, "ensure_beelot_directory"),
             patch.object(release_from_dev, "ensure_clean_worktree"),
+            patch.object(release_from_dev, "current_branch", return_value="dev"),
+            patch.object(release_from_dev, "ensure_mergeable"),
             patch.object(release_from_dev, "run_git_command", side_effect=record_git),
             patch.object(
                 release_from_dev,
@@ -91,9 +93,33 @@ class ReleaseVersionTests(unittest.TestCase):
         following_git_commands = [
             event[1] for event in events[determine_index + 1 :] if event[0] == "git"
         ]
-        self.assertEqual(preceding_git_commands.count(("pull",)), 2)
+        self.assertEqual(preceding_git_commands.count(("pull", "--ff-only")), 2)
         self.assertIn(("merge", release_from_dev.DEV_BRANCH), following_git_commands)
         self.assertIn(("tag", "v2.0.0", False), events)
+
+
+class MergeSafetyTests(unittest.TestCase):
+    """Verify merge preflight does not modify the repository."""
+
+    def test_conflicting_merge_is_rejected_before_merge(self) -> None:
+        result = subprocess.CompletedProcess(
+            args=["git", "merge-tree"],
+            returncode=1,
+            stdout="CONFLICT (content): Merge conflict in index.html\n",
+            stderr="",
+        )
+        with patch.object(release_from_dev.subprocess, "run", return_value=result):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "Cannot merge dev into main without conflicts",
+            ):
+                release_from_dev.ensure_mergeable("main", "dev", False)
+
+    def test_dryrun_does_not_execute_merge_preflight(self) -> None:
+        with patch.object(release_from_dev.subprocess, "run") as run_process:
+            release_from_dev.ensure_mergeable("main", "dev", True)
+
+        run_process.assert_not_called()
 
 
 class ReleaseTagTests(unittest.TestCase):
