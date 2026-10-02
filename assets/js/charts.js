@@ -207,7 +207,7 @@ const getColorForIndex = (yearIndex, totalYears, year, scheme) => {
  * Plot a single GTS dataset (the existing approach).
  * E.g. filteredResults => array of { date, gts }.
  */
-export function plotData(results, yRange = null) {
+export function plotData(results, yRange = null, colorScheme = "queen") {
     if (!results || results.length === 0) {
         console.warn("[charts.js] plotData() aufgerufen mit leeren Ergebnissen.");
         return null;
@@ -223,7 +223,7 @@ export function plotData(results, yRange = null) {
 
     // Use the last date's year for color
     const endDate = parseDateStringLocal(results[results.length - 1].date);
-    const yearColor = getColorForIndex(0, 1, endDate.getFullYear(), window.gtsColorScheme || "queen");
+    const yearColor = getColorForIndex(0, 1, endDate.getFullYear(), colorScheme);
     const isMobile = isMobileLayout();
     const isSmallMobile = isSmallMobileLayout();
     const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
@@ -414,7 +414,7 @@ export function plotDailyTemps(dates, temps, yRange = null) {
  *    ...
  * ]
  */
-export function plotMultipleYearData(multiYearData, yRange = null) {
+export function plotMultipleYearData(multiYearData, yRange = null, colorScheme = "queen") {
     const canvas = document.getElementById('plot-canvas');
 
     const years = multiYearData.map(item => item.year);
@@ -424,7 +424,7 @@ export function plotMultipleYearData(multiYearData, yRange = null) {
     const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
     const legendFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
     const POINTS_THRESHOLD = 100;
-    const scheme = window.gtsColorScheme || "queen";
+    const scheme = colorScheme;
     const getLastFiniteValue = (values) => {
         for (let i = values.length - 1; i >= 0; i--) {
             const value = Number(values[i]);

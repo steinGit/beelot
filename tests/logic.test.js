@@ -1,20 +1,26 @@
-import { calculateGTS, getSelectedEndDate } from '../assets/js/logic';
+import { calculateGTS, computeStartDate } from '../assets/js/logic';
 
-describe('getSelectedEndDate', () => {
-    test('rejects an impossible calendar date instead of normalizing it', () => {
-        document.body.innerHTML = '<input id="datum" value="1962-02-30">';
-
-        expect(getSelectedEndDate()).toBeNull();
+describe('date ranges', () => {
+    test.each([
+        ['7', '2026-03-25'],
+        ['14', '2026-03-18'],
+        ['28', '2026-03-04'],
+        ['ytd', '2026-01-01']
+    ])('computes the %s timeframe without DOM state', (selection, expected) => {
+        const result = computeStartDate(new Date(2026, 2, 31), selection);
+        const formatted = [
+            result.getFullYear(),
+            String(result.getMonth() + 1).padStart(2, '0'),
+            String(result.getDate()).padStart(2, '0')
+        ].join('-');
+        expect(formatted).toBe(expected);
     });
 
-    test('returns a valid date at local midnight', () => {
-        document.body.innerHTML = '<input id="datum" value="1962-02-03">';
-
-        const result = getSelectedEndDate();
-        expect(result.getFullYear()).toBe(1962);
-        expect(result.getMonth()).toBe(1);
-        expect(result.getDate()).toBe(3);
-        expect(result.getHours()).toBe(0);
+    test('computes a timeframe across a daylight-saving transition', () => {
+        const result = computeStartDate(new Date(2026, 2, 30), '7');
+        expect(result.getFullYear()).toBe(2026);
+        expect(result.getMonth()).toBe(2);
+        expect(result.getDate()).toBe(24);
     });
 });
 
@@ -90,9 +96,6 @@ describe('calculateGTS with larger dataset', () => {
 
 describe('calculateGTS with even larger dataset spanning Jan-March', () => {
     test('calculates cumulative GTS values correctly for a larger dataset spanning over Jan-March', () => {
-        
-    const epsilon = 0.01; // due to rounding errors
-
         const dates = [
             "2024-01-01",
             "2024-01-02",
@@ -357,7 +360,7 @@ describe('calculateGTS with even larger dataset spanning Jan-March', () => {
 
         expected.forEach((exp, index) => {
             expect(result[index].date).toBe(exp.date);
-            expect(result[index].gts).toBeCloseTo(exp.gts, epsilon);
+            expect(Math.abs(result[index].gts - exp.gts)).toBeLessThan(0.011);
         });
 
     });

@@ -77,7 +77,6 @@ describe('locationStore', () => {
                 gtsResults: [{ date: '2026-01-01', gts: 5 }],
                 filteredResults: [{ date: '2026-01-01', gts: 5 }],
                 temps: { dates: ['2026-01-01'], values: [10] },
-                hinweisHtml: '<p>Old location</p>',
                 locationLabel: 'Old place',
                 lastGtsKey: '2026-01-01|ytd',
                 gtsYearCurves: { '2026-01-01|ytd|1': [{ year: 2026 }] },
@@ -94,7 +93,6 @@ describe('locationStore', () => {
             gtsResults: null,
             filteredResults: null,
             temps: { dates: [], values: [] },
-            hinweisHtml: '',
             locationLabel: '',
             lastGtsKey: '',
             gtsYearCurves: {}
@@ -127,14 +125,13 @@ describe('locationStore', () => {
 
         updateLocation(locationId, (location) => {
             location.calculations.gtsResults = [{ date: '2026-01-01', gts: 5 }];
-            location.calculations.hinweisHtml = '<p>Derived content</p>';
         });
 
         expect(getActiveLocation().calculations.gtsResults)
             .toEqual([{ date: '2026-01-01', gts: 5 }]);
         const persisted = JSON.parse(localStorage.getItem('beelotLocations'));
         expect(persisted.locations[locationId].calculations.gtsResults).toBeNull();
-        expect(persisted.locations[locationId].calculations.hinweisHtml).toBe('');
+        expect(persisted.locations[locationId].calculations).not.toHaveProperty('hinweisHtml');
     });
 
     test('evicts the oldest weather cache entry and retries after quota failure', async () => {

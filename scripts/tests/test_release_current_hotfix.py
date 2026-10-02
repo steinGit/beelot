@@ -65,6 +65,9 @@ class HotfixPreparationTests(unittest.TestCase):
             patch.object(
                 release_current_hotfix, "read_package_version"
             ) as read_package,
+            patch.object(
+                release_current_hotfix, "read_package_lock_versions"
+            ) as read_package_lock,
             patch.object(release_current_hotfix, "sync_versions") as sync_versions,
             patch.object(release_current_hotfix, "run_command") as run_command,
             redirect_stdout(io.StringIO()),
@@ -72,6 +75,7 @@ class HotfixPreparationTests(unittest.TestCase):
             release_current_hotfix.main([])
 
         read_package.assert_not_called()
+        read_package_lock.assert_not_called()
         sync_versions.assert_not_called()
         run_command.assert_not_called()
 
@@ -123,6 +127,11 @@ class HotfixPreparationTests(unittest.TestCase):
                 "read_package_version",
                 side_effect=read_package,
             ),
+            patch.object(
+                release_current_hotfix,
+                "read_package_lock_versions",
+                return_value=("1.2.2", "1.2.2"),
+            ),
             patch.object(release_current_hotfix, "sync_versions", side_effect=sync),
             patch.object(release_current_hotfix, "run_command", side_effect=run),
             redirect_stdout(io.StringIO()),
@@ -138,7 +147,13 @@ class HotfixPreparationTests(unittest.TestCase):
         self.assertEqual(
             commands[:2],
             [
-                ("git", "add", "assets/js/version.js", "package.json"),
+                (
+                    "git",
+                    "add",
+                    "assets/js/version.js",
+                    "package.json",
+                    "package-lock.json",
+                ),
                 ("git", "commit", "-m", "chore: bump version to 1.2.3"),
             ],
         )
@@ -173,6 +188,11 @@ class HotfixPreparationTests(unittest.TestCase):
                 "read_package_version",
                 return_value="1.2.3",
             ),
+            patch.object(
+                release_current_hotfix,
+                "read_package_lock_versions",
+                return_value=("1.2.3", "1.2.3"),
+            ),
             patch.object(release_current_hotfix, "sync_versions") as sync_versions,
             patch.object(release_current_hotfix, "run_command", side_effect=run),
             redirect_stdout(io.StringIO()),
@@ -183,6 +203,51 @@ class HotfixPreparationTests(unittest.TestCase):
         self.assertEqual(commands[0][0][:3], ("git", "tag", "-a"))
         self.assertFalse(
             any(command[:2] == ("git", "commit") for command, _ in commands)
+        )
+
+    def test_stale_lockfile_triggers_version_sync(self) -> None:
+        commands = []
+        with (
+            patch.object(
+                release_current_hotfix,
+                "parse_args",
+                return_value=argparse.Namespace(dryrun=False),
+            ),
+            patch.object(release_current_hotfix, "ensure_beelot_directory"),
+            patch.object(release_current_hotfix, "ensure_main_branch"),
+            patch.object(release_current_hotfix, "ensure_clean_worktree"),
+            patch.object(
+                release_current_hotfix, "read_version_file", return_value="1.2.3"
+            ),
+            patch.object(release_current_hotfix, "confirm_continue", return_value=True),
+            patch.object(
+                release_current_hotfix, "read_package_version", return_value="1.2.3"
+            ),
+            patch.object(
+                release_current_hotfix,
+                "read_package_lock_versions",
+                return_value=("1.2.2", "1.2.2"),
+            ),
+            patch.object(release_current_hotfix, "sync_versions") as sync_versions,
+            patch.object(
+                release_current_hotfix,
+                "run_command",
+                side_effect=lambda command, dryrun: commands.append(tuple(command)),
+            ),
+            redirect_stdout(io.StringIO()),
+        ):
+            release_current_hotfix.main([])
+
+        sync_versions.assert_called_once_with(dryrun=False)
+        self.assertEqual(
+            commands[0],
+            (
+                "git",
+                "add",
+                "assets/js/version.js",
+                "package.json",
+                "package-lock.json",
+            ),
         )
 
     def test_package_json_error_reports_file_line_and_column(self) -> None:

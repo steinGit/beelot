@@ -20,28 +20,28 @@ import {
   tempPlotContainer,
   gtsRangeInputs,
   gtsColorInputs,
+  initOrUpdateMap,
   locationNameOutput,
   locationTabsContainer,
-  locationPanel
+  locationPanel,
+  saveMapSelection
 } from './ui.js';
 
 import { PlotUpdater } from './plotUpdater.js';
 import { plotComparisonData } from './charts.js';
-import { calculateGTS } from './logic.js';
+import { calculateGTS, computeStartDate } from './logic.js';
 import {
-  fetchHistoricalData,
-  fetchRecentData,
-  findFirstMissingTemperatureDate,
   HISTORICAL_DATA_START_YEAR,
-  isOpenMeteoError,
-  mergeValidDailyTemperatures
+  isOpenMeteoError
 } from './dataService.js';
 import {
   fetchWithTimeout,
   formatDateLocal,
   formatDayMonth,
-  parseDateStringLocal
+  parseDateStringLocal,
+  shiftDateStringByDays
 } from './utils.js';
+import { fetchMergedWeatherData } from './weatherData.js';
 import {
   createLocationActionButton,
   getNextTabTarget
@@ -81,26 +81,6 @@ function getLocalTodayString() {
   return formatDateLocal(new Date());
 }
 
-function shiftLocalDateStringByDays(value, deltaDays, maxDateValue = null) {
-  const baseDate = parseDateInput(value);
-  if (!(baseDate instanceof Date) || !Number.isFinite(deltaDays)) {
-    return null;
-  }
-  const shifted = new Date(baseDate);
-  shifted.setDate(shifted.getDate() + Number(deltaDays));
-
-  if (maxDateValue) {
-    const maxDate = parseDateInput(maxDateValue);
-    if (!(maxDate instanceof Date)) {
-      return null;
-    }
-    if (shifted.getTime() > maxDate.getTime()) {
-      return formatDateLocal(maxDate);
-    }
-  }
-  return formatDateLocal(shifted);
-}
-
 /**
  * Dynamically updates the #zeitraum select options so that we never select
  * beyond the year change. Preserves the user's previous selection if it's still available.
@@ -111,11 +91,13 @@ function updateZeitraumSelect() {
   const datumVal = datumInput.value;
   if (!datumVal) return; // if there's no date yet, do nothing
 
-  const [yyyy, mm, dd] = datumVal.split('-').map(x => parseInt(x, 10));
-  const selectedDate = new Date(yyyy, mm - 1, dd, 0, 0, 0, 0);
-  const startOfYear = new Date(yyyy, 0, 1);
-  const diffMs = selectedDate.getTime() - startOfYear.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 3600 * 24));
+  const selectedDate = parseDateStringLocal(datumVal);
+  if (!selectedDate) return;
+  const year = selectedDate.getFullYear();
+  const diffDays = Math.floor((
+    Date.UTC(year, selectedDate.getMonth(), selectedDate.getDate())
+    - Date.UTC(year, 0, 1)
+  ) / 86400000);
 
   // Store current selection before clearing
   const previousSelection = zeitraumSelect.value;
@@ -163,6 +145,7 @@ let gtsRange20Active = false;
 let gtsColorScheme = "queen";
 let lastNarrowLayout = null;
 let comparisonActive = false;
+let refreshTabTooltips = () => {};
 const comparisonRequestGuard = createLatestRequestGuard();
 let offlineStatusActive = false;
 const REGULAR_GTS_RANGES = new Set([1, 5, 10]);
@@ -173,22 +156,20 @@ const ADDRESS_SUGGESTION_KEY = "beelotAddressSuggestion";
 const DEFAULT_ADDRESS_ZOOM = 12;
 const DEFAULT_ADDRESS_VIEWPORT_METERS = 1000;
 const ADDRESS_DEBUG_ENABLED = false;
+const addressDebugEntries = [];
 
 function logAddressDebug(message, payload = null) {
   if (!ADDRESS_DEBUG_ENABLED) {
     return;
-  }
-  if (!Array.isArray(window.__beelotAddressDebug)) {
-    window.__beelotAddressDebug = [];
   }
   const entry = {
     timestamp: new Date().toISOString(),
     message,
     payload
   };
-  window.__beelotAddressDebug.push(entry);
-  if (window.__beelotAddressDebug.length > 300) {
-    window.__beelotAddressDebug.splice(0, window.__beelotAddressDebug.length - 300);
+  addressDebugEntries.push(entry);
+  if (addressDebugEntries.length > 300) {
+    addressDebugEntries.splice(0, addressDebugEntries.length - 300);
   }
   if (payload === null) {
     console.log(`[DEBUG address] ${message}`);
@@ -204,7 +185,7 @@ function loadAddressSuggestion() {
       return normalizeAddressFormData();
     }
     return normalizeAddressFormData(JSON.parse(stored));
-  } catch (error) {
+  } catch {
     return normalizeAddressFormData();
   }
 }
@@ -877,8 +858,6 @@ function updateGtsRangeVisibility() {
 }
 
 function updateGtsRangeSelection() {
-  const effectiveRange = getEffectiveGtsYearRange();
-  window.gtsYearRange = effectiveRange;
   gtsRangeInputs.forEach((input) => {
     const value = parseInt(input.value, 10);
     if (value === GTS_RANGE_20) {
@@ -900,7 +879,6 @@ function updateColorSchemeAvailability(rangeValue, isTwentyActive = false) {
   });
   if (lockToQueen) {
     gtsColorScheme = "queen";
-    window.gtsColorScheme = gtsColorScheme;
     gtsColorInputs.forEach((input) => {
       input.checked = input.value === "queen";
     });
@@ -1079,12 +1057,8 @@ function setComparisonMode(enabled) {
   }
 }
 
-function parseDateInput(value) {
-  return parseDateStringLocal(value);
-}
-
 function isSupportedHistoricalDate(value) {
-  const date = parseDateInput(value);
+  const date = parseDateStringLocal(value);
   return date instanceof Date && date.getFullYear() >= HISTORICAL_DATA_START_YEAR;
 }
 
@@ -1093,82 +1067,11 @@ function getStoredOrTodayDateValue() {
   return isSupportedHistoricalDate(storedDate) ? storedDate : getLocalTodayString();
 }
 
-function computeStartDateFromSelection(endDate, selection) {
-  const startDate = new Date(endDate);
-  if (selection === "7") {
-    startDate.setDate(endDate.getDate() - 7 + 1);
-  } else if (selection === "14") {
-    startDate.setDate(endDate.getDate() - 14 + 1);
-  } else if (selection === "28") {
-    startDate.setDate(endDate.getDate() - 28 + 1);
-  } else {
-    startDate.setMonth(0);
-    startDate.setDate(1);
-  }
-  return startDate;
-}
-
-async function fetchAllDataForRange(lat, lon, fetchStartDate, endDate, recentStartDate, cacheStore) {
-  const dataByDate = {};
-
-  let histData = null;
-  try {
-    histData = await fetchHistoricalData(
-      lat,
-      lon,
-      fetchStartDate,
-      endDate,
-      cacheStore
-    );
-  } catch (error) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (endDate >= today) {
-      histData = await fetchRecentData(
-        lat,
-        lon,
-        fetchStartDate,
-        endDate,
-        cacheStore
-      );
-    } else {
-      throw error;
-    }
-  }
-
-  if (histData && histData.daily && histData.daily.time.length > 0) {
-    mergeValidDailyTemperatures(dataByDate, histData, true);
-
-    const firstMissingDate = findFirstMissingTemperatureDate(
-      dataByDate,
-      recentStartDate,
-      endDate
-    );
-    if (firstMissingDate) {
-      const recentData = await fetchRecentData(
-        lat,
-        lon,
-        firstMissingDate,
-        endDate,
-        cacheStore
-      );
-      if (recentData && recentData.daily) {
-        mergeValidDailyTemperatures(dataByDate, recentData, false);
-      }
-    }
-  }
-
-  const allDates = Object.keys(dataByDate);
-  const sortedDates = allDates.sort((a, b) => a.localeCompare(b));
-  const sortedTemps = sortedDates.map(d => dataByDate[d]);
-  return { allDates: sortedDates, allTemps: sortedTemps };
-}
-
 async function buildComparisonSeriesForLocation(location, endDate, selection, updateStore = false) {
   if (!location || !location.coordinates) {
     return null;
   }
-  const plotStartDate = computeStartDateFromSelection(endDate, selection);
+  const plotStartDate = computeStartDate(endDate, selection);
   const fetchStartDate = new Date(endDate.getFullYear(), 0, 1, 0, 0, 0, 0);
   let recentStartDate;
   if (endDate.getTime() - fetchStartDate.getTime() <= 30 * 86400000) {
@@ -1179,7 +1082,7 @@ async function buildComparisonSeriesForLocation(location, endDate, selection, up
   }
 
   const cacheStore = createWeatherCacheStore(location.id);
-  const { allDates, allTemps } = await fetchAllDataForRange(
+  const { allDates, allTemps } = await fetchMergedWeatherData(
     location.coordinates.lat,
     location.coordinates.lon,
     fetchStartDate,
@@ -1225,7 +1128,7 @@ async function renderComparisonPlot() {
   }
   const renderGeneration = comparisonRequestGuard.start();
   try {
-    const endDate = parseDateInput(datumInput.value);
+    const endDate = parseDateStringLocal(datumInput.value);
     if (
       !(endDate instanceof Date)
       || endDate.getFullYear() < HISTORICAL_DATA_START_YEAR
@@ -1284,7 +1187,7 @@ async function renderComparisonPlot() {
 }
 
 async function refreshAllLocationCalculations() {
-  const endDate = parseDateInput(datumInput.value);
+  const endDate = parseDateStringLocal(datumInput.value);
   if (
     !(endDate instanceof Date)
     || endDate.getFullYear() < HISTORICAL_DATA_START_YEAR
@@ -1369,7 +1272,6 @@ function applyLocationState(location) {
   gtsRange20Active = Boolean(location.ui.gtsRange20Active);
 
   gtsColorScheme = location.ui.gtsColorScheme || "queen";
-  window.gtsColorScheme = gtsColorScheme;
   if (gtsColorInputs.length > 0) {
     gtsColorInputs.forEach((input) => {
       input.checked = input.value === gtsColorScheme;
@@ -1413,9 +1315,7 @@ function updateLegendLocationLabel() {
     legendLabel.textContent = `${activeLocation.name}:`;
   }
   legendLabel.style.display = "block";
-  if (typeof window.attachTabTooltips === "function") {
-    window.attachTabTooltips();
-  }
+  refreshTabTooltips();
 }
 
 function isNarrowLayout() {
@@ -1740,7 +1640,11 @@ document.addEventListener('DOMContentLoaded', () => {
     gtsPlotContainer,
     tempPlotContainer,
     chartRefs: { chartGTS: null, chartTemp: null },
-    locationNameOutput
+    locationNameOutput,
+    getViewSettings: () => ({
+      yearRange: getEffectiveGtsYearRange(),
+      colorScheme: gtsColorScheme
+    })
   });
 
   const activeLocation = getActiveLocation();
@@ -1934,7 +1838,7 @@ function setupEventListeners() {
     });
     observer.observe(tabsRoot, { childList: true });
   }
-  window.attachTabTooltips = attachTabTooltips;
+  refreshTabTooltips = attachTabTooltips;
   attachTabTooltips();
 
   const modalAccept = document.getElementById("confirm-modal-accept");
@@ -1990,7 +1894,6 @@ function setupEventListeners() {
         return;
       }
       gtsColorScheme = input.value;
-      window.gtsColorScheme = gtsColorScheme;
       updateActiveLocationUiState({ gtsColorScheme });
       updateGtsRangeVisibility();
       updateGtsRangeSelection();
@@ -2069,7 +1972,7 @@ function setupEventListeners() {
   datumPlusBtn.addEventListener('click', () => {
     const todayStr = getLocalTodayString();
     const baseDate = datumInput.value || todayStr;
-    const shifted = shiftLocalDateStringByDays(baseDate, 1, todayStr);
+    const shifted = shiftDateStringByDays(baseDate, 1, todayStr);
     if (!shifted) {
       return;
     }
@@ -2095,7 +1998,7 @@ function setupEventListeners() {
 
   datumMinusBtn.addEventListener('click', () => {
     const baseDate = datumInput.value || getLocalTodayString();
-    const shifted = shiftLocalDateStringByDays(baseDate, -1);
+    const shifted = shiftDateStringByDays(baseDate, -1);
     if (!shifted) {
       return;
     }
@@ -2225,7 +2128,7 @@ function setupEventListeners() {
       initialFocus: mapCloseBtn,
       onEscape: () => closeMapPopup()
     });
-    window.initOrUpdateMap();
+    initOrUpdateMap();
   });
 
   const closeMapPopup = () => {
@@ -2246,7 +2149,7 @@ function setupEventListeners() {
 
   mapSaveBtn.addEventListener('click', () => {
     // Saves lat/lon to ortInput
-    window.saveMapSelection();
+    saveMapSelection();
     closeMapPopup();
 
     // Force the same logic as if the user had typed in ortInput

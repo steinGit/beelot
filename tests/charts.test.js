@@ -31,7 +31,6 @@ describe('beekeeperColor', () => {
 describe('plotMultipleYearData', () => {
     test('uses lighter queen colors for older years in the same cycle', () => {
         document.body.innerHTML = '<canvas id="plot-canvas"></canvas>';
-        window.gtsColorScheme = 'queen';
         const years = [2026, 2025, 2024, 2023, 2022, 2021];
         const multiYearData = years.map((year) => ({
             year,
@@ -39,7 +38,7 @@ describe('plotMultipleYearData', () => {
             gtsValues: [1, 2]
         }));
 
-        const chart = plotMultipleYearData(multiYearData);
+        const chart = plotMultipleYearData(multiYearData, null, 'queen');
         expect(chart).not.toBeNull();
         expect(lastChartConfig).not.toBeNull();
         const datasets = lastChartConfig.data.datasets;
@@ -84,12 +83,11 @@ describe('plotData', () => {
 
     test('plots data when input is valid', () => {
         document.body.innerHTML = '<canvas id="plot-canvas"></canvas>';
-        window.gtsColorScheme = 'queen';
         const results = [
             { date: '2025-01-01', gts: 15 },
             { date: '2025-01-02', gts: 20 },
         ];
-        const chart = plotData(results);
+        const chart = plotData(results, null, 'queen');
         expect(chart).not.toBeNull();
         expect(chart.destroy).toBeDefined(); // Ensures mock is working
     });

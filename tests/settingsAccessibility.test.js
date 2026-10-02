@@ -10,7 +10,15 @@ describe("settings accessibility", () => {
       <div id="tracht-content" hidden></div>
       <table id="tracht-table"><tbody></tbody></table>
       <button id="clear-cache-button"></button>
+      <button id="clear-local-storage-button"></button>
+      <button id="add-tracht-row-button"></button>
+      <button id="reset-tracht-data-button"></button>
     `;
+    jest.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   test("expands a section with a native button and updates its state", async () => {
@@ -43,5 +51,18 @@ describe("settings accessibility", () => {
     const deleteButton = document.querySelector(".delete-row-button");
     expect(deleteButton.tagName).toBe("BUTTON");
     expect(deleteButton.getAttribute("aria-label")).toBe("Testpflanze löschen, Zeile 1");
+  });
+
+  test("binds settings actions without window globals", async () => {
+    await import("../assets/js/settings");
+    document.getElementById("add-tracht-row-button").click();
+
+    expect(JSON.parse(localStorage.getItem("trachtData"))).toHaveLength(1);
+    expect(window.addTrachtRow).toBeUndefined();
+    expect(window.resetTrachtData).toBeUndefined();
+
+    localStorage.setItem("unrelated", "value");
+    document.getElementById("clear-local-storage-button").click();
+    expect(localStorage.length).toBe(0);
   });
 });

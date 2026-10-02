@@ -5,6 +5,7 @@
  */
 
 import { defaultTrachtData } from './tracht_data.js';
+import { parseDateStringLocal } from './utils.js';
 
 const DEFAULT_URL_BY_PLANT = new Map(
     defaultTrachtData
@@ -31,7 +32,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
     }
 
     gtsResults.forEach(item => {
-        const dObj = parseLocalDateString(item.date);
+        const dObj = parseDateStringLocal(item.date);
         if (!dObj) {
             return;
         }
@@ -471,23 +472,6 @@ function transform_to_month_day(dayIndex, dayNow, year) {
     return `${dd}.${mm}.`;
 }
 
-function parseLocalDateString(dateStr) {
-    if (typeof dateStr !== "string") {
-        return null;
-    }
-    const parts = dateStr.split("-");
-    if (parts.length !== 3) {
-        return null;
-    }
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const day = parseInt(parts[2], 10);
-    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
-        return null;
-    }
-    return new Date(year, month, day, 0, 0, 0, 0);
-}
-
 function escapeHtml(value) {
     return String(value)
         .replace(/&/g, "&amp;")
@@ -503,7 +487,7 @@ function sanitizeHttpUrl(rawUrl) {
         if (parsed.protocol === "http:" || parsed.protocol === "https:") {
             return parsed.href;
         }
-    } catch (error) {
+    } catch {
         return "";
     }
     return "";

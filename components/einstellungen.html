@@ -56,8 +56,8 @@
               <!-- Populated by JS -->
             </tbody>
           </table>
-          <button class="add-button" onclick="addTrachtRow()">+ Zeile hinzufügen</button>
-          <button class="reset-button" onclick="resetTrachtData()">RESET</button>
+          <button class="add-button" id="add-tracht-row-button">+ Zeile hinzufügen</button>
+          <button class="reset-button" id="reset-tracht-data-button">RESET</button>
         </div>
 
         <!-- Beschreibung für Sonstiges         -->
@@ -80,7 +80,7 @@
 
           <!-- Clear Local Storage Buttons -->
           <div style="text-align: center; margin-top: 20px;">
-            <button class="red-button" onclick="clearLocalStorage()">Clear Local Storage</button>
+            <button class="red-button" id="clear-local-storage-button">Clear Local Storage</button>
             <button class="red-button" id="clear-cache-button">Clear Cache</button>
           </div>
         </div>
@@ -97,16 +97,5 @@
 
       loadPageFooter();
     </script>
-
-
-    <!-- JavaScript for clearing local storage -->
-    <script>
-      function clearLocalStorage() {
-          console.log("[Clear Local Storage] Clearing all local storage...");
-          localStorage.clear();
-          console.log("[Clear Local Storage] Local storage cleared.");
-      }
-    </script>
-
   </body>
 </html>

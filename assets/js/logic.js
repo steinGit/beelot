@@ -25,55 +25,20 @@ function createLocalStartOfDay(year, month, day) {
 }
 
 /**
- * Retrieves the selected end date from the #datum input.
- * Ensures the date is set to local midnight.
- * @returns {Date|null} - The selected end date, or null for an invalid calendar date.
- */
-export function getSelectedEndDate() {
-    const datumInput = document.getElementById('datum');
-    return datumInput ? parseDateStringLocal(datumInput.value) : null;
-}
-
-/**
- * Computes the date range based on the selected end date.
+ * Computes the start date for a timeframe without reading DOM state.
  * @param {Date} endDate - The selected end date.
- * @returns {Object} - An object containing differenceInDays and plotStartDate.
- */
-export function computeDateRange(endDate) {
-    const today = new Date();
-    const differenceInTime = today.getTime() - endDate.getTime();
-    const differenceInDays = Math.floor(differenceInTime / (1000 * 3600 * 24));
-    const plotStartDate = computeStartDate(endDate);
-    return { differenceInDays, plotStartDate };
-}
-
-/**
- * Computes the start date based on the selected timeframe.
- * @param {Date} endDate - The selected end date.
+ * @param {string} selection - Selected timeframe (7, 14, 28, or ytd).
  * @returns {Date} - The computed start date.
  */
-export function computeStartDate(endDate) {
-    const zeitraumSelect = document.getElementById('zeitraum');
-    const selection = zeitraumSelect.value;
-    const startDate = new Date(endDate); // Clone the endDate
-
-    // console.log("[DEBUG logic.js] computeStartDate() => selection=", selection,
-    // "endDate=", formatDateLocal(endDate));
-
-    if (selection === "7") {
-        startDate.setDate(endDate.getDate() - 7 + 1);
-    } else if (selection === "14") {
-        startDate.setDate(endDate.getDate() - 14 + 1);
-    } else if (selection === "28") {
-        startDate.setDate(endDate.getDate() - 28 + 1);
+export function computeStartDate(endDate, selection) {
+    const startDate = new Date(endDate);
+    const days = Number.parseInt(selection, 10);
+    if ([7, 14, 28].includes(days)) {
+        startDate.setDate(endDate.getDate() - days + 1);
     } else if (selection === "ytd") {
-        // Go to January 1st of the endDate's year
-        startDate.setMonth(0); // January
+        startDate.setMonth(0);
         startDate.setDate(1);
     }
-
-    // console.log("[DEBUG logic.js] computeStartDate() => startDate=",
-    // formatDateLocal(startDate));
     return startDate;
 }
 
@@ -223,7 +188,7 @@ export async function buildYearData(
     const mainYear = baseEndDate.getFullYear();
     const allResults = [];
 
-    // console.log("[DEBUG logic.js] build5YearData() => mainYear=", mainYear);
+    // console.log("[DEBUG logic.js] buildYearData() => mainYear=", mainYear);
 
     for (
         let y = mainYear;
@@ -255,8 +220,8 @@ export async function buildYearData(
                 return d && d >= yearPlotStart && d <= endOfDay;
             });
 
-            // console.log(`[DEBUG build5YearData] Year ${y} - plotStartDate: ${yearPlotStart}, endOfDay: ${endOfDay}`);
-            // console.log(`[DEBUG build5YearData] Year ${y} - Displayed Results:`, displayedResults);
+            // console.log(`[DEBUG buildYearData] Year ${y} - plotStartDate: ${yearPlotStart}, endOfDay: ${endOfDay}`);
+            // console.log(`[DEBUG buildYearData] Year ${y} - Displayed Results:`, displayedResults);
 
             // Convert to Chart.js data format
             const labels = displayedResults.map(item => {
@@ -275,7 +240,7 @@ export async function buildYearData(
             // For past years, fetch from the server
             //
             try {
-                // console.log("[DEBUG logic.js] build5YearData() y=", y, " yearPlotStart= ", formatDateLocal(yearPlotStart), " yearPlotEnd= ", formatDateLocal(yearPlotEnd));
+                // console.log("[DEBUG logic.js] buildYearData() y=", y, " yearPlotStart= ", formatDateLocal(yearPlotStart), " yearPlotEnd= ", formatDateLocal(yearPlotEnd));
                 const yearly = await fetchGTSForYear(
                     lat,
                     lon,
@@ -284,7 +249,7 @@ export async function buildYearData(
                     yearPlotEnd,
                     cacheStore
                 );
-                // console.log("[DEBUG logic.js] build5YearData() => year=", y,
+                // console.log("[DEBUG logic.js] buildYearData() => year=", y,
                 //    " => #points=", yearly.gtsValues.length);
                 allResults.push(yearly);
             } catch (err) {
@@ -293,27 +258,8 @@ export async function buildYearData(
         }
     }
 
-    // console.log("[DEBUG logic.js] build5YearData() => total sets=", allResults.length);
+    // console.log("[DEBUG logic.js] buildYearData() => total sets=", allResults.length);
     return allResults;
-}
-
-export async function build5YearData(
-    lat,
-    lon,
-    baseStartDate,
-    baseEndDate,
-    data_current_year,
-    cacheStore = null
-) {
-    return buildYearData(
-        lat,
-        lon,
-        baseStartDate,
-        baseEndDate,
-        data_current_year,
-        5,
-        cacheStore
-    );
 }
 
 /**

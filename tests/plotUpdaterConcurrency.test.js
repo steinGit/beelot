@@ -33,7 +33,7 @@ const weather = (temp) => ({ daily: {
   time: ['2025-01-01', '2025-01-02'], temperature_2m_mean: [temp, temp]
 } });
 
-let updater, a, b;
+let updater, a, b, viewSettings;
 const location = (id) => store.getLocationById(id);
 const switchTo = (id) => { store.setActiveLocation(id); updater.setLocationId(id); };
 
@@ -45,8 +45,7 @@ beforeEach(() => {
     <p id="result"></p><p id="name"></p><section class="hinweis-section"></section>
     <div id="gts"><canvas id="gtsChart"></canvas></div>
     <div id="temp"><canvas id="tempChart"></canvas></div>`;
-  window.gtsYearRange = 1;
-  window.gtsColorScheme = 'year';
+  viewSettings = { yearRange: 1, colorScheme: 'year' };
   global.Chart = { getChart: jest.fn() };
   buildYearData.mockResolvedValue([]);
   fetchHistoricalData.mockReset();
@@ -65,7 +64,8 @@ beforeEach(() => {
     hinweisSection: document.querySelector('.hinweis-section'),
     gtsPlotContainer: document.querySelector('#gts'),
     tempPlotContainer: document.querySelector('#temp'),
-    locationNameOutput: document.querySelector('#name')
+    locationNameOutput: document.querySelector('#name'),
+    getViewSettings: () => viewSettings
   });
 });
 afterEach(() => {
@@ -113,8 +113,8 @@ test('a normal run stores calculations and displays both charts and hints', asyn
   expect(result.temps.values).toEqual([10, 10]);
   expect(result.gtsResults.at(-1).gts).toBe(10);
   expect(result.lastGtsKey).toBe('2025-01-02|ytd');
-  expect(result.hinweisHtml).toBe('10');
-  expect(plotData).toHaveBeenCalledWith(result.filteredResults, { min: 0, max: 10 });
+  expect(document.querySelector('.hinweis-section').textContent).toBe('10');
+  expect(plotData).toHaveBeenCalledWith(result.filteredResults, { min: 0, max: 10 }, 'year');
   expect(plotDailyTemps).toHaveBeenCalledWith(result.temps.dates, [10, 10], { min: 10, max: 10 });
   expect(document.querySelector('#result').textContent).toContain('10.0');
 });
@@ -184,13 +184,13 @@ test('an older request for the same location cannot replace newer calculations',
 
 test('a late multi-year response caches for its owner without replacing the newer chart', async () => {
   const pending = deferred(), entered = deferred();
-  window.gtsYearRange = 3;
+  viewSettings.yearRange = 3;
   fetchHistoricalData.mockResolvedValue(weather(10));
   buildYearData.mockImplementationOnce(() => { entered.resolve(); return pending.promise; });
   const oldRun = updater.run();
   await entered.promise;
   switchTo(b);
-  window.gtsYearRange = 1;
+  viewSettings.yearRange = 1;
   document.querySelector('#zeitraum').value = '7';
   await updater.run();
   const displayed = document.body.innerHTML;

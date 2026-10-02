@@ -134,7 +134,7 @@ function applyActiveLocationMapView(activeLocation) {
 /**
  * Initializes or updates the Leaflet map overlay.
  */
-window.initOrUpdateMap = () => {
+export function initOrUpdateMap() {
   const activeLocation = getActiveLocation();
   if (!map) {
     map = L.map('map').setView([51.1657, 10.4515], 6);
@@ -188,12 +188,12 @@ window.initOrUpdateMap = () => {
       applyActiveLocationMapView(activeLocation);
     }, 100);
   }
-};
+}
 
 /**
  * Saves the currently selected map location back to #ort + localStorage
  */
-window.saveMapSelection = () => {
+export function saveMapSelection() {
   if (selectedLatLng) {
     const coordinates = normalizeCoordinates(selectedLatLng.lat, selectedLatLng.lng);
     if (!coordinates) {
@@ -219,4 +219,4 @@ window.saveMapSelection = () => {
   if (mapPopup) {
     mapPopup.style.display = 'none';
   }
-};
+}

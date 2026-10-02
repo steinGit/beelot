@@ -19,6 +19,7 @@ from typing import Final, List, Optional, Sequence, Tuple
 
 VERSION_FILE: Final[Path] = Path("assets/js/version.js")
 PACKAGE_FILE: Final[Path] = Path("package.json")
+PACKAGE_LOCK_FILE: Final[Path] = Path("package-lock.json")
 SYNC_SCRIPT: Final[Path] = Path("scripts/sync_versions.py")
 DEV_BRANCH: Final[str] = "dev"
 MAIN_BRANCH: Final[str] = "main"
@@ -364,7 +365,10 @@ def main(argv: Sequence[str]) -> None:
             check=False,
         )
         if result.stdout.strip() and not args.dryrun:
-            run_git_command(["add", str(VERSION_FILE), str(PACKAGE_FILE)], args.dryrun)
+            run_git_command(
+                ["add", str(VERSION_FILE), str(PACKAGE_FILE), str(PACKAGE_LOCK_FILE)],
+                args.dryrun,
+            )
             run_git_command(["commit", "-m", f"Release version {version}"], args.dryrun)
         else:
             print_warning("No version file changes to commit")

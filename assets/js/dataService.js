@@ -138,7 +138,7 @@ export function getCachedData(key, cacheStore = null, maxAgeMs = null, now = Dat
     if (!cacheStore) {
         try {
             cached = JSON.parse(cached);
-        } catch (error) {
+        } catch {
             console.warn(`[dataService.js] Invalid JSON in cache for key '${key}', clearing entry.`);
             localStorage.removeItem(key);
             return null;

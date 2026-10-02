@@ -40,10 +40,12 @@ describe('ui module exports', () => {
         expect(ui.locationPanel).toBeInstanceOf(HTMLElement);
     });
 
-    test('registers map helper functions on window', async () => {
-        await import('../assets/js/ui');
-        expect(typeof window.initOrUpdateMap).toBe('function');
-        expect(typeof window.saveMapSelection).toBe('function');
+    test('exports map helper functions without browser globals', async () => {
+        const ui = await import('../assets/js/ui');
+        expect(typeof ui.initOrUpdateMap).toBe('function');
+        expect(typeof ui.saveMapSelection).toBe('function');
+        expect(window.initOrUpdateMap).toBeUndefined();
+        expect(window.saveMapSelection).toBeUndefined();
     });
 
     test('normalizes a longitude from a repeated map world before saving', async () => {
@@ -62,11 +64,11 @@ describe('ui module exports', () => {
             marker: jest.fn(() => marker)
         };
 
-        await import('../assets/js/ui');
+        const { initOrUpdateMap, saveMapSelection } = await import('../assets/js/ui');
         const { getActiveLocation } = await import('../assets/js/locationStore');
-        window.initOrUpdateMap();
+        initOrUpdateMap();
         handlers.click({ latlng: { lat: 44.87535, lng: 266.54348 } });
-        window.saveMapSelection();
+        saveMapSelection();
 
         expect(getActiveLocation().coordinates.lon).toBeCloseTo(-93.45652, 5);
         expect(document.querySelector('#ort').value)

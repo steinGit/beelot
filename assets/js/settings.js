@@ -20,6 +20,9 @@ document.querySelectorAll('.settings-heading').forEach((heading) => {
 
 const TRACT_DATA_KEY = 'trachtData';
 const clearCacheButton = document.getElementById("clear-cache-button");
+const clearLocalStorageButton = document.getElementById("clear-local-storage-button");
+const addTrachtRowButton = document.getElementById("add-tracht-row-button");
+const resetTrachtDataButton = document.getElementById("reset-tracht-data-button");
 
 function clearCache() {
   console.log("[Clear Cache] Clearing cache...");
@@ -41,6 +44,14 @@ function clearCache() {
 
 if (clearCacheButton) {
   clearCacheButton.addEventListener("click", clearCache);
+}
+
+if (clearLocalStorageButton) {
+  clearLocalStorageButton.addEventListener("click", () => {
+    console.log("[Clear Local Storage] Clearing all local storage...");
+    localStorage.clear();
+    console.log("[Clear Local Storage] Local storage cleared.");
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -98,7 +109,7 @@ export function populateTrachtTable(data) {
     checkbox.type = "checkbox";
     checkbox.checked = row.active;
     checkbox.setAttribute("aria-label", `Aktiv, Zeile ${idx + 1}: ${row.plant}`);
-    checkbox.onclick = () => toggleActive(idx);
+    checkbox.addEventListener("click", () => toggleActive(idx));
     tdCheck.appendChild(checkbox);
     tr.appendChild(tdCheck);
 
@@ -113,7 +124,7 @@ export function populateTrachtTable(data) {
     startInput.style.textAlign = "right";
     startInput.style.border = "none";
     startInput.style.backgroundColor = row.active ? "#ffffc0" : "#C0C0C0";
-    startInput.onchange = () => updateStart(idx, startInput.value);
+    startInput.addEventListener("change", () => updateStart(idx, startInput.value));
     tdStart.appendChild(startInput);
     tr.appendChild(tdStart);
 
@@ -128,7 +139,7 @@ export function populateTrachtTable(data) {
     endInput.style.textAlign = "right";
     endInput.style.border = "none";
     endInput.style.backgroundColor = row.active ? "#ffffc0" : "#C0C0C0";
-    endInput.onchange = () => updateEnd(idx, endInput.value);
+    endInput.addEventListener("change", () => updateEnd(idx, endInput.value));
     tdEnd.appendChild(endInput);
     tr.appendChild(tdEnd);
 
@@ -142,7 +153,7 @@ export function populateTrachtTable(data) {
     plantInput.style.width = "100%";
     plantInput.style.border = "none";
     plantInput.style.backgroundColor = "transparent";
-    plantInput.onchange = () => updatePlant(idx, plantInput.value);
+    plantInput.addEventListener("change", () => updatePlant(idx, plantInput.value));
     tdPlant.appendChild(plantInput);
     tr.appendChild(tdPlant);
 
@@ -154,7 +165,7 @@ export function populateTrachtTable(data) {
     deleteButton.className = "delete-row-button";
     deleteButton.textContent = "Löschen";
     deleteButton.setAttribute("aria-label", `${row.plant} löschen, Zeile ${idx + 1}`);
-    deleteButton.onclick = () => deleteRow(idx);
+    deleteButton.addEventListener("click", () => deleteRow(idx));
     tdTrash.appendChild(deleteButton);
     tr.appendChild(tdTrash);
 
@@ -167,7 +178,7 @@ export function populateTrachtTable(data) {
     urlInput.style.width = "100%";
     urlInput.style.border = "none";
     urlInput.style.backgroundColor = "transparent";
-    urlInput.onchange = () => updateUrl(idx, urlInput.value);
+    urlInput.addEventListener("change", () => updateUrl(idx, urlInput.value));
     tdUrl.appendChild(urlInput);
     tr.appendChild(tdUrl);
 
@@ -290,9 +301,12 @@ async function resetTrachtData() {
   }
 }
 
-/**
- * If you’re using <button onclick="addTrachtRow()"> in einstellungen.html,
- * we must expose them globally:
- */
-window.addTrachtRow = addTrachtRow;
-window.resetTrachtData = resetTrachtData;
+if (addTrachtRowButton) {
+  addTrachtRowButton.addEventListener("click", addTrachtRow);
+}
+
+if (resetTrachtDataButton) {
+  resetTrachtDataButton.addEventListener("click", () => {
+    resetTrachtData();
+  });
+}

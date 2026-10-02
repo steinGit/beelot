@@ -37,7 +37,6 @@ function buildDefaultCalculations() {
       dates: [],
       values: []
     },
-    hinweisHtml: "",
     locationLabel: "",
     lastGtsKey: ""
   };
@@ -124,6 +123,7 @@ function ensureLocationShape(location) {
   normalized.cache.weather = normalized.cache.weather || {};
   normalized.cache.locationName = normalized.cache.locationName || {};
   normalized.calculations = normalized.calculations || buildDefaultCalculations();
+  delete normalized.calculations.hinweisHtml;
   normalized.calculations.temps = normalized.calculations.temps || { dates: [], values: [] };
   normalized.calculations.gtsYearCurves = normalized.calculations.gtsYearCurves || {};
   normalized.ui = normalized.ui || buildDefaultUiState();
