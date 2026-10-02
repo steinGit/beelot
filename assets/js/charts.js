@@ -484,9 +484,10 @@ export function plotMultipleYearData(multiYearData, yRange = null, colorScheme =
         };
     });
 
-    // Use a unified set of labels for the x-axis
-    // Assuming all years have the same number of days and labels
-    const masterLabels = multiYearData[0].labels;
+    // The newest year can be shorter than completed historical years.
+    // Its labels define the visible date range for every curve.
+    const newestYearData = multiYearData.find((item) => item.year === newestYear);
+    const masterLabels = newestYearData?.labels || [];
     const xTickOptions = buildXAxisTickOptions(masterLabels, axisFontSize, canvas);
 
     // console.log("[charts.js] plotMultipleYearData() masterLabels = ", masterLabels);

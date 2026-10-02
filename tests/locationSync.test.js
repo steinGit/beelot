@@ -53,4 +53,24 @@ describe("permanent location synchronization", () => {
     expect(updater.run).toHaveBeenCalledTimes(validRunCount);
     expect(document.getElementById("standort-sync-toggle")).toBeNull();
   });
+
+  test("moves the selected date through the real page controls", async () => {
+    const store = await import("../assets/js/locationStore.js");
+    const { PlotUpdater } = await import("../assets/js/plotUpdater.js");
+    await import("../assets/js/main.js");
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    const updater = PlotUpdater.mock.results[0].value;
+    const datumInput = document.getElementById("datum");
+
+    datumInput.value = "2026-03-01";
+    datumInput.dispatchEvent(new Event("change"));
+    document.getElementById("datum-minus").click();
+    expect(datumInput.value).toBe("2026-02-28");
+    expect(store.getActiveLocation().ui.selectedDate).toBe("2026-02-28");
+
+    document.getElementById("datum-plus").click();
+    expect(datumInput.value).toBe("2026-03-01");
+    expect(store.getActiveLocation().ui.selectedDate).toBe("2026-03-01");
+    expect(updater.run).toHaveBeenCalled();
+  });
 });

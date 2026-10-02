@@ -7,6 +7,9 @@ beforeAll(() => {
     global.Chart = class {
         constructor(ctx, config) {
             this.destroy = jest.fn();
+            this.resize = jest.fn();
+            this.update = jest.fn();
+            this.canvas = document.querySelector('canvas');
             lastChartConfig = config;
         }
     };
@@ -29,6 +32,21 @@ describe('beekeeperColor', () => {
 });
 
 describe('plotMultipleYearData', () => {
+    test('uses labels from the newest year when leap-year curve lengths differ', () => {
+        document.body.innerHTML = '<canvas id="plot-canvas"></canvas>';
+        const leapYearLabels = Array.from({ length: 366 }, (_, index) => `leap-${index + 1}`);
+        const newestYearLabels = Array.from({ length: 120 }, (_, index) => `current-${index + 1}`);
+
+        plotMultipleYearData([
+            { year: 2024, labels: leapYearLabels, gtsValues: leapYearLabels.map(() => 1) },
+            { year: 2025, labels: newestYearLabels, gtsValues: newestYearLabels.map(() => 2) }
+        ]);
+
+        expect(lastChartConfig.data.labels).toEqual(newestYearLabels);
+        expect(lastChartConfig.data.datasets[0].data).toHaveLength(366);
+        expect(lastChartConfig.data.datasets[1].data).toHaveLength(120);
+    });
+
     test('uses lighter queen colors for older years in the same cycle', () => {
         document.body.innerHTML = '<canvas id="plot-canvas"></canvas>';
         const years = [2026, 2025, 2024, 2023, 2022, 2021];

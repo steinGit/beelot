@@ -119,6 +119,37 @@ describe('locationStore', () => {
         });
     });
 
+    test('uses defaults when browser storage cannot be read', async () => {
+        jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+            throw new DOMException('Storage blocked', 'SecurityError');
+        });
+        jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const { getActiveLocation } = await import('../assets/js/locationStore');
+
+        expect(getActiveLocation()).toMatchObject({ id: 'loc-1', name: 'Standort 1' });
+        expect(console.warn).toHaveBeenCalledWith(
+            '[locationStore] Browser storage is unavailable. Using defaults.',
+            expect.objectContaining({ name: 'SecurityError' })
+        );
+    });
+
+    test('keeps in-memory changes when browser storage cannot be written', async () => {
+        const store = await import('../assets/js/locationStore');
+        jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+            throw new DOMException('Storage blocked', 'SecurityError');
+        });
+        jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+        store.renameLocation(store.getActiveLocationId(), 'Unpersisted');
+
+        expect(store.getActiveLocation().name).toBe('Unpersisted');
+        expect(console.warn).toHaveBeenCalledWith(
+            '[locationStore] Failed to persist state.',
+            expect.objectContaining({ name: 'SecurityError' })
+        );
+    });
+
     test('invalidates derived calculations when coordinates change', async () => {
         const { getActiveLocation, updateLocation } = await import('../assets/js/locationStore');
         const locationId = getActiveLocation().id;

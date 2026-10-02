@@ -5,6 +5,9 @@ import pluginJs from "@eslint/js";
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   {
+    ignores: ["coverage/**"]
+  },
+  {
     files: ["**/*.{js,mjs,cjs,jsx}"],
     languageOptions: {
       globals: {

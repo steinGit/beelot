@@ -30,5 +30,23 @@ describe("external dependency pinning", () => {
       /uses: softprops\/action-gh-release@[0-9a-f]{40}(?:\s+#\s+v2)?/
     );
     expect(workflow).not.toContain("softprops/action-gh-release@v2");
+    const actionReferences = [...workflow.matchAll(/uses:\s+[^@\s]+@([^\s#]+)/g)];
+    expect(actionReferences.length).toBeGreaterThanOrEqual(3);
+    actionReferences.forEach(([, reference]) => {
+      expect(reference).toMatch(/^[0-9a-f]{40}$/);
+    });
+  });
+
+  test("requires the quality gate before publishing a release", () => {
+    const workflow = fs.readFileSync(
+      path.join(repositoryRoot, ".github/workflows/release.yml"),
+      "utf8"
+    );
+
+    expect(workflow).toMatch(/quality:\n[\s\S]*npm run test:coverage/);
+    expect(workflow).toMatch(/TZ:\s+America\/Los_Angeles/);
+    expect(workflow).toMatch(/npm run lint/);
+    expect(workflow).toMatch(/npm audit --audit-level=low/);
+    expect(workflow).toMatch(/release:\n\s+needs:\s+quality/);
   });
 });

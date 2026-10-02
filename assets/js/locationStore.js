@@ -277,15 +277,28 @@ function normalizeState(value) {
 }
 
 function loadState() {
-  const stored = localStorage.getItem(STORAGE_KEY);
+  let stored;
+  try {
+    stored = localStorage.getItem(STORAGE_KEY);
+  } catch (error) {
+    console.warn("[locationStore] Browser storage is unavailable. Using defaults.", error);
+    return buildDefaultState();
+  }
   if (!stored) {
     const state = buildDefaultState();
-    const legacyCoords = parseLegacyCoordinates(localStorage.getItem("lastLocation"));
+    let legacyCoords = null;
+    let legacyPos = null;
+    let legacyZoom = null;
+    try {
+      legacyCoords = parseLegacyCoordinates(localStorage.getItem("lastLocation"));
+      legacyPos = localStorage.getItem("lastPos");
+      legacyZoom = localStorage.getItem("lastZoom");
+    } catch (error) {
+      console.warn("[locationStore] Legacy browser storage is unavailable. Using defaults.", error);
+    }
     if (legacyCoords) {
       state.locations[state.activeId].coordinates = legacyCoords;
     }
-    const legacyPos = localStorage.getItem("lastPos");
-    const legacyZoom = localStorage.getItem("lastZoom");
     if (legacyPos && legacyZoom) {
       state.locations[state.activeId].ui.map.lastPos = legacyPos;
       state.locations[state.activeId].ui.map.lastZoom = legacyZoom;

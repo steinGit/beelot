@@ -10,6 +10,7 @@
     "test1": "jest --testPathPatterns='(logic|location_name_from_gps)\\.test\\.js'",
     "test2": "jest --testPathPatterns='(logic|charts)\\.test\\.js'",
     "test": "jest",
+    "test:coverage": "jest --coverage --runInBand",
     "lint": "eslint ."
   },
   "dependencies": {

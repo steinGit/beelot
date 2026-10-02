@@ -358,9 +358,10 @@ describe('calculateGTS with even larger dataset spanning Jan-March', () => {
             { date: '2024-03-03', gts: 213.98 },
         ];
 
+        const absoluteTolerance = 0.011;
         expected.forEach((exp, index) => {
             expect(result[index].date).toBe(exp.date);
-            expect(Math.abs(result[index].gts - exp.gts)).toBeLessThan(0.011);
+            expect(Math.abs(result[index].gts - exp.gts)).toBeLessThan(absoluteTolerance);
         });
 
     });

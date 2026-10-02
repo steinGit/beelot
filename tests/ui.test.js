@@ -74,4 +74,36 @@ describe('ui module exports', () => {
         expect(document.querySelector('#ort').value)
             .toBe('Lat: 44.87535°, Lon: -93.45652°');
     });
+
+    test('stores map movement and refreshes map sizing when reopened', async () => {
+        jest.useFakeTimers();
+        const handlers = {};
+        const map = {
+            setView: jest.fn().mockReturnThis(),
+            on: jest.fn((eventName, handler) => { handlers[eventName] = handler; }),
+            getCenter: jest.fn(() => ({ lat: 48.1, lng: 9.2 })),
+            getZoom: jest.fn(() => 11),
+            removeLayer: jest.fn(),
+            invalidateSize: jest.fn()
+        };
+        global.L = {
+            map: jest.fn(() => map),
+            tileLayer: jest.fn(() => ({ addTo: jest.fn() })),
+            marker: jest.fn(() => ({ addTo: jest.fn().mockReturnThis() }))
+        };
+        const { initOrUpdateMap } = await import('../assets/js/ui');
+
+        initOrUpdateMap();
+        handlers.moveend();
+        expect(JSON.parse(localStorage.getItem('beelotLastMapView'))).toEqual({
+            lat: 48.1,
+            lon: 9.2,
+            zoom: 11
+        });
+
+        initOrUpdateMap();
+        jest.advanceTimersByTime(100);
+        expect(map.invalidateSize).toHaveBeenCalledTimes(1);
+        jest.useRealTimers();
+    });
 });

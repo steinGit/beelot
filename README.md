@@ -32,8 +32,14 @@ Install the exact JavaScript dependency versions and run the quality checks:
 ```bash
 npm ci
 npm test
+npm run test:coverage
 npm run lint
 ```
+
+The coverage command enforces repository-wide thresholds and dedicated floors
+for `main.js`, `settings.js`, `plotUpdater.js`, and `charts.js`. Tagged releases
+run these checks, the suite in an alternate time zone, the dependency audit,
+and the maintenance-script tests before the release job can start.
 
 Serve the repository root over HTTP before testing the website in a browser.
 Opening `index.html` directly does not reliably load the HTML fragments.
