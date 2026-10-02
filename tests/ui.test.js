@@ -2,7 +2,9 @@ describe('ui module exports', () => {
     beforeEach(() => {
         localStorage.clear();
         jest.resetModules();
+        delete global.L;
         document.body.innerHTML = `
+            <div id="service-status" hidden></div>
             <input id="datum" value="2025-01-01" />
             <input id="ort" value="Lat: 51.1657, Lon: 10.4515" />
             <select id="zeitraum"></select>
@@ -105,5 +107,36 @@ describe('ui module exports', () => {
         jest.advanceTimersByTime(100);
         expect(map.invalidateSize).toHaveBeenCalledTimes(1);
         jest.useRealTimers();
+    });
+
+    test('reports failed OpenStreetMap tile requests and clears after recovery', async () => {
+        const tileHandlers = {};
+        const map = {
+            setView: jest.fn().mockReturnThis(),
+            on: jest.fn(),
+            getCenter: jest.fn(() => ({ lat: 48.1, lng: 9.2 })),
+            getZoom: jest.fn(() => 11)
+        };
+        const tileLayer = {
+            on: jest.fn((eventName, handler) => { tileHandlers[eventName] = handler; }),
+            addTo: jest.fn()
+        };
+        global.L = {
+            map: jest.fn(() => map),
+            tileLayer: jest.fn(() => tileLayer),
+            marker: jest.fn()
+        };
+        const { initOrUpdateMap } = await import('../assets/js/ui');
+
+        initOrUpdateMap();
+        tileHandlers.tileerror();
+
+        expect(document.getElementById('service-status').textContent)
+            .toContain('OpenStreetMap');
+
+        tileHandlers.loading();
+        tileHandlers.load();
+
+        expect(document.getElementById('service-status').hidden).toBe(true);
     });
 });

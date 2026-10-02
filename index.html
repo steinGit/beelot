@@ -41,7 +41,26 @@
   </head>
   <body>
     <!-- 1) The header placeholder -->
-    <div id="header-placeholder"></div>
+    <div id="header-placeholder">
+      <header>
+        <div class="logo-container">
+          <a href="index.html">
+            <img src="assets/img/bee_logo02.png" alt="Logo" class="logo">
+          </a>
+          <div class="logo-text">
+            <h1>BeeLot</h1>
+            <span class="version" id="version-placeholder"></span>
+          </div>
+        </div>
+        <nav>
+          <a href="index.html">Home</a>
+          <a href="components/faq.html">FAQ</a>
+          <a href="components/einstellungen.html">
+            <img src="assets/img/gear.png" alt="Einstellungen">
+          </a>
+        </nav>
+      </header>
+    </div>
 
     <!-- 2) Load the header, THEN set the version, THEN load main.js -->
     <script type="module">
@@ -56,6 +75,15 @@
 
       loadPageHeader(VERSION);
     </script>
+
+    <div
+      id="service-status"
+      class="service-status"
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
+      hidden
+    ></div>
 
     <main>
       <section class="standort-section">
@@ -229,7 +257,6 @@
       aria-modal="true"
       aria-labelledby="map-dialog-title"
       aria-hidden="true"
-      inert
     >
       <div class="map-controls">
         <h3 id="map-dialog-title" class="visually-hidden">Standort auf Karte wählen</h3>
@@ -246,7 +273,6 @@
       aria-modal="true"
       aria-labelledby="address-dialog-title"
       aria-hidden="true"
-      inert
     >
       <div class="address-dialog">
         <h3 id="address-dialog-title">Adresse eingeben</h3>
@@ -281,7 +307,6 @@
       aria-labelledby="confirm-modal-title"
       aria-describedby="confirm-modal-message"
       aria-hidden="true"
-      inert
     >
       <div class="modal-dialog" role="document">
         <h3 id="confirm-modal-title">Eintrag wirklich löschen?</h3>

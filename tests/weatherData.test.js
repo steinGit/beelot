@@ -64,4 +64,31 @@ describe("fetchMergedWeatherData", () => {
     expect(result).toEqual({ allDates: ["2026-03-30"], allTemps: [12] });
     expect(fetchRecentData).toHaveBeenCalledTimes(1);
   });
+
+  test("rejects incomplete data instead of calculating with missing days", async () => {
+    fetchHistoricalData.mockResolvedValue({
+      daily: {
+        time: ["2026-03-28", "2026-03-30"],
+        temperature_2m_mean: [8, 10]
+      }
+    });
+    fetchRecentData.mockResolvedValue({
+      daily: {
+        time: [],
+        temperature_2m_mean: []
+      }
+    });
+
+    await expect(fetchMergedWeatherData(
+      48,
+      9,
+      new Date(2026, 2, 28),
+      new Date(2026, 2, 30),
+      new Date(2026, 2, 28),
+      null,
+      new Date(2026, 2, 30)
+    )).rejects.toMatchObject({
+      name: "OpenMeteoError"
+    });
+  });
 });

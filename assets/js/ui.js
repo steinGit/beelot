@@ -9,6 +9,11 @@ import {
   normalizeCoordinates,
   updateLocation
 } from './locationStore.js';
+import {
+  clearServiceFailure,
+  reportServiceFailure,
+  SERVICE_IDS
+} from './externalServiceStatus.js';
 
 // DOM references
 export const ortInput          = document.getElementById('ort');
@@ -49,6 +54,8 @@ let selectedLatLng = null;
 const GLOBAL_MAP_VIEW_KEY = "beelotLastMapView";
 const DEFAULT_ADDRESS_VIEWPORT_METERS = 1000;
 const METERS_PER_DEGREE_LAT = 111320;
+const OPEN_STREET_MAP_SOURCE = "openstreetmap-tiles";
+let mapTileLoadFailed = false;
 
 function parseStoredPosition(lastPos) {
   if (typeof lastPos !== "string" || !lastPos.includes(",")) {
@@ -142,11 +149,30 @@ function applyActiveLocationMapView(activeLocation) {
 export function initOrUpdateMap() {
   const activeLocation = getActiveLocation();
   if (!map) {
+    if (typeof L === "undefined") {
+      reportServiceFailure(SERVICE_IDS.OPEN_STREET_MAP, OPEN_STREET_MAP_SOURCE);
+      return;
+    }
     map = L.map('map').setView([51.1657, 10.4515], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap-Mitwirkende'
-    }).addTo(map);
+    });
+    if (typeof tileLayer.on === "function") {
+      tileLayer.on("loading", () => {
+        mapTileLoadFailed = false;
+      });
+      tileLayer.on("tileerror", () => {
+        mapTileLoadFailed = true;
+        reportServiceFailure(SERVICE_IDS.OPEN_STREET_MAP, OPEN_STREET_MAP_SOURCE);
+      });
+      tileLayer.on("load", () => {
+        if (!mapTileLoadFailed) {
+          clearServiceFailure(OPEN_STREET_MAP_SOURCE);
+        }
+      });
+    }
+    tileLayer.addTo(map);
 
     map.on('click', (e) => {
       const coordinates = normalizeCoordinates(e.latlng.lat, e.latlng.lng);

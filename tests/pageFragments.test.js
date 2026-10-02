@@ -48,4 +48,15 @@ describe("page fragment loading", () => {
     expect(document.getElementById("header-placeholder").textContent)
       .toBe("Der Kopfbereich konnte nicht geladen werden.");
   });
+
+  test("preserves an existing header fallback when loading fails", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    document.getElementById("header-placeholder").innerHTML = "<header>BeeLot</header>";
+    global.fetch = jest.fn().mockRejectedValue(new Error("Network unavailable"));
+
+    await expect(loadPageHeader()).resolves.toBe(false);
+
+    expect(document.querySelector("#header-placeholder header").textContent)
+      .toBe("BeeLot");
+  });
 });

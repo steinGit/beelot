@@ -58,6 +58,14 @@ import { createLatestRequestGuard } from './latestRequest.js';
 import { containDialogFocus } from './dialogFocus.js';
 import { downloadPlotData } from './plotExport.js';
 import {
+  clearServiceFailure,
+  getServiceMessage,
+  hasServiceFailure,
+  reportServiceFailure,
+  SERVICE_IDS,
+  ServiceUnavailableError
+} from './externalServiceStatus.js';
+import {
   buildAddressQueries,
   buildCanonicalAddressFromResult,
   collectPhotonSettlementCandidates,
@@ -153,11 +161,12 @@ let lastNarrowLayout = null;
 let comparisonActive = false;
 let refreshTabTooltips = () => {};
 const comparisonRequestGuard = createLatestRequestGuard();
-let offlineStatusActive = false;
 const REGULAR_GTS_RANGES = new Set([1, 5, 10]);
 const GTS_RANGE_20 = 20;
 const COMPARISON_COLORS = ["red", "orange", "gold", "green", "cyan", "blue", "magenta"];
-const OFFLINE_TEXT = "Offline-Modus: Für diese Funktion ist eine Internetverbindung erforderlich.";
+const OPEN_METEO_SOURCE = "open-meteo-weather";
+const NOMINATIM_FORWARD_SOURCE = "nominatim-forward";
+const PHOTON_FORWARD_SOURCE = "photon-forward";
 const ADDRESS_SUGGESTION_KEY = "beelotAddressSuggestion";
 const DEFAULT_ADDRESS_ZOOM = 12;
 const DEFAULT_ADDRESS_VIEWPORT_METERS = 1000;
@@ -321,17 +330,27 @@ async function geocodeAddress({ street, city, country, forcedSettlement = null }
       params.set("country", normalized.country);
     }
 
-    const response = await fetchWithTimeout(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
-      headers: {
-        "Accept-Language": "de"
+    let results;
+    try {
+      const response = await fetchWithTimeout(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+        headers: {
+          "Accept-Language": "de"
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} ${response.statusText}`.trim());
       }
-    });
 
-    if (!response.ok) {
-      throw new Error(`Adresse konnte nicht aufgelöst werden (${response.status}).`);
+      results = await response.json();
+      if (!Array.isArray(results)) {
+        throw new Error("Invalid Nominatim response.");
+      }
+      clearServiceFailure(NOMINATIM_FORWARD_SOURCE);
+    } catch (error) {
+      reportServiceFailure(SERVICE_IDS.NOMINATIM, NOMINATIM_FORWARD_SOURCE);
+      throw new ServiceUnavailableError(SERVICE_IDS.NOMINATIM, error);
     }
-
-    const results = await response.json();
     logAddressDebug("nominatim response", {
       query,
       streetForStructuredQuery,
@@ -408,29 +427,38 @@ async function geocodeAddress({ street, city, country, forcedSettlement = null }
       lang: "de",
       limit: "10"
     });
-    const response = await fetchWithTimeout(`https://photon.komoot.io/api/?${params.toString()}`);
-    if (!response.ok) {
+    try {
+      const response = await fetchWithTimeout(`https://photon.komoot.io/api/?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} ${response.statusText}`.trim());
+      }
+
+      const payload = await response.json();
+      if (!Array.isArray(payload?.features)) {
+        throw new Error("Invalid Photon response.");
+      }
+      clearServiceFailure(PHOTON_FORWARD_SOURCE);
+      const features = payload.features;
+      logAddressDebug("photon response", {
+        featureCount: features.length,
+        sample: features.slice(0, 10).map((feature) => ({
+          name: feature?.properties?.name,
+          type: feature?.properties?.type,
+          country: feature?.properties?.country,
+          countrycode: feature?.properties?.countrycode
+        }))
+      });
+      photonSettlementCandidates = collectPhotonSettlementCandidates(features, normalized, countryCode);
+      logAddressDebug("photon settlement candidates", {
+        count: photonSettlementCandidates.length,
+        labels: photonSettlementCandidates.slice(0, 15).map((entry) => entry.label)
+      });
+      return photonSettlementCandidates;
+    } catch {
+      reportServiceFailure(SERVICE_IDS.PHOTON, PHOTON_FORWARD_SOURCE);
       photonSettlementCandidates = [];
       return photonSettlementCandidates;
     }
-
-    const payload = await response.json();
-    const features = Array.isArray(payload?.features) ? payload.features : [];
-    logAddressDebug("photon response", {
-      featureCount: features.length,
-      sample: features.slice(0, 10).map((feature) => ({
-        name: feature?.properties?.name,
-        type: feature?.properties?.type,
-        country: feature?.properties?.country,
-        countrycode: feature?.properties?.countrycode
-      }))
-    });
-    photonSettlementCandidates = collectPhotonSettlementCandidates(features, normalized, countryCode);
-    logAddressDebug("photon settlement candidates", {
-      count: photonSettlementCandidates.length,
-      labels: photonSettlementCandidates.slice(0, 15).map((entry) => entry.label)
-    });
-    return photonSettlementCandidates;
   };
 
   const fetchPhotonSettlementFallback = async () => {
@@ -990,11 +1018,12 @@ function updateAllLocationsUiState(partial) {
   });
 }
 
-function showOfflineStatusMessage() {
-  offlineStatusActive = true;
+function showWeatherServiceStatusMessage() {
+  reportServiceFailure(SERVICE_IDS.OPEN_METEO, OPEN_METEO_SOURCE);
   const ergebnisTextEl = document.getElementById("ergebnis-text");
   if (ergebnisTextEl) {
-    ergebnisTextEl.innerHTML = `<span style="color: #b00000;">${OFFLINE_TEXT}</span>`;
+    ergebnisTextEl.textContent = getServiceMessage(SERVICE_IDS.OPEN_METEO);
+    ergebnisTextEl.classList.add("service-error-text");
   }
   const ergebnisSection = document.querySelector(".ergebnis-section");
   if (ergebnisSection && comparisonActive) {
@@ -1002,11 +1031,12 @@ function showOfflineStatusMessage() {
   }
 }
 
-function clearOfflineStatusMessage() {
-  if (!offlineStatusActive) {
-    return;
+function clearWeatherServiceStatusMessage() {
+  clearServiceFailure(OPEN_METEO_SOURCE);
+  const ergebnisTextEl = document.getElementById("ergebnis-text");
+  if (ergebnisTextEl) {
+    ergebnisTextEl.classList.remove("service-error-text");
   }
-  offlineStatusActive = false;
   const ergebnisSection = document.querySelector(".ergebnis-section");
   if (ergebnisSection && comparisonActive) {
     ergebnisSection.style.display = "none";
@@ -1024,7 +1054,7 @@ function setComparisonMode(enabled) {
       return;
     }
     if (section.classList.contains("ergebnis-section")) {
-      section.style.display = enabled && !offlineStatusActive ? "none" : "";
+      section.style.display = enabled && !hasServiceFailure(OPEN_METEO_SOURCE) ? "none" : "";
       return;
     }
     section.style.display = enabled ? "none" : "";
@@ -1200,13 +1230,13 @@ async function renderComparisonPlot() {
     });
 
     plotComparisonData(masterLabels, series, null);
-    clearOfflineStatusMessage();
+    clearWeatherServiceStatusMessage();
   } catch (error) {
     if (!comparisonActive || !comparisonRequestGuard.isCurrent(renderGeneration)) {
       return;
     }
     if (isOpenMeteoError(error)) {
-      showOfflineStatusMessage();
+      showWeatherServiceStatusMessage();
       return;
     }
     console.error("[comparison] Failed to build comparison plot.", error);
@@ -1236,10 +1266,10 @@ async function refreshAllLocationCalculations() {
         await buildComparisonSeriesForLocation(location, endDate, selection, true);
       })
     );
-    clearOfflineStatusMessage();
+    clearWeatherServiceStatusMessage();
   } catch (error) {
     if (isOpenMeteoError(error)) {
-      showOfflineStatusMessage();
+      showWeatherServiceStatusMessage();
       return;
     }
     console.error("[gts-refresh] Failed to refresh location data.", error);

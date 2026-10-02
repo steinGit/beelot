@@ -1,6 +1,6 @@
 {
   "name": "beelot",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Unit testing suite for beelot website.",
   "type": "module",
   "engines": {

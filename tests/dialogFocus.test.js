@@ -66,7 +66,7 @@ describe("containDialogFocus", () => {
       const titleId = dialog.getAttribute("aria-labelledby");
       expect(titleId).toBeTruthy();
       expect(page.getElementById(titleId)).not.toBeNull();
-      expect(dialog.hasAttribute("inert")).toBe(true);
+      expect(dialog.getAttribute("aria-hidden")).toBe("true");
     });
   });
 });

@@ -7,7 +7,8 @@ import {
   fetchHistoricalData,
   fetchRecentData,
   findFirstMissingTemperatureDate,
-  mergeValidDailyTemperatures
+  mergeValidDailyTemperatures,
+  OpenMeteoError
 } from "./dataService.js";
 
 /**
@@ -81,6 +82,13 @@ export async function fetchMergedWeatherData(
     if (recentData?.daily) {
       mergeValidDailyTemperatures(dataByDate, recentData, false);
     }
+  }
+
+  const unresolvedDate = findFirstMissingTemperatureDate(dataByDate, fetchStartDate, endDate);
+  if (unresolvedDate) {
+    throw new OpenMeteoError(
+      `Open-Meteo returned incomplete weather data from ${unresolvedDate.toISOString().slice(0, 10)}.`
+    );
   }
 
   const allDates = Object.keys(dataByDate).sort((left, right) => left.localeCompare(right));

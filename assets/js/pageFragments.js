@@ -18,7 +18,9 @@ async function loadFragment(url, targetId, failureText) {
     return true;
   } catch (error) {
     console.error(`[pageFragments] Failed to load ${url}.`, error);
-    target.textContent = failureText;
+    if (!target.hasChildNodes()) {
+      target.textContent = failureText;
+    }
     return false;
   }
 }

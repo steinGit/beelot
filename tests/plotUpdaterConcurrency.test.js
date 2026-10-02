@@ -143,7 +143,7 @@ test('a trailing missing historical temperature is repaired with recent data', a
   const result = await updater.step7FetchAllData(
     48,
     9,
-    new Date(endDate.getFullYear(), 0, 1),
+    recentStartDate,
     endDate,
     recentStartDate,
     0

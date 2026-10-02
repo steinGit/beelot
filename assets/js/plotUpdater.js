@@ -19,6 +19,12 @@ import { LocationNameFromGPS } from './location_name_from_gps.js'; // Import the
 import { destroyAllCharts } from './chartManager.js';
 import { fetchMergedWeatherData } from './weatherData.js';
 import {
+  clearServiceFailure,
+  getServiceMessage,
+  reportServiceFailure,
+  SERVICE_IDS
+} from './externalServiceStatus.js';
+import {
   createLocationNameCacheStore,
   createWeatherCacheStore,
   getLocationById,
@@ -26,7 +32,7 @@ import {
   updateLocation
 } from './locationStore.js';
 
-const OFFLINE_TEXT = "Offline-Modus: Für diese Funktion ist eine Internetverbindung erforderlich.";
+const OPEN_METEO_SOURCE = "open-meteo-weather";
 
 /**
  * Helper to forcibly destroy any leftover chart using a given canvas ID.
@@ -189,6 +195,10 @@ export class PlotUpdater {
       const { allDates, allTemps } = await this.step7FetchAllData(
         lat, lon, fetchStartDate, endDate, recentStartDate
       );
+      clearServiceFailure(OPEN_METEO_SOURCE);
+      if (this.ergebnisTextEl) {
+        this.ergebnisTextEl.classList.remove("service-error-text");
+      }
       if (allDates.length === 0) return;
       if (this.debugGts) {
         console.log("[GTS DEBUG] endDate", formatDateLocal(endDate));
@@ -253,7 +263,7 @@ export class PlotUpdater {
         return;
       }
       if (isOpenMeteoError(err)) {
-        this.showOfflineMessage();
+        this.showWeatherServiceMessage();
         return;
       }
       this.ergebnisTextEl.textContent = "Ein Fehler ist aufgetreten. Bitte versuche es später erneut.";
@@ -270,9 +280,11 @@ export class PlotUpdater {
     }
   }
 
-  showOfflineMessage() {
+  showWeatherServiceMessage() {
+    reportServiceFailure(SERVICE_IDS.OPEN_METEO, OPEN_METEO_SOURCE);
     if (this.ergebnisTextEl) {
-      this.ergebnisTextEl.innerHTML = `<span style="color: #b00000;">${OFFLINE_TEXT}</span>`;
+      this.ergebnisTextEl.textContent = getServiceMessage(SERVICE_IDS.OPEN_METEO);
+      this.ergebnisTextEl.classList.add("service-error-text");
     }
   }
 
@@ -358,7 +370,15 @@ export class PlotUpdater {
   async step4aFetchAndDisplayLocationName(lat, lon) {
     if (this.locationNameOutput) {
       this.locationNameOutput.textContent = "Standortname wird ermittelt...";
+      this.locationNameOutput.classList.remove("service-error-text");
       const locationName = await this.locationFetcher.getLocationName(lat, lon);
+      if (locationName === null) {
+        if (this.canDisplay()) {
+          this.locationNameOutput.textContent = getServiceMessage(SERVICE_IDS.NOMINATIM);
+          this.locationNameOutput.classList.add("service-error-text");
+        }
+        return;
+      }
       if (this.canDisplay()) {
         this.locationNameOutput.textContent = "In der Nähe von: " + locationName;
       }
