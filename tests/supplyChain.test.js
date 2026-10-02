@@ -11,10 +11,14 @@ describe("external dependency pinning", () => {
       ...document.querySelectorAll("link[href^='https://'], script[src^='https://']")
     ];
 
-    expect(externalElements).toHaveLength(3);
+    expect(externalElements).toHaveLength(4);
     externalElements.forEach((element) => {
       const url = element.getAttribute("href") || element.getAttribute("src");
-      expect(url).toMatch(/@(1\.9\.4|4\.5\.1)\//);
+      if (url.includes("cdn.sheetjs.com")) {
+        expect(url).toMatch(/xlsx-0\.20\.3\//);
+      } else {
+        expect(url).toMatch(/@(1\.9\.4|4\.5\.1)\//);
+      }
       expect(element.getAttribute("integrity")).toMatch(/^sha384-[A-Za-z0-9+/]+={0,2}$/);
       expect(element.getAttribute("crossorigin")).toBe("anonymous");
     });

@@ -3,6 +3,13 @@
 import { formatDayMonth, parseDateStringLocal } from './utils.js';
 import { createChart } from './chartManager.js';
 
+const tagPlotType = (chart, plotType) => {
+    if (chart) {
+        chart.beelotPlotType = plotType;
+    }
+    return chart;
+};
+
 /**
  * @module charts
  * Funktionen zum Plotten von Daten (GTS- und Temperatur-Plot)
@@ -127,7 +134,12 @@ const buildXAxisTickOptions = (labels, fontSize, canvas) => {
         },
         callback(value, index) {
             const { step } = resolveTickLayout(this);
-            if (index === 0 || index === lastIndex || index % step === 0) {
+            const leavesRoomForLastLabel = lastIndex - index >= step;
+            if (
+                index === 0
+                || index === lastIndex
+                || (index % step === 0 && leavesRoomForLastLabel)
+            ) {
                 return labels[index] ?? value;
             }
             return "";
@@ -234,7 +246,7 @@ export function plotData(results, yRange = null, colorScheme = "queen") {
 
     const canvas = document.getElementById('plot-canvas');
     const xTickOptions = buildXAxisTickOptions(labels, axisFontSize, canvas);
-    const chartGTS = createChart(canvas, {
+    const chartGTS = tagPlotType(createChart(canvas, {
         type: 'line',
         data: {
             labels: labels,
@@ -307,7 +319,7 @@ export function plotData(results, yRange = null, colorScheme = "queen") {
                 intersect: false
             }
         }
-    });
+    }), "GTS");
 
     return chartGTS;
 }
@@ -330,7 +342,7 @@ export function plotDailyTemps(dates, temps, yRange = null) {
 
     const canvas = document.getElementById('temp-plot');
     const xTickOptions = buildXAxisTickOptions(labels, axisFontSize, canvas);
-    const chartTemp = createChart(canvas, {
+    const chartTemp = tagPlotType(createChart(canvas, {
         type: 'line',
         data: {
             labels: labels,
@@ -401,7 +413,7 @@ export function plotDailyTemps(dates, temps, yRange = null) {
                 intersect: false
             }
         }
-    });
+    }), "temperature");
 
     return chartTemp;
 }
@@ -492,7 +504,7 @@ export function plotMultipleYearData(multiYearData, yRange = null, colorScheme =
 
     // console.log("[charts.js] plotMultipleYearData() masterLabels = ", masterLabels);
 
-    const chartGTS = createChart(canvas, {
+    const chartGTS = tagPlotType(createChart(canvas, {
         type: 'line',
         data: {
             labels: masterLabels,
@@ -584,7 +596,7 @@ export function plotMultipleYearData(multiYearData, yRange = null, colorScheme =
                 intersect: false
             }
         }
-    });
+    }), "GTS");
 
     return chartGTS;
 }
@@ -625,7 +637,7 @@ export function plotComparisonData(labels, series, yRange = null) {
         };
     });
 
-    return createChart(canvas, {
+    return tagPlotType(createChart(canvas, {
         type: 'line',
         data: {
             labels: labels,
@@ -688,5 +700,5 @@ export function plotComparisonData(labels, series, yRange = null) {
                 intersect: false
             }
         }
-    });
+    }), "comparison");
 }

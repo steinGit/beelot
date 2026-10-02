@@ -439,6 +439,28 @@
     height: clamp(320px, 55vh, 500px);
 }
 
+.plot-export-actions {
+    display: none;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.plot-container.visible + .plot-export-actions {
+    display: flex;
+}
+
+.plot-export-actions button,
+.plot-export-actions select {
+    max-width: 100%;
+}
+
+.plot-export-actions button {
+    cursor: pointer;
+}
+
 @media (max-width: 600px) {
     .plot-container {
         min-height: 0;

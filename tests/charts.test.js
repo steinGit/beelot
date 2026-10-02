@@ -1,4 +1,10 @@
-import { beekeeperColor, plotComparisonData, plotData, plotMultipleYearData } from '../assets/js/charts';
+import {
+    beekeeperColor,
+    plotComparisonData,
+    plotDailyTemps,
+    plotData,
+    plotMultipleYearData
+} from '../assets/js/charts';
 
 let lastChartConfig = null;
 
@@ -58,6 +64,7 @@ describe('plotMultipleYearData', () => {
 
         const chart = plotMultipleYearData(multiYearData, null, 'queen');
         expect(chart).not.toBeNull();
+        expect(chart.beelotPlotType).toBe('GTS');
         expect(lastChartConfig).not.toBeNull();
         const datasets = lastChartConfig.data.datasets;
 
@@ -107,7 +114,16 @@ describe('plotData', () => {
         ];
         const chart = plotData(results, null, 'queen');
         expect(chart).not.toBeNull();
+        expect(chart.beelotPlotType).toBe('GTS');
         expect(chart.destroy).toBeDefined(); // Ensures mock is working
+    });
+});
+
+describe('plotDailyTemps', () => {
+    test('marks the chart as a temperature plot', () => {
+        document.body.innerHTML = '<canvas id="temp-plot"></canvas>';
+        const chart = plotDailyTemps(['2025-01-01'], [4]);
+        expect(chart.beelotPlotType).toBe('temperature');
     });
 });
 
@@ -121,6 +137,7 @@ describe('plotComparisonData', () => {
         ];
         const chart = plotComparisonData(labels, series);
         expect(chart).not.toBeNull();
+        expect(chart.beelotPlotType).toBe('comparison');
         expect(lastChartConfig.data.labels).toEqual(labels);
         expect(lastChartConfig.data.datasets[0].borderColor).toBe('red');
         expect(lastChartConfig.data.datasets[1].borderColor).toBe('green');
@@ -144,5 +161,24 @@ describe('plotComparisonData', () => {
         expect(visibleLabels.length).toBeLessThanOrEqual(30);
         expect(visibleLabels[0]).toBe(labels[0]);
         expect(visibleLabels.at(-1)).toBe(labels.at(-1));
+    });
+
+    test('leaves enough space before the final x-axis label', () => {
+        document.body.innerHTML = '<canvas id="plot-canvas"></canvas>';
+        const canvas = document.querySelector('#plot-canvas');
+        Object.defineProperty(canvas, 'clientWidth', { configurable: true, value: 800 });
+        const labels = Array.from({ length: 275 }, (_, index) => `day-${index + 1}`);
+        const series = [{ label: 'Standort A', values: labels.map((_, index) => index), color: 'red' }];
+
+        plotComparisonData(labels, series);
+
+        const callback = lastChartConfig.options.scales.x.ticks.callback;
+        const visibleIndices = labels
+            .map((_, index) => index)
+            .filter((index) => callback.call({ chart: { canvas } }, index, index, []) !== '');
+        const regularGap = visibleIndices[1] - visibleIndices[0];
+        const finalGap = visibleIndices.at(-1) - visibleIndices.at(-2);
+        expect(finalGap).toBeGreaterThanOrEqual(regularGap);
+        expect(visibleIndices.at(-1)).toBe(labels.length - 1);
     });
 });

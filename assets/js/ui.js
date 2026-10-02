@@ -26,12 +26,17 @@ export const datumHeuteBtn     = document.getElementById('datum-heute');
 
 export const toggleGtsPlotBtn  = document.getElementById('toggle-gts-plot');
 export const gtsPlotContainer  = document.getElementById('gts-plot-container');
+export const exportGtsPlotBtn  = document.getElementById('export-gts-plot');
+export const exportComparisonPlotBtn = document.getElementById('export-comparison-plot');
+export const gtsExportFormatSelect = document.getElementById('gts-export-format');
 
 export const gtsRangeInputs = Array.from(document.querySelectorAll('input[name="gts-range"]'));
 export const gtsColorInputs = Array.from(document.querySelectorAll('input[name="gts-color-scheme"]'));
 
 export const toggleTempPlotBtn = document.getElementById('toggle-temp-plot');
 export const tempPlotContainer = document.getElementById('temp-plot-container');
+export const exportTemperaturePlotBtn = document.getElementById('export-temperature-plot');
+export const temperatureExportFormatSelect = document.getElementById('temperature-export-format');
 
 export const locationNameOutput = document.getElementById('location-name');
 export const locationTabsContainer = document.getElementById('location-tabs');

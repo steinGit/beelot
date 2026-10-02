@@ -16,8 +16,13 @@ import {
   datumHeuteBtn,
   toggleGtsPlotBtn,
   gtsPlotContainer,
+  exportGtsPlotBtn,
+  exportComparisonPlotBtn,
+  gtsExportFormatSelect,
   toggleTempPlotBtn,
   tempPlotContainer,
+  exportTemperaturePlotBtn,
+  temperatureExportFormatSelect,
   gtsRangeInputs,
   gtsColorInputs,
   initOrUpdateMap,
@@ -51,6 +56,7 @@ import { shouldSwitchLocation } from './locationSwitching.js';
 import { blocksGlobalShortcut } from './keyboardShortcuts.js';
 import { createLatestRequestGuard } from './latestRequest.js';
 import { containDialogFocus } from './dialogFocus.js';
+import { downloadPlotData } from './plotExport.js';
 import {
   buildAddressQueries,
   buildCanonicalAddressFromResult,
@@ -1052,6 +1058,12 @@ function setComparisonMode(enabled) {
   if (toggleGtsPlotBtn) {
     toggleGtsPlotBtn.style.display = enabled ? "none" : "";
   }
+  if (exportGtsPlotBtn) {
+    exportGtsPlotBtn.hidden = enabled;
+  }
+  if (exportComparisonPlotBtn) {
+    exportComparisonPlotBtn.hidden = !enabled;
+  }
   if (gtsPlotContainer) {
     gtsPlotContainer.classList.toggle("visible", enabled || gtsPlotContainer.classList.contains("visible"));
   }
@@ -1065,6 +1077,21 @@ function isSupportedHistoricalDate(value) {
 function getStoredOrTodayDateValue() {
   const storedDate = getActiveLocation()?.ui?.selectedDate;
   return isSupportedHistoricalDate(storedDate) ? storedDate : getLocalTodayString();
+}
+
+function exportPlotData(canvasId, plotType, exportFormat) {
+  const canvas = document.getElementById(canvasId);
+  const chart = canvas ? Chart.getChart(canvas) : null;
+  if (!chart || chart.beelotPlotType !== plotType) {
+    window.alert("Die Diagrammdaten sind noch nicht verfügbar. Bitte versuche es erneut.");
+    return;
+  }
+  try {
+    downloadPlotData(chart, plotType, exportFormat);
+  } catch (error) {
+    console.error(`[plot-export] Failed to export ${plotType}.`, error);
+    window.alert("Die Diagrammdaten konnten nicht exportiert werden.");
+  }
 }
 
 async function buildComparisonSeriesForLocation(location, endDate, selection, updateStore = false) {
@@ -1616,8 +1643,13 @@ document.addEventListener('DOMContentLoaded', () => {
     !datumHeuteBtn ||
     !toggleGtsPlotBtn ||
     !gtsPlotContainer ||
+    !exportGtsPlotBtn ||
+    !exportComparisonPlotBtn ||
+    !gtsExportFormatSelect ||
     !toggleTempPlotBtn ||
     !tempPlotContainer ||
+    !exportTemperaturePlotBtn ||
+    !temperatureExportFormatSelect ||
     gtsRangeInputs.length === 0 ||
     gtsColorInputs.length === 0 ||
     !locationNameOutput ||
@@ -2109,6 +2141,19 @@ function setupEventListeners() {
       tempPlotVisible: tempPlotContainer.classList.contains("visible")
     });
   });
+
+  exportGtsPlotBtn.addEventListener(
+    "click",
+    () => exportPlotData("plot-canvas", "GTS", gtsExportFormatSelect.value)
+  );
+  exportComparisonPlotBtn.addEventListener(
+    "click",
+    () => exportPlotData("plot-canvas", "comparison", gtsExportFormatSelect.value)
+  );
+  exportTemperaturePlotBtn.addEventListener(
+    "click",
+    () => exportPlotData("temp-plot", "temperature", temperatureExportFormatSelect.value)
+  );
 
   ortKarteBtn.addEventListener('click', () => {
     const activeLocation = getActiveLocation();

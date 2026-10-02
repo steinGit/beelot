@@ -185,12 +185,37 @@
               <canvas id="plot-canvas"></canvas>
             </div>
           </div>
+          <div class="plot-export-actions" id="gts-export-actions">
+            <label for="gts-export-format">Exportformat:</label>
+            <select id="gts-export-format" name="gts-export-format">
+              <option value="csv">CSV (.csv)</option>
+              <option value="xlsx">Excel-Arbeitsmappe (.xlsx)</option>
+              <option value="xls">Excel 97–2004 (.xls)</option>
+            </select>
+            <button id="export-gts-plot" type="button">
+              GTS-Diagrammdaten exportieren
+            </button>
+            <button id="export-comparison-plot" type="button" hidden>
+              Vergleichsdaten exportieren
+            </button>
+          </div>
 
           <h2>
             <button id="toggle-temp-plot">Diagramm (Tagesmitteltemperaturen) anzeigen</button>
           </h2>
           <div class="plot-container" id="temp-plot-container">
             <canvas id="temp-plot"></canvas>
+          </div>
+          <div class="plot-export-actions" id="temp-export-actions">
+            <label for="temperature-export-format">Exportformat:</label>
+            <select id="temperature-export-format" name="temperature-export-format">
+              <option value="csv">CSV (.csv)</option>
+              <option value="xlsx">Excel-Arbeitsmappe (.xlsx)</option>
+              <option value="xls">Excel 97–2004 (.xls)</option>
+            </select>
+            <button id="export-temperature-plot" type="button">
+              Temperatur-Diagrammdaten exportieren
+            </button>
           </div>
         </section>
       </div>
@@ -294,6 +319,12 @@
     <script
       src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
       integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ"
+      crossorigin="anonymous"
+    ></script>
+    <!-- SheetJS for XLS and XLSX workbook exports -->
+    <script
+      src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"
+      integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT"
       crossorigin="anonymous"
     ></script>
     <!-- main.js -->
