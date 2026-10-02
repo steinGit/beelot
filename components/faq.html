@@ -15,9 +15,17 @@
     <!-- Same approach: fetch header, set version, THEN load main.js if needed -->
     <script type="module">
       import { VERSION } from "./assets/js/version.js";
-      import { loadPageHeader } from "./assets/js/pageFragments.js";
 
-      loadPageHeader(VERSION);
+      fetch("components/header.html")
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById("header-placeholder").innerHTML = html;
+
+        const versionElement = document.getElementById("version-placeholder");
+        if (versionElement) {
+            versionElement.textContent = `Version ${VERSION}`;
+        }
+    });
     </script>
 
     <!-- Main Content -->
@@ -89,7 +97,7 @@
               <br>
               Entsprechend werden dann die Grünland-Temperatur-Summe und die imkerlichen Hinweise angezeigt.
               <br>
-              Datum und Visualisierungseinstellungen werden automatisch für alle Standorte synchronisiert. Das erleichtert auch das visuelle Vergleichen von Kurven (Tipp: Cursor-Taste rechts und links ermöglicht das Wechseln der Standorte reihum).
+              Wenn mehr als 1 Standort existiert, dann wird automatisch die Möglichkeit des "Standort-Sync" angeboten. Das bedeutet, dass ein Datumswechsel dann auf allen Standorten mitgezogen wird. Das erleichtert auch das visuelle Vergleichen von Kurven (Tipp: Cursor-Taste rechts und links ermöglicht das Wechseln der Standorte reihum).
             </li>
             <li style="margin-bottom: 20px;">
               Die Diagramme sind am Anfang ausgeblendet. Sie können angezeigt werden. Einfach den Knopf anklicken.
@@ -121,48 +129,6 @@
             </li>
           </ol>
           <p>Viel Spaß beim Experimentieren!</p>
-        </details>
-
-        <details>
-          <summary>Wie kann ich Diagrammdaten exportieren?</summary>
-          <p>
-            Unter jedem eingeblendeten GTS- oder Temperaturdiagramm befindet sich
-            die Auswahl „Exportformat“ mit einem Exportknopf. Dies gilt auch für
-            das Vergleichsdiagramm mehrerer Standorte.
-          </p>
-          <p>Folgende Formate stehen zur Verfügung:</p>
-          <ul>
-            <li>
-              <strong>CSV (.csv):</strong> offenes Textformat für Tabellenkalkulationen
-              und andere Auswertungsprogramme.
-            </li>
-            <li>
-              <strong>Excel-Arbeitsmappe (.xlsx):</strong> empfohlen für aktuelle
-              Excel-Versionen und andere moderne Tabellenkalkulationen.
-            </li>
-            <li>
-              <strong>Excel 97–2004 (.xls):</strong> für die Kompatibilität mit
-              älteren Excel-Versionen.
-            </li>
-          </ul>
-          <p>
-            Exportiert werden die Daten, Beschriftungen und Reihenfolge des aktuell
-            dargestellten Diagramms. Über die Legende ausgeblendete Kurven werden
-            nicht exportiert. Der Titel der Y-Achse sowie Linien- und Füllfarben
-            stehen am Ende der Tabelle als Metadaten.
-          </p>
-          <p>
-            Die Excel-Dateien enthalten die Diagrammdaten, jedoch kein automatisch
-            erzeugtes Excel-Diagramm. Die exportierten Farbwerte können verwendet
-            werden, um die Kurvenfarben in einem eigenen Excel-Diagramm nachzubilden.
-          </p>
-          <p>
-            Der Dateiname enthält den Zeitpunkt des Downloads und den Diagrammtyp,
-            zum Beispiel
-            <code>20261002_070809__beelot_plot_GTS.xlsx</code>.
-            Der Browser speichert die Datei im eingestellten Standard-Downloadordner
-            oder fragt – abhängig von seinen Einstellungen – nach dem Speicherort.
-          </p>
         </details>
 
         <details>
@@ -354,20 +320,12 @@
           <details>
             <summary>Was passiert mit den Daten?</summary>
             <p>
-              BeeLot betreibt kein Benutzerkonto und sendet deine Einstellungen nicht an einen eigenen Anwendungsserver.
+              Nichts. Deine Daten interessieren mich nicht und werden von mir weder gesammelt noch gespeichert.
             </p>
             <p>
-              Lokal in deinem Browser werden Standorte, Anzeige- und Karten-Einstellungen,
-              <a href="components/einstellungen.html">Tracht-Einstellungen</a> sowie zwischengespeicherte
-              Wetterdaten und Ortsnamen gespeichert.
+              Lokal in deinem Browser werden lediglich der ausgewählte Standort und deine
+              <a href="components/einstellungen.html">Tracht-Einstellungen</a> gespeichert.
               Dadurch können beim nächsten Aufruf der Seite diese Informationen automatisch wiederverwendet werden.
-            </p>
-            <p>
-              Für Wetterdaten, Adresssuche und Kartendarstellung stellt dein Browser direkte Anfragen an
-              Open-Meteo, Nominatim, Photon und OpenStreetMap. Dabei erhalten diese Anbieter die üblichen
-              Verbindungsdaten und je nach Funktion Koordinaten oder den eingegebenen Suchtext.
-              Die benötigten Browser-Bibliotheken werden außerdem von unpkg und jsDelivr geladen; diese
-              Anbieter erhalten dabei die üblichen Verbindungsdaten.
             </p>
             <p>
               Wenn du die Seite jedoch auf einem anderen Gerät (z. B. Smartphone, Tablet oder Laptop) aufrufst,
@@ -400,7 +358,7 @@
             <p>
               Die meisten Trachten enden mit der Sommersonnenwende. Im zweiten Halbjahr bietet BeeLot daher nur noch begrenzt Anwendungsmöglichkeiten.
               Vielleicht mit dem Hinweis, wann der erste Frost zu erwarten ist – drei Wochen danach ist die Oxalsäurebehandlung durch Beträufeln der Wintertraube fällig.
-              Diese Funktion ist derzeit noch nicht verfügbar.
+              Diese Funktion wird in einer zukünftigen Version implementiert. Aktuell (Version 0.1.1) ist sie noch nicht verfügbar.
             </p>
           </details>
           <details>
@@ -605,10 +563,12 @@
 
     <!-- Footer -->
     <div id="footer-placeholder"></div>
-    <script type="module">
-      import { loadPageFooter } from "./assets/js/pageFragments.js";
-
-      loadPageFooter();
+    <script>
+      fetch("components/footer.html")
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById("footer-placeholder").innerHTML = html;
+    });
     </script>
   </body>
 </html>

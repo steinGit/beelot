@@ -18,8 +18,6 @@
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H"
-      crossorigin="anonymous"
     />
     <link rel="stylesheet" href="assets/css/index.css" />
     <script type="application/ld+json">
@@ -46,7 +44,6 @@
     <!-- 2) Load the header, THEN set the version, THEN load main.js -->
     <script type="module">
       import { VERSION } from "./assets/js/version.js";
-      import { loadPageHeader } from "./assets/js/pageFragments.js";
 
       // Dynamically set the page title
       const titleElement = document.getElementById("title-placeholder");
@@ -54,7 +51,19 @@
         titleElement.textContent = `BeeLot Version ${VERSION}`;
       }
 
-      loadPageHeader(VERSION);
+      // Fetch and inject the header
+      fetch("components/header.html")
+        .then((response) => response.text())
+        .then((html) => {
+          document.getElementById("header-placeholder").innerHTML = html;
+
+          // Now the #version-placeholder exists in the DOM
+          const versionElement = document.getElementById("version-placeholder");
+          if (versionElement) {
+            versionElement.textContent = `Version ${VERSION}`;
+          }
+
+        });
     </script>
 
     <main>
@@ -115,11 +124,17 @@
             <label for="datum">
               <span id="datum-label" class="tooltip-anchor" tabindex="0" aria-describedby="datum-tooltip">Datum:</span>
             </label>
-            <input type="date" id="datum" name="datum" min="1940-01-01" />
+            <input type="date" id="datum" name="datum" />
             <button id="datum-plus">+</button>
             <button id="datum-minus">-</button>
             <!-- Always visible -->
             <button id="datum-heute">heute</button>
+            <span id="standort-sync-control">
+              <label class="sync-toggle">
+                <input type="checkbox" id="standort-sync-toggle" />
+                <span id="standort-sync-label" class="tooltip-anchor" tabindex="0" aria-describedby="standort-sync-tooltip">Standort-Sync</span>
+              </label>
+            </span>
             <br />
             <span class="small-gray-text">
               Hinweis: benutze die "+" und "-" Taste auf der Tastatur oder Numpad
@@ -185,20 +200,6 @@
               <canvas id="plot-canvas"></canvas>
             </div>
           </div>
-          <div class="plot-export-actions" id="gts-export-actions">
-            <label for="gts-export-format">Exportformat:</label>
-            <select id="gts-export-format" name="gts-export-format">
-              <option value="csv">CSV (.csv)</option>
-              <option value="xlsx">Excel-Arbeitsmappe (.xlsx)</option>
-              <option value="xls">Excel 97–2004 (.xls)</option>
-            </select>
-            <button id="export-gts-plot" type="button">
-              GTS-Diagrammdaten exportieren
-            </button>
-            <button id="export-comparison-plot" type="button" hidden>
-              Vergleichsdaten exportieren
-            </button>
-          </div>
 
           <h2>
             <button id="toggle-temp-plot">Diagramm (Tagesmitteltemperaturen) anzeigen</button>
@@ -206,50 +207,22 @@
           <div class="plot-container" id="temp-plot-container">
             <canvas id="temp-plot"></canvas>
           </div>
-          <div class="plot-export-actions" id="temp-export-actions">
-            <label for="temperature-export-format">Exportformat:</label>
-            <select id="temperature-export-format" name="temperature-export-format">
-              <option value="csv">CSV (.csv)</option>
-              <option value="xlsx">Excel-Arbeitsmappe (.xlsx)</option>
-              <option value="xls">Excel 97–2004 (.xls)</option>
-            </select>
-            <button id="export-temperature-plot" type="button">
-              Temperatur-Diagrammdaten exportieren
-            </button>
-          </div>
         </section>
       </div>
 
     </main>
 
-    <div
-      class="map-container"
-      id="map-popup"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="map-dialog-title"
-      aria-hidden="true"
-      inert
-    >
+    <div class="map-container" id="map-popup">
       <div class="map-controls">
-        <h3 id="map-dialog-title" class="visually-hidden">Standort auf Karte wählen</h3>
         <button id="map-close-btn">Schließen</button>
         <button id="map-save-btn">Diesen Ort verwenden</button>
       </div>
       <div id="map"></div>
     </div>
 
-    <div
-      id="address-popup"
-      class="address-popup"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="address-dialog-title"
-      aria-hidden="true"
-      inert
-    >
+    <div id="address-popup" class="address-popup" role="dialog" aria-modal="true" aria-hidden="true">
       <div class="address-dialog">
-        <h3 id="address-dialog-title">Adresse eingeben</h3>
+        <h3>Adresse eingeben</h3>
         <div class="address-fields">
           <label for="address-strasse">Strasse:</label>
           <input type="text" id="address-strasse" name="address-strasse" />
@@ -273,16 +246,7 @@
       </div>
     </div>
 
-    <div
-      id="confirm-modal"
-      class="modal-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-modal-title"
-      aria-describedby="confirm-modal-message"
-      aria-hidden="true"
-      inert
-    >
+    <div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
       <div class="modal-dialog" role="document">
         <h3 id="confirm-modal-title">Eintrag wirklich löschen?</h3>
         <p id="confirm-modal-message">Dies entfernt den Eintrag und alle zugehörigen Daten.</p>
@@ -305,35 +269,27 @@
       Die Kurven werden gleichmäßig von blau bis rot eingefärbt, unabhängig vom GTS-Wert.
     </div>
 
+    <div id="standort-sync-tooltip" class="tooltip" role="tooltip" aria-hidden="true">
+      Synchronisiert Datum und alle Visualisierungseinstellungen über alle Standorte hinweg.
+    </div>
+
     <div id="datum-tooltip" class="tooltip" role="tooltip" aria-hidden="true">
       Mit dem Datum kannst du simulieren, wie die Grünland-Temperatur-Summe und die imkerlichen Informationen zu einem früheren Zeitpunkt aussahen. Der Button „heute“ springt zurück zum aktuellen Datum.
     </div>
 
     <!-- Leaflet JS -->
-    <script
-      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"
-      crossorigin="anonymous"
-    ></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- Chart.js -->
-    <script
-      src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
-      integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ"
-      crossorigin="anonymous"
-    ></script>
-    <!-- SheetJS for XLS and XLSX workbook exports -->
-    <script
-      src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"
-      integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT"
-      crossorigin="anonymous"
-    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- main.js -->
     <script type="module" src="assets/js/main.js"></script>
     <div id="footer-placeholder"></div>
-    <script type="module">
-      import { loadPageFooter } from "./assets/js/pageFragments.js";
-
-      loadPageFooter();
+    <script>
+      fetch("components/footer.html")
+        .then((response) => response.text())
+        .then((html) => {
+          document.getElementById("footer-placeholder").innerHTML = html;
+        });
     </script>
 
   </body>

@@ -1,14 +1,7 @@
 // --- FILE: /home/fridtjofstein/privat/beelot/assets/js/charts.js ---
 
-import { formatDayMonth, parseDateStringLocal } from './utils.js';
+import { formatDayMonth } from './utils.js';
 import { createChart } from './chartManager.js';
-
-const tagPlotType = (chart, plotType) => {
-    if (chart) {
-        chart.beelotPlotType = plotType;
-    }
-    return chart;
-};
 
 /**
  * @module charts
@@ -98,8 +91,7 @@ const computeTickStep = ({ labels, canvas, fontSize }) => {
     }
     const canvasWidth = getCanvasWidth(canvas);
     if (canvasWidth <= 0) {
-        const maxTicks = Math.min(labels.length, 12);
-        return { step: Math.max(1, Math.ceil(labels.length / maxTicks)), maxTicks };
+        return { step: 1, maxTicks: Math.min(labels.length, 12) };
     }
     const fontFamily = getFontFamily();
     const labelWidth = estimateLabelWidth(labels, fontSize, fontFamily, canvas);
@@ -111,35 +103,18 @@ const computeTickStep = ({ labels, canvas, fontSize }) => {
 };
 
 const buildXAxisTickOptions = (labels, fontSize, canvas) => {
+    const { step, maxTicks } = computeTickStep({ labels, canvas, fontSize });
     const lastIndex = labels.length - 1;
-    let cachedCanvasWidth = null;
-    let cachedTickLayout = null;
-    const resolveTickLayout = (scale) => {
-        const activeCanvas = scale?.chart?.canvas || canvas;
-        const canvasWidth = getCanvasWidth(activeCanvas);
-        if (!cachedTickLayout || canvasWidth !== cachedCanvasWidth) {
-            cachedCanvasWidth = canvasWidth;
-            cachedTickLayout = computeTickStep({ labels, canvas: activeCanvas, fontSize });
-        }
-        return cachedTickLayout;
-    };
-    const initialTickLayout = resolveTickLayout(null);
     return {
         maxRotation: 0,
         minRotation: 0,
         autoSkip: false,
-        maxTicksLimit: initialTickLayout.maxTicks,
+        maxTicksLimit: maxTicks,
         font: {
             size: fontSize
         },
-        callback(value, index) {
-            const { step } = resolveTickLayout(this);
-            const leavesRoomForLastLabel = lastIndex - index >= step;
-            if (
-                index === 0
-                || index === lastIndex
-                || (index % step === 0 && leavesRoomForLastLabel)
-            ) {
+        callback: (value, index) => {
+            if (index === 0 || index === lastIndex || index % step === 0) {
                 return labels[index] ?? value;
             }
             return "";
@@ -219,7 +194,7 @@ const getColorForIndex = (yearIndex, totalYears, year, scheme) => {
  * Plot a single GTS dataset (the existing approach).
  * E.g. filteredResults => array of { date, gts }.
  */
-export function plotData(results, yRange = null, colorScheme = "queen") {
+export function plotData(results, yRange = null) {
     if (!results || results.length === 0) {
         console.warn("[charts.js] plotData() aufgerufen mit leeren Ergebnissen.");
         return null;
@@ -234,8 +209,8 @@ export function plotData(results, yRange = null, colorScheme = "queen") {
     const data = results.map(r => r.gts);
 
     // Use the last date's year for color
-    const endDate = parseDateStringLocal(results[results.length - 1].date);
-    const yearColor = getColorForIndex(0, 1, endDate.getFullYear(), colorScheme);
+    const endDate = new Date(results[results.length - 1].date);
+    const yearColor = getColorForIndex(0, 1, endDate.getFullYear(), window.gtsColorScheme || "queen");
     const isMobile = isMobileLayout();
     const isSmallMobile = isSmallMobileLayout();
     const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
@@ -246,7 +221,7 @@ export function plotData(results, yRange = null, colorScheme = "queen") {
 
     const canvas = document.getElementById('plot-canvas');
     const xTickOptions = buildXAxisTickOptions(labels, axisFontSize, canvas);
-    const chartGTS = tagPlotType(createChart(canvas, {
+    const chartGTS = createChart(canvas, {
         type: 'line',
         data: {
             labels: labels,
@@ -319,7 +294,7 @@ export function plotData(results, yRange = null, colorScheme = "queen") {
                 intersect: false
             }
         }
-    }), "GTS");
+    });
 
     return chartGTS;
 }
@@ -332,7 +307,7 @@ export function plotDailyTemps(dates, temps, yRange = null) {
 
     let yearLabel = '';
     if (dates.length > 0) {
-        const lastDate = parseDateStringLocal(dates[dates.length - 1]);
+        const lastDate = new Date(dates[dates.length - 1]);
         yearLabel = String(lastDate.getFullYear());
     }
     const isMobile = isMobileLayout();
@@ -342,7 +317,7 @@ export function plotDailyTemps(dates, temps, yRange = null) {
 
     const canvas = document.getElementById('temp-plot');
     const xTickOptions = buildXAxisTickOptions(labels, axisFontSize, canvas);
-    const chartTemp = tagPlotType(createChart(canvas, {
+    const chartTemp = createChart(canvas, {
         type: 'line',
         data: {
             labels: labels,
@@ -413,7 +388,7 @@ export function plotDailyTemps(dates, temps, yRange = null) {
                 intersect: false
             }
         }
-    }), "temperature");
+    });
 
     return chartTemp;
 }
@@ -426,7 +401,7 @@ export function plotDailyTemps(dates, temps, yRange = null) {
  *    ...
  * ]
  */
-export function plotMultipleYearData(multiYearData, yRange = null, colorScheme = "queen") {
+export function plotMultipleYearData(multiYearData, yRange = null) {
     const canvas = document.getElementById('plot-canvas');
 
     const years = multiYearData.map(item => item.year);
@@ -436,7 +411,7 @@ export function plotMultipleYearData(multiYearData, yRange = null, colorScheme =
     const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
     const legendFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
     const POINTS_THRESHOLD = 100;
-    const scheme = colorScheme;
+    const scheme = window.gtsColorScheme || "queen";
     const getLastFiniteValue = (values) => {
         for (let i = values.length - 1; i >= 0; i--) {
             const value = Number(values[i]);
@@ -496,15 +471,14 @@ export function plotMultipleYearData(multiYearData, yRange = null, colorScheme =
         };
     });
 
-    // The newest year can be shorter than completed historical years.
-    // Its labels define the visible date range for every curve.
-    const newestYearData = multiYearData.find((item) => item.year === newestYear);
-    const masterLabels = newestYearData?.labels || [];
+    // Use a unified set of labels for the x-axis
+    // Assuming all years have the same number of days and labels
+    const masterLabels = multiYearData[0].labels;
     const xTickOptions = buildXAxisTickOptions(masterLabels, axisFontSize, canvas);
 
     // console.log("[charts.js] plotMultipleYearData() masterLabels = ", masterLabels);
 
-    const chartGTS = tagPlotType(createChart(canvas, {
+    const chartGTS = createChart(canvas, {
         type: 'line',
         data: {
             labels: masterLabels,
@@ -596,7 +570,7 @@ export function plotMultipleYearData(multiYearData, yRange = null, colorScheme =
                 intersect: false
             }
         }
-    }), "GTS");
+    });
 
     return chartGTS;
 }
@@ -637,7 +611,7 @@ export function plotComparisonData(labels, series, yRange = null) {
         };
     });
 
-    return tagPlotType(createChart(canvas, {
+    return createChart(canvas, {
         type: 'line',
         data: {
             labels: labels,
@@ -700,5 +674,5 @@ export function plotComparisonData(labels, series, yRange = null) {
                 intersect: false
             }
         }
-    }), "comparison");
+    });
 }

@@ -3,7 +3,6 @@
   <head>
     <base href="/">
     <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Einstellungen</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/einstellungen.css">
@@ -15,9 +14,17 @@
 
     <script type="module">
       import { VERSION } from "./assets/js/version.js";
-      import { loadPageHeader } from "./assets/js/pageFragments.js";
 
-      loadPageHeader(VERSION);
+      fetch("components/header.html")
+        .then(response => response.text())
+        .then(html => {
+          document.getElementById("header-placeholder").innerHTML = html;
+
+          const versionElement = document.getElementById("version-placeholder");
+          if (versionElement) {
+            versionElement.textContent = `Version ${VERSION}`;
+          }
+        });
     </script>
 
     <main>
@@ -26,17 +33,11 @@
         <p class="section-description">Hier können blührelevante Parameter eingestellt werden.</p>
 
         <!-- Heading: Tracht -->
-        <button
-          type="button"
-          class="settings-heading"
-          data-target="tracht-content"
-          aria-expanded="false"
-          aria-controls="tracht-content"
-        >
+        <div class="settings-heading" data-target="tracht-content">
           <span>Tracht</span>
-          <span class="arrow" aria-hidden="true">▶</span>
-        </button>
-        <div class="settings-content" id="tracht-content" hidden>
+          <span class="arrow">▶</span>
+        </div>
+        <div class="settings-content" id="tracht-content" style="display: none;">
           <p>Hier kannst du Tracht-Einträge bearbeiten.</p>
           <table id="tracht-table">
             <thead>
@@ -56,32 +57,26 @@
               <!-- Populated by JS -->
             </tbody>
           </table>
-          <button class="add-button" id="add-tracht-row-button">+ Zeile hinzufügen</button>
-          <button class="reset-button" id="reset-tracht-data-button">RESET</button>
+          <button class="add-button" onclick="addTrachtRow()">+ Zeile hinzufügen</button>
+          <button class="reset-button" onclick="resetTrachtData()">RESET</button>
         </div>
 
         <!-- Beschreibung für Sonstiges         -->
         <p class="section-description">Technische Einstellungen</p>
 
         <!-- Heading: Sonstiges -->
-        <button
-          type="button"
-          class="settings-heading"
-          data-target="sonstiges-content"
-          aria-expanded="false"
-          aria-controls="sonstiges-content"
-        >
+        <div class="settings-heading" data-target="sonstiges-content">
           <span>System</span>
-          <span class="arrow" aria-hidden="true">▶</span>
-        </button>
+          <span class="arrow">▶</span>
+        </div>
 
-        <div class="settings-content" id="sonstiges-content" hidden>
+        <div class="settings-content" id="sonstiges-content" style="display: none;">
           <p>Local Storage</p>
 
           <!-- Clear Local Storage Buttons -->
           <div style="text-align: center; margin-top: 20px;">
-            <button class="red-button" id="clear-local-storage-button">Clear Local Storage</button>
-            <button class="red-button" id="clear-cache-button">Clear Cache</button>
+            <button class="red-button" onclick="clearLocalStorage()">Clear Local Storage</button>
+            <button class="red-button" onclick="clearCache()">Clear Cache</button>
           </div>
         </div>
       </div>
@@ -92,10 +87,35 @@
 
     <!-- Footer -->
     <div id="footer-placeholder"></div>
-    <script type="module">
-      import { loadPageFooter } from "./assets/js/pageFragments.js";
-
-      loadPageFooter();
+    <script>
+      fetch("components/footer.html")
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById("footer-placeholder").innerHTML = html;
+    });
     </script>
+
+
+    <!-- JavaScript for clearing local storage -->
+    <script>
+      function clearLocalStorage() {
+          console.log("[Clear Local Storage] Clearing all local storage...");
+          localStorage.clear();
+          console.log("[Clear Local Storage] Local storage cleared.");
+      }
+
+      function clearCache() {
+          console.log("[Clear Cache] Clearing cache...");
+          for (const key in localStorage) {
+              if (localStorage.hasOwnProperty(key) &&
+                  (key.includes("historical") || key.includes("recent"))) {
+                  localStorage.removeItem(key);
+                  console.log(`[Clear Cache] Cleared cache for key: ${key}`);
+              }
+          }
+          console.log("[Clear Cache] Cache clearing complete.");
+      }
+    </script>
+
   </body>
 </html>

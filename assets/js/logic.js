@@ -5,12 +5,8 @@
  * Handles calculations and helper functions related to data processing.
  */
 
-import { formatDateLocal, parseDateStringLocal } from './utils.js';
-import {
-    fetchHistoricalData,
-    HISTORICAL_DATA_START_YEAR,
-    OpenMeteoError
-} from './dataService.js';
+import { formatDateLocal } from './utils.js';
+import { fetchHistoricalData } from './dataService.js';
 
 /**
  * Creates a Date object set to local midnight to avoid time zone issues.
@@ -25,20 +21,62 @@ function createLocalStartOfDay(year, month, day) {
 }
 
 /**
- * Computes the start date for a timeframe without reading DOM state.
+ * Retrieves the selected end date from the #datum input.
+ * Ensures the date is set to local midnight.
+ * @returns {Date} - The selected end date.
+ */
+export function getSelectedEndDate() {
+    const datumInput = document.getElementById('datum');
+
+    const parts = datumInput.value.split('-');
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1; // zero-based
+    const d = parseInt(parts[2], 10);
+    const localStartOfDay = createLocalStartOfDay(y, m, d);
+    // console.log("[DEBUG logic.js] getSelectedEndDate() =>", localStartOfDay.toString());
+    return localStartOfDay;
+}
+
+/**
+ * Computes the date range based on the selected end date.
  * @param {Date} endDate - The selected end date.
- * @param {string} selection - Selected timeframe (7, 14, 28, or ytd).
+ * @returns {Object} - An object containing differenceInDays and plotStartDate.
+ */
+export function computeDateRange(endDate) {
+    const today = new Date();
+    const differenceInTime = today.getTime() - endDate.getTime();
+    const differenceInDays = Math.floor(differenceInTime / (1000 * 3600 * 24));
+    const plotStartDate = computeStartDate(endDate);
+    return { differenceInDays, plotStartDate };
+}
+
+/**
+ * Computes the start date based on the selected timeframe.
+ * @param {Date} endDate - The selected end date.
  * @returns {Date} - The computed start date.
  */
-export function computeStartDate(endDate, selection) {
-    const startDate = new Date(endDate);
-    const days = Number.parseInt(selection, 10);
-    if ([7, 14, 28].includes(days)) {
-        startDate.setDate(endDate.getDate() - days + 1);
+export function computeStartDate(endDate) {
+    const zeitraumSelect = document.getElementById('zeitraum');
+    const selection = zeitraumSelect.value;
+    const startDate = new Date(endDate); // Clone the endDate
+
+    // console.log("[DEBUG logic.js] computeStartDate() => selection=", selection,
+    // "endDate=", formatDateLocal(endDate));
+
+    if (selection === "7") {
+        startDate.setDate(endDate.getDate() - 7 + 1);
+    } else if (selection === "14") {
+        startDate.setDate(endDate.getDate() - 14 + 1);
+    } else if (selection === "28") {
+        startDate.setDate(endDate.getDate() - 28 + 1);
     } else if (selection === "ytd") {
-        startDate.setMonth(0);
+        // Go to January 1st of the endDate's year
+        startDate.setMonth(0); // January
         startDate.setDate(1);
     }
+
+    // console.log("[DEBUG logic.js] computeStartDate() => startDate=",
+    // formatDateLocal(startDate));
     return startDate;
 }
 
@@ -54,16 +92,9 @@ export function calculateGTS(dates, values) {
     let cumulativeSum = 0;
     const results = [];
 
-    const entryCount = Math.min(dates.length, values.length);
-    for (let i = 0; i < entryCount; i++) {
-        if (typeof values[i] !== "number" || !Number.isFinite(values[i])) {
-            continue;
-        }
+    for (let i = 0; i < values.length; i++) {
         let val = Math.max(0, values[i]); // Replace negative values with 0.0
-        const currentDate = parseDateStringLocal(dates[i]);
-        if (!currentDate) {
-            continue;
-        }
+        const currentDate = new Date(dates[i]);
         const month = currentDate.getMonth() + 1;
 
         // Apply weights based on the month
@@ -146,15 +177,15 @@ export async function fetchGTSForYear(
     const endOfDay = new Date(yearPlotEnd);
     endOfDay.setHours(23, 59, 59, 999); // Set to end of the day
     const displayedResults = gtsResults.filter(r => {
-        const d = parseDateStringLocal(r.date);
-        return d && d >= yearPlotStart && d <= endOfDay;
+        const d = new Date(r.date);
+        return (d >= yearPlotStart && d <= endOfDay);
     });
     // console.log("[DEBUG logic.js] => final displayed results for year=", year,
     // " =>", displayedResults.length, " points");
 
     // F) Convert to Chart.js-compatible arrays
     const labels = displayedResults.map(item => {
-        const d = parseDateStringLocal(item.date);
+        const d = new Date(item.date);
         return `${d.getDate()}.${d.getMonth() + 1}`;
     });
     const gtsValues = displayedResults.map(item => item.gts);
@@ -188,13 +219,9 @@ export async function buildYearData(
     const mainYear = baseEndDate.getFullYear();
     const allResults = [];
 
-    // console.log("[DEBUG logic.js] buildYearData() => mainYear=", mainYear);
+    // console.log("[DEBUG logic.js] build5YearData() => mainYear=", mainYear);
 
-    for (
-        let y = mainYear;
-        y > mainYear - yearsCount && y >= HISTORICAL_DATA_START_YEAR;
-        y--
-    ) {
+    for (let y = mainYear; y > mainYear - yearsCount; y--) {
         const yearPlotStart = createLocalStartOfDay(
             y,
             baseStartDate.getMonth(),
@@ -216,16 +243,16 @@ export async function buildYearData(
             endOfDay.setHours(23, 59, 59, 999); // Set to end of the day
 
             const displayedResults = data_current_year.filter(item => {
-                const d = parseDateStringLocal(item.date);
-                return d && d >= yearPlotStart && d <= endOfDay;
+                const d = new Date(item.date);
+                return (d >= yearPlotStart && d <= endOfDay);
             });
 
-            // console.log(`[DEBUG buildYearData] Year ${y} - plotStartDate: ${yearPlotStart}, endOfDay: ${endOfDay}`);
-            // console.log(`[DEBUG buildYearData] Year ${y} - Displayed Results:`, displayedResults);
+            // console.log(`[DEBUG build5YearData] Year ${y} - plotStartDate: ${yearPlotStart}, endOfDay: ${endOfDay}`);
+            // console.log(`[DEBUG build5YearData] Year ${y} - Displayed Results:`, displayedResults);
 
             // Convert to Chart.js data format
             const labels = displayedResults.map(item => {
-                const d = parseDateStringLocal(item.date);
+                const d = new Date(item.date);
                 return `${d.getDate()}.${d.getMonth() + 1}`;
             });
             const gtsValues = displayedResults.map(item => item.gts);
@@ -240,7 +267,7 @@ export async function buildYearData(
             // For past years, fetch from the server
             //
             try {
-                // console.log("[DEBUG logic.js] buildYearData() y=", y, " yearPlotStart= ", formatDateLocal(yearPlotStart), " yearPlotEnd= ", formatDateLocal(yearPlotEnd));
+                // console.log("[DEBUG logic.js] build5YearData() y=", y, " yearPlotStart= ", formatDateLocal(yearPlotStart), " yearPlotEnd= ", formatDateLocal(yearPlotEnd));
                 const yearly = await fetchGTSForYear(
                     lat,
                     lon,
@@ -249,17 +276,36 @@ export async function buildYearData(
                     yearPlotEnd,
                     cacheStore
                 );
-                // console.log("[DEBUG logic.js] buildYearData() => year=", y,
+                // console.log("[DEBUG logic.js] build5YearData() => year=", y,
                 //    " => #points=", yearly.gtsValues.length);
                 allResults.push(yearly);
             } catch (err) {
-                throw new OpenMeteoError(`Weather data unavailable for year ${y}.`, err);
+                console.warn(`[build5YearData] Error year=${y}`, err);
             }
         }
     }
 
-    // console.log("[DEBUG logic.js] buildYearData() => total sets=", allResults.length);
+    // console.log("[DEBUG logic.js] build5YearData() => total sets=", allResults.length);
     return allResults;
+}
+
+export async function build5YearData(
+    lat,
+    lon,
+    baseStartDate,
+    baseEndDate,
+    data_current_year,
+    cacheStore = null
+) {
+    return buildYearData(
+        lat,
+        lon,
+        baseStartDate,
+        baseEndDate,
+        data_current_year,
+        5,
+        cacheStore
+    );
 }
 
 /**
@@ -284,11 +330,7 @@ export async function buildFullYearData(
 ) {
     const allResults = [];
 
-    for (
-        let y = endYear;
-        y > endYear - yearsCount && y >= HISTORICAL_DATA_START_YEAR;
-        y--
-    ) {
+    for (let y = endYear; y > endYear - yearsCount; y--) {
         try {
             const yearPlotStart = createLocalStartOfDay(
                 y,
@@ -304,11 +346,11 @@ export async function buildFullYearData(
                 const endOfDay = new Date(yearPlotEnd);
                 endOfDay.setHours(23, 59, 59, 999);
                 const displayedResults = data_current_year.filter((item) => {
-                    const d = parseDateStringLocal(item.date);
-                    return d && d >= yearPlotStart && d <= endOfDay;
+                    const d = new Date(item.date);
+                    return d >= yearPlotStart && d <= endOfDay;
                 });
                 const labels = displayedResults.map((item) => {
-                    const d = parseDateStringLocal(item.date);
+                    const d = new Date(item.date);
                     return `${d.getDate()}.${d.getMonth() + 1}`;
                 });
                 const gtsValues = displayedResults.map((item) => item.gts);
@@ -329,7 +371,7 @@ export async function buildFullYearData(
             );
             allResults.push(yearly);
         } catch (err) {
-            throw new OpenMeteoError(`Weather data unavailable for year ${y}.`, err);
+            console.warn(`[buildFullYearData] Error year=${y}`, err);
         }
     }
 

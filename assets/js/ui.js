@@ -3,12 +3,7 @@
  * UI-Interaktionen, DOM-Referenzen, Anzeigen/Verstecken von Elementen
  */
 
-import {
-  formatCoordinates,
-  getActiveLocation,
-  normalizeCoordinates,
-  updateLocation
-} from './locationStore.js';
+import { formatCoordinates, getActiveLocation, updateLocation } from './locationStore.js';
 
 // DOM references
 export const ortInput          = document.getElementById('ort');
@@ -26,17 +21,13 @@ export const datumHeuteBtn     = document.getElementById('datum-heute');
 
 export const toggleGtsPlotBtn  = document.getElementById('toggle-gts-plot');
 export const gtsPlotContainer  = document.getElementById('gts-plot-container');
-export const exportGtsPlotBtn  = document.getElementById('export-gts-plot');
-export const exportComparisonPlotBtn = document.getElementById('export-comparison-plot');
-export const gtsExportFormatSelect = document.getElementById('gts-export-format');
 
 export const gtsRangeInputs = Array.from(document.querySelectorAll('input[name="gts-range"]'));
 export const gtsColorInputs = Array.from(document.querySelectorAll('input[name="gts-color-scheme"]'));
+export const standortSyncToggle = document.getElementById('standort-sync-toggle');
 
 export const toggleTempPlotBtn = document.getElementById('toggle-temp-plot');
 export const tempPlotContainer = document.getElementById('temp-plot-container');
-export const exportTemperaturePlotBtn = document.getElementById('export-temperature-plot');
-export const temperatureExportFormatSelect = document.getElementById('temperature-export-format');
 
 export const locationNameOutput = document.getElementById('location-name');
 export const locationTabsContainer = document.getElementById('location-tabs');
@@ -57,7 +48,10 @@ function parseStoredPosition(lastPos) {
   const coords = lastPos.split(",");
   const lat = parseFloat(coords[0]);
   const lon = parseFloat(coords[1]);
-  return normalizeCoordinates(lat, lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return null;
+  }
+  return { lat, lon };
 }
 
 function setMarkerForLocation(lat, lon) {
@@ -139,7 +133,7 @@ function applyActiveLocationMapView(activeLocation) {
 /**
  * Initializes or updates the Leaflet map overlay.
  */
-export function initOrUpdateMap() {
+window.initOrUpdateMap = () => {
   const activeLocation = getActiveLocation();
   if (!map) {
     map = L.map('map').setView([51.1657, 10.4515], 6);
@@ -149,26 +143,18 @@ export function initOrUpdateMap() {
     }).addTo(map);
 
     map.on('click', (e) => {
-      const coordinates = normalizeCoordinates(e.latlng.lat, e.latlng.lng);
-      if (!coordinates) {
-        return;
-      }
       if (marker) {
         map.removeLayer(marker);
       }
-      selectedLatLng = { lat: coordinates.lat, lng: coordinates.lon };
-      marker = L.marker(selectedLatLng).addTo(map);
+      marker = L.marker(e.latlng).addTo(map);
+      selectedLatLng = e.latlng;
     });
 
     map.on('moveend', () => {
       const center = map.getCenter();
-      const coordinates = normalizeCoordinates(center.lat, center.lng);
-      if (!coordinates) {
-        return;
-      }
       localStorage.setItem(
         GLOBAL_MAP_VIEW_KEY,
-        JSON.stringify({ lat: coordinates.lat, lon: coordinates.lon, zoom: map.getZoom() })
+        JSON.stringify({ lat: center.lat, lon: center.lng, zoom: map.getZoom() })
       );
     });
 
@@ -193,28 +179,23 @@ export function initOrUpdateMap() {
       applyActiveLocationMapView(activeLocation);
     }, 100);
   }
-}
+};
 
 /**
  * Saves the currently selected map location back to #ort + localStorage
  */
-export function saveMapSelection() {
+window.saveMapSelection = () => {
   if (selectedLatLng) {
-    const coordinates = normalizeCoordinates(selectedLatLng.lat, selectedLatLng.lng);
-    if (!coordinates) {
-      return;
-    }
-    const locString = formatCoordinates(coordinates.lat, coordinates.lon);
+    const locString = formatCoordinates(selectedLatLng.lat, selectedLatLng.lng);
     ortInput.value = locString;
     const activeLocation = getActiveLocation();
     if (activeLocation) {
       updateLocation(activeLocation.id, (location) => {
         location.coordinates = {
-          lat: coordinates.lat,
-          lon: coordinates.lon
+          lat: selectedLatLng.lat,
+          lon: selectedLatLng.lng
         };
-        const center = normalizeCoordinates(map.getCenter().lat, map.getCenter().lng);
-        location.ui.map.lastPos = center ? `${center.lat},${center.lon}` : null;
+        location.ui.map.lastPos = `${map.getCenter().lat},${map.getCenter().lng}`;
         location.ui.map.lastZoom = map.getZoom();
         location.ui.map.addressViewportMeters = null;
       });
@@ -224,4 +205,4 @@ export function saveMapSelection() {
   if (mapPopup) {
     mapPopup.style.display = 'none';
   }
-}
+};

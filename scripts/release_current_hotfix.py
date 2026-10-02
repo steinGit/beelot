@@ -11,7 +11,6 @@ commands without executing them.
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import re
 import subprocess
@@ -19,11 +18,11 @@ import sys
 from pathlib import Path
 from typing import Final, List, Sequence
 
+
 RED: Final[str] = "\033[31m"
 RESET: Final[str] = "\033[0m"
 VERSION_FILE: Final[Path] = Path("assets/js/version.js")
 PACKAGE_FILE: Final[Path] = Path("package.json")
-PACKAGE_LOCK_FILE: Final[Path] = Path("package-lock.json")
 SYNC_SCRIPT: Final[Path] = Path("scripts/sync_versions.py")
 
 
@@ -122,24 +121,6 @@ def ensure_main_branch() -> None:
         error_exit(f"Current branch is '{current_branch}'. Switch to 'main' first.")
 
 
-def ensure_clean_worktree() -> None:
-    """Require a completely clean worktree before preparing a release."""
-    result = subprocess.run(
-        ["git", "status", "--porcelain"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        detail = result.stderr.strip() or "Git returned an unexpected result."
-        error_exit(f"Unable to inspect the working tree: {detail}")
-    if result.stdout.strip():
-        error_exit(
-            "Working tree is not clean. Commit or stash all staged, unstaged, "
-            "and untracked changes before releasing."
-        )
-
-
 def read_version_file(version_file: Path) -> str:
     """
     Read and extract the version string from a version.js file.
@@ -172,55 +153,6 @@ def read_version_file(version_file: Path) -> str:
         raise ValueError("Could not extract VERSION from version.js")
 
     return match.group(1)
-
-
-def read_package_version(package_file: Path) -> str:
-    """Read the version string from package.json."""
-    if not package_file.exists():
-        error_exit(f"Input file does not exist: {package_file}")
-
-    try:
-        package_data = json.loads(package_file.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        error_exit(
-            f"JSON parsing error in {package_file} at line {exc.lineno}, "
-            f"column {exc.colno}: {exc.msg}"
-        )
-    if not isinstance(package_data, dict):
-        error_exit(f"Invalid JSON structure in {package_file}: expected an object.")
-
-    version = package_data.get("version")
-    if not isinstance(version, str) or not version.strip():
-        error_exit(f"Missing or invalid 'version' field in {package_file}.")
-    return version
-
-
-def read_package_lock_versions(package_lock_file: Path) -> tuple[str, str]:
-    """Read top-level and root-package versions from package-lock.json."""
-    if not package_lock_file.exists():
-        error_exit(f"Input file does not exist: {package_lock_file}")
-    try:
-        lock_data = json.loads(package_lock_file.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        error_exit(
-            f"JSON parsing error in {package_lock_file} at line {exc.lineno}, "
-            f"column {exc.colno}: {exc.msg}"
-        )
-    if not isinstance(lock_data, dict):
-        error_exit(
-            f"Invalid JSON structure in {package_lock_file}: expected an object."
-        )
-    top_level = lock_data.get("version")
-    packages = lock_data.get("packages")
-    root_package = packages.get("") if isinstance(packages, dict) else None
-    root_version = (
-        root_package.get("version") if isinstance(root_package, dict) else None
-    )
-    if not isinstance(top_level, str) or not top_level.strip():
-        error_exit(f"Missing or invalid top-level 'version' in {package_lock_file}.")
-    if not isinstance(root_version, str) or not root_version.strip():
-        error_exit(f"Missing or invalid root package 'version' in {package_lock_file}.")
-    return top_level, root_version
 
 
 def confirm_continue(version: str) -> bool:
@@ -298,7 +230,8 @@ def main(argv: Sequence[str]) -> None:
 
     ensure_beelot_directory()
     ensure_main_branch()
-    ensure_clean_worktree()
+
+    sync_versions(dryrun=args.dryrun)
 
     try:
         version = read_version_file(VERSION_FILE)
@@ -309,42 +242,16 @@ def main(argv: Sequence[str]) -> None:
         print("Aborted by user.")
         return
 
-    package_version = read_package_version(PACKAGE_FILE)
-    lockfile_version, lockfile_root_version = read_package_lock_versions(
-        PACKAGE_LOCK_FILE
-    )
-    commands: List[List[str]] = []
-    if (
-        package_version != version
-        or lockfile_version != version
-        or lockfile_root_version != version
-    ):
-        sync_versions(dryrun=args.dryrun)
-        commands.extend(
-            [
-                [
-                    "git",
-                    "add",
-                    str(VERSION_FILE),
-                    str(PACKAGE_FILE),
-                    str(PACKAGE_LOCK_FILE),
-                ],
-                ["git", "commit", "-m", f"chore: bump version to {version}"],
-            ]
-        )
-    else:
-        print("Version files are already synchronized; skipping version commit.")
-
-    commands.extend(
-        [
-            ["git", "tag", "-a", f"v{version}", "-m", f"Hotfix release v{version}"],
-            ["git", "push", "origin", "main"],
-            ["git", "push", "origin", f"v{version}"],
-            ["git", "checkout", "dev"],
-            ["git", "merge", "main"],
-            ["git", "push", "origin", "dev"],
-        ]
-    )
+    commands: List[List[str]] = [
+        ["git", "add", str(VERSION_FILE), str(PACKAGE_FILE)],
+        ["git", "commit", "-m", f"chore: bump version to {version}"],
+        ["git", "tag", "-a", f"v{version}", "-m", f"Hotfix release v{version}"],
+        ["git", "push", "origin", "main"],
+        ["git", "push", "origin", f"v{version}"],
+        ["git", "checkout", "dev"],
+        ["git", "merge", "main"],
+        ["git", "push", "origin", "dev"],
+    ]
 
     for cmd in commands:
         run_command(cmd, args.dryrun)

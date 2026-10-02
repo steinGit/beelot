@@ -5,18 +5,9 @@
  * Handles fetching and caching of historical and recent weather data.
  */
 
-import {
-    fetchWithTimeout,
-    formatDateLocal,
-    isValidDate,
-    parseDateStringLocal
-} from './utils.js';
+import { formatDateLocal, isValidDate } from './utils.js';
 
 const DATA_SERVICE_DEBUG = false;
-export const HISTORICAL_DATA_START_YEAR = 1940;
-export const CURRENT_YEAR_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
-export const RECENT_CACHE_MAX_AGE_MS = 60 * 60 * 1000;
-const CACHE_ENTRY_VERSION = 1;
 
 function debugLog(message) {
     if (!DATA_SERVICE_DEBUG) {
@@ -55,68 +46,9 @@ export function isOpenMeteoError(error) {
 }
 
 function ensureDailyData(data, context) {
-    const dates = data?.daily?.time;
-    const temperatures = data?.daily?.temperature_2m_mean;
-    if (
-        !Array.isArray(dates)
-        || !Array.isArray(temperatures)
-        || dates.length !== temperatures.length
-    ) {
+    if (!data || !data.daily || !Array.isArray(data.daily.time)) {
         throw new OpenMeteoError(`Invalid Open-Meteo response${context ? ` (${context})` : ""}.`);
     }
-}
-
-/**
- * Adds valid daily temperatures to a date-keyed collection.
- * Missing values are omitted so that they remain distinguishable from measured zeroes.
- * @param {Object} target - Date-keyed temperature collection.
- * @param {Object} data - Open-Meteo daily response.
- * @param {boolean} overwrite - Whether valid existing entries may be replaced.
- */
-export function mergeValidDailyTemperatures(target, data, overwrite = true) {
-    ensureDailyData(data, "daily-merge");
-    const { time, temperature_2m_mean: temperatures } = data.daily;
-
-    for (let index = 0; index < time.length; index++) {
-        const dateKey = time[index];
-        const temperature = temperatures[index];
-        if (
-            !parseDateStringLocal(dateKey)
-            || typeof temperature !== "number"
-            || !Number.isFinite(temperature)
-        ) {
-            continue;
-        }
-        if (!overwrite && Object.prototype.hasOwnProperty.call(target, dateKey)) {
-            continue;
-        }
-        target[dateKey] = temperature;
-    }
-}
-
-/**
- * Finds the first calendar day without a valid temperature in a date range.
- * @param {Object} dataByDate - Date-keyed temperature collection.
- * @param {Date} start - First date to inspect.
- * @param {Date} end - Last date to inspect.
- * @returns {Date|null} - The first missing date, or null when the range is complete.
- */
-export function findFirstMissingTemperatureDate(dataByDate, start, end) {
-    if (!isValidDate(start) || !isValidDate(end) || start > end) {
-        return null;
-    }
-
-    const current = new Date(start);
-    current.setHours(0, 0, 0, 0);
-    const last = new Date(end);
-    last.setHours(0, 0, 0, 0);
-    while (current <= last) {
-        if (!Object.prototype.hasOwnProperty.call(dataByDate, formatDateLocal(current))) {
-            return new Date(current);
-        }
-        current.setDate(current.getDate() + 1);
-    }
-    return null;
 }
 
 /**
@@ -125,51 +57,21 @@ export function findFirstMissingTemperatureDate(dataByDate, start, end) {
  * @param {Object|null} cacheStore - Optional cache store with get/set methods.
  * @returns {Object|null} - The parsed data if present, otherwise null.
  */
-export function getCachedData(key, cacheStore = null, maxAgeMs = null, now = Date.now()) {
-    let cached;
+export function getCachedData(key, cacheStore = null) {
     if (cacheStore) {
-        cached = cacheStore.get(key);
-    } else {
-        cached = localStorage.getItem(key);
+        return cacheStore.get(key);
     }
-    if (!cached) {
-        return null;
-    }
-    if (!cacheStore) {
+    const cached = localStorage.getItem(key);
+    if (cached) {
         try {
-            cached = JSON.parse(cached);
-        } catch {
+            return JSON.parse(cached);
+        } catch (error) {
             console.warn(`[dataService.js] Invalid JSON in cache for key '${key}', clearing entry.`);
             localStorage.removeItem(key);
             return null;
         }
     }
-
-    if (cached?.cacheEntryVersion === CACHE_ENTRY_VERSION) {
-        const isExpired = Number.isFinite(maxAgeMs) && (
-            !Number.isFinite(cached.cachedAt)
-            || now - cached.cachedAt >= maxAgeMs
-        );
-        if (isExpired) {
-            if (cacheStore) {
-                cacheStore.remove(key);
-            } else {
-                localStorage.removeItem(key);
-            }
-            return null;
-        }
-        return cached.data;
-    }
-
-    if (Number.isFinite(maxAgeMs)) {
-        if (cacheStore) {
-            cacheStore.remove(key);
-        } else {
-            localStorage.removeItem(key);
-        }
-        return null;
-    }
-    return cached;
+    return null;
 }
 
 /**
@@ -178,15 +80,12 @@ export function getCachedData(key, cacheStore = null, maxAgeMs = null, now = Dat
  * @param {Object} data - The data to store.
  * @param {Object|null} cacheStore - Optional cache store with get/set methods.
  */
-export function setCachedData(key, data, cacheStore = null, cachedAt = null) {
-    const storedValue = Number.isFinite(cachedAt)
-        ? { cacheEntryVersion: CACHE_ENTRY_VERSION, cachedAt, data }
-        : data;
+export function setCachedData(key, data, cacheStore = null) {
     if (cacheStore) {
-        cacheStore.set(key, storedValue);
+        cacheStore.set(key, data);
         return;
     }
-    localStorage.setItem(key, JSON.stringify(storedValue));
+    localStorage.setItem(key, JSON.stringify(data));
 }
 
 /**
@@ -217,14 +116,6 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
     // Validate Date objects
     if (!isValidDate(start) || !isValidDate(end)) {
         throw new Error("Invalid start or end date provided.");
-    }
-    if (
-        start.getFullYear() < HISTORICAL_DATA_START_YEAR
-        || end.getFullYear() < HISTORICAL_DATA_START_YEAR
-    ) {
-        throw new OpenMeteoError(
-            `Historical weather data is available from ${HISTORICAL_DATA_START_YEAR}.`
-        );
     }
 
     const now = new Date();
@@ -268,11 +159,7 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
         lon,
         `${formatDateLocal(start)}_${formatDateLocal(end)}`
     );
-    const cachedData = getCachedData(
-        cacheKey,
-        cacheStore,
-        CURRENT_YEAR_CACHE_MAX_AGE_MS
-    );
+    const cachedData = getCachedData(cacheKey, cacheStore);
     if (cachedData) {
         ensureDailyData(cachedData, "historical-cache");
         debugLog(`Historical data loaded from cache (key=${cacheKey}).`);
@@ -288,13 +175,13 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
     )}&end_date=${formatDateLocal(end)}&daily=temperature_2m_mean&timezone=Europe%2FBerlin`;
 
     try {
-        const response = await fetchWithTimeout(url);
+        const response = await fetch(url);
         if (!response.ok) {
             throw new OpenMeteoError(`Open-Meteo error: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
         ensureDailyData(data, "historical");
-        setCachedData(cacheKey, data, cacheStore, Date.now());
+        setCachedData(cacheKey, data, cacheStore);
         return data;
     } catch (error) {
         debugError(`Error fetching historical data: ${error.message}`);
@@ -329,7 +216,7 @@ async function fetchHistoricalYear(lat, lon, start, end) {
     )}&end_date=${formatDateLocal(end)}&daily=temperature_2m_mean&timezone=Europe%2FBerlin`;
 
     try {
-        const response = await fetchWithTimeout(url);
+        const response = await fetch(url);
         if (!response.ok) {
             throw new OpenMeteoError(`Open-Meteo error: ${response.status} ${response.statusText}`);
         }
@@ -382,11 +269,7 @@ export async function fetchRecentData(lat, lon, start, end, cacheStore = null) {
     }
 
     const cacheKey = computeCacheKey('recent', lat, lon, `${formatDateLocal(start)}_${formatDateLocal(end)}`);
-    const cachedData = getCachedData(
-        cacheKey,
-        cacheStore,
-        RECENT_CACHE_MAX_AGE_MS
-    );
+    const cachedData = getCachedData(cacheKey, cacheStore);
     if (cachedData) {
         ensureDailyData(cachedData, "recent-cache");
         debugLog(`Recent data loaded from cache (key=${cacheKey}).`);
@@ -400,14 +283,14 @@ export async function fetchRecentData(lat, lon, start, end, cacheStore = null) {
     )}&end_date=${formatDateLocal(end)}&daily=temperature_2m_mean&timezone=Europe%2FBerlin`;
 
     try {
-        const response = await fetchWithTimeout(url);
+        const response = await fetch(url);
         if (!response.ok) {
             throw new OpenMeteoError(`Open-Meteo error: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
         ensureDailyData(data, "recent");
-        setCachedData(cacheKey, data, cacheStore, Date.now());
+        setCachedData(cacheKey, data, cacheStore);
         return data;
     } catch (error) {
         debugError(`Error fetching recent data: ${error.message}`);

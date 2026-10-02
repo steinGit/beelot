@@ -32,23 +32,4 @@ describe("buildFullYearData", () => {
       }
     ]);
   });
-
-  test("rejects instead of returning partial full-year data", async () => {
-    localStorage.clear();
-    global.fetch = jest.fn().mockRejectedValue(new Error("Network unavailable"));
-
-    await expect(buildFullYearData(
-      48.0,
-      9.0,
-      2026,
-      2,
-      new Date(2026, 0, 1),
-      new Date(2026, 11, 31),
-      null,
-      [{ date: "2026-01-01", gts: 1.1 }]
-    )).rejects.toMatchObject({
-      name: "OpenMeteoError",
-      message: "Weather data unavailable for year 2025."
-    });
-  });
 });

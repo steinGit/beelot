@@ -5,9 +5,6 @@ import pluginJs from "@eslint/js";
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   {
-    ignores: ["coverage/**"]
-  },
-  {
     files: ["**/*.{js,mjs,cjs,jsx}"],
     languageOptions: {
       globals: {
@@ -23,7 +20,6 @@ export default [
     languageOptions: {
       globals: {
         ...globals.browser,
-        ...globals.node,
         ...globals.jest,
         global: "readonly",
         Chart: "readonly",

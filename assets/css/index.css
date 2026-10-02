@@ -165,6 +165,19 @@
     background: #ffffff;
 }
 
+.sync-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 12px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.sync-toggle input {
+    cursor: pointer;
+}
+
 .legend-location-label {
     font-weight: bold;
     margin: 6px 0 4px;
@@ -406,9 +419,8 @@
     padding: 10px; /* Space around the content */
     box-sizing: border-box;
     width: 100%;
-    min-height: 600px;
-    height: auto;
-    overflow: visible;
+    height: 600px; /* Fixed height */
+    overflow: hidden; /* Prevent unwanted overflow */
     margin-top: 20px;
     flex-direction: column; /* Stack children vertically */
     justify-content: space-between; /* Evenly space children vertically */
@@ -419,13 +431,12 @@
 }
 
 .plot-wrapper {
-    height: clamp(320px, 55vh, 500px);
-    min-height: 320px;
-    flex: 1 1 auto;
+    height: 500px; /* Fixed height */
+    flex-grow: 1; /* Take up remaining space in the container */
     display: flex; /* Flex layout to center canvas */
     justify-content: center; /* Horizontally center the canvas */
     align-items: center; /* Vertically center the canvas */
-    overflow: visible;
+    overflow: hidden; /* Ensure no overflow */
 }
 
 #plot-canvas {
@@ -434,98 +445,16 @@
     display: block;
 }
 
-#temp-plot {
-    width: 100%; /* Ensure the canvas scales horizontally */
-    height: clamp(320px, 55vh, 500px);
-}
-
-.plot-export-actions {
-    display: none;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 8px;
-    margin-top: 10px;
-}
-
-.plot-container.visible + .plot-export-actions {
-    display: flex;
-}
-
-.plot-export-actions button,
-.plot-export-actions select {
-    max-width: 100%;
-}
-
-.plot-export-actions button {
-    cursor: pointer;
-}
-
+/* Responsive adjustments for smaller screens */
 @media (max-width: 600px) {
     .plot-container {
-        min-height: 0;
-        height: auto;
-    }
-
-    .plot-wrapper,
-    #temp-plot {
-        height: 320px;
-        min-height: 320px;
+        height: 400px; /* Smaller height for smaller screens */
     }
 }
 
-@media (max-width: 480px) {
-    .location-panel,
-    .standort-section,
-    .plot-section,
-    .eingabe-section,
-    .ergebnis-section,
-    .hinweis-section,
-    .plot-container,
-    .plot-wrapper,
-    .input-group,
-    fieldset.gts-control-group {
-        margin-left: 0;
-        margin-right: 0;
-        padding-left: 2px;
-        padding-right: 2px;
-    }
-
-    .location-panel {
-        margin-bottom: 20px;
-    }
-
-    .plot-container {
-        margin-top: 12px;
-    }
-
-    .plot-wrapper,
-    #temp-plot {
-        width: 100%;
-        height: 320px;
-    }
-
-    .plot-container canvas,
-    .plot-wrapper canvas {
-        display: block;
-        width: 100%;
-        height: 100%;
-    }
-
-    fieldset.gts-control-group {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px 10px;
-        padding: 4px;
-    }
-
-    fieldset.gts-control-group label {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 0.85rem;
-        margin: 0;
-    }
+#temp-plot {
+    width: 100%; /* Ensure the canvas scales horizontally */
+    height: 500px; /* Set a fixed height for the canvas */
 }
 
 /* Make the “Diagramm (GTS) …” and “Diagramm (Tagesmitteltemperaturen) …” buttons big, yellow, with shadow */

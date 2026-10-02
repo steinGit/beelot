@@ -5,8 +5,6 @@
  */
 
 import { defaultTrachtData } from './tracht_data.js';
-import { normalizeTrachtData } from './trachtDataValidation.js';
-import { parseDateStringLocal } from './utils.js';
 
 const DEFAULT_URL_BY_PLANT = new Map(
     defaultTrachtData
@@ -15,7 +13,10 @@ const DEFAULT_URL_BY_PLANT = new Map(
 );
 
 export async function updateHinweisSection(gtsResults, endDate) {
-    // 0) Grab the <section> element
+    // STEP 0A) If localStorage has no "trachtData", set it to default.
+    ensureTrachtDataInLocalStorage();
+
+    // 0B) Grab the <section> element
     const hinweisSection = document.querySelector(".hinweis-section");
     if (!hinweisSection) {
         return;
@@ -33,7 +34,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
     }
 
     gtsResults.forEach(item => {
-        const dObj = parseDateStringLocal(item.date);
+        const dObj = parseLocalDateString(item.date);
         if (!dObj) {
             return;
         }
@@ -85,7 +86,10 @@ export async function updateHinweisSection(gtsResults, endDate) {
     const TSUM_max = D_E[m] || TSUM_current;
 
     // 3) Load Tracht data => relevant_list
-    const trachtData = loadTrachtData("trachtData").filter(row => row.active);
+    const rawTrachtData = loadTrachtData("trachtData");
+    const merged = mergeMissingUrls(rawTrachtData);
+    let trachtData = merged.data;
+    trachtData = trachtData.filter(row => row.active);
 
     const relevant_list = trachtData
         .filter(row => row.TS_start <= TSUM_max)
@@ -355,6 +359,31 @@ export async function updateHinweisSection(gtsResults, endDate) {
     hinweisSection.innerHTML = html;
 }
 
+// ------------------------------------------------
+// Helper: ensure localStorage has defaultTrachtData
+// ------------------------------------------------
+function ensureTrachtDataInLocalStorage() {
+  const TRACT_DATA_KEY = "trachtData";
+  const stored = localStorage.getItem(TRACT_DATA_KEY);
+  if (!stored) {
+    localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(defaultTrachtData));
+    return;
+  }
+  try {
+    const parsed = JSON.parse(stored);
+    if (!hasAnyUrl(parsed)) {
+      localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(defaultTrachtData));
+      return;
+    }
+    const merged = mergeMissingUrls(parsed);
+    if (merged.changed) {
+      localStorage.setItem(TRACT_DATA_KEY, JSON.stringify(merged.data));
+    }
+  } catch (error) {
+    console.warn("[information.js] Failed to parse trachtData for URL migration.", error);
+  }
+}
+
 // ----------------------
 // Remaining helper funcs
 // ----------------------
@@ -374,27 +403,10 @@ function dayOfYear(d) {
 
 function loadTrachtData(key) {
     const stored = localStorage.getItem(key);
-    if (stored === null) {
-        localStorage.setItem(key, JSON.stringify(defaultTrachtData));
-        return defaultTrachtData;
-    }
-    let parsed;
-    try {
-        parsed = JSON.parse(stored);
-    } catch (error) {
-        console.warn("[information.js] Invalid trachtData in localStorage.", error);
+    if (!stored) {
         return [];
     }
-    if (!Array.isArray(parsed)) {
-        console.warn("[information.js] Stored trachtData is not an array.");
-        return [];
-    }
-    const merged = mergeMissingUrls(parsed);
-    const normalized = normalizeTrachtData(merged.data);
-    if (merged.changed || JSON.stringify(normalized) !== JSON.stringify(parsed)) {
-        localStorage.setItem(key, JSON.stringify(normalized));
-    }
-    return normalized;
+    return JSON.parse(stored);
 }
 
 function mergeMissingUrls(trachtData) {
@@ -421,6 +433,21 @@ function mergeMissingUrls(trachtData) {
         return row;
     });
     return { data, changed };
+}
+
+function hasAnyUrl(trachtData) {
+    if (!Array.isArray(trachtData)) {
+        return false;
+    }
+    return trachtData.some((row) => {
+        if (!row || typeof row !== "object") {
+            return false;
+        }
+        if (typeof row.url !== "string") {
+            return false;
+        }
+        return row.url.trim().length > 0;
+    });
 }
 
 function buildPlantLabel(row) {
@@ -474,6 +501,23 @@ function transform_to_month_day(dayIndex, dayNow, year) {
     return `${dd}.${mm}.`;
 }
 
+function parseLocalDateString(dateStr) {
+    if (typeof dateStr !== "string") {
+        return null;
+    }
+    const parts = dateStr.split("-");
+    if (parts.length !== 3) {
+        return null;
+    }
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+        return null;
+    }
+    return new Date(year, month, day, 0, 0, 0, 0);
+}
+
 function escapeHtml(value) {
     return String(value)
         .replace(/&/g, "&amp;")
@@ -489,7 +533,7 @@ function sanitizeHttpUrl(rawUrl) {
         if (parsed.protocol === "http:" || parsed.protocol === "https:") {
             return parsed.href;
         }
-    } catch {
+    } catch (error) {
         return "";
     }
     return "";

@@ -2,8 +2,6 @@
 set -euo pipefail
 
 PROG="$(basename "$0")"
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 KEEP_TMP=0
 
 show_help() {
@@ -63,22 +61,8 @@ cat > "$TMP_DIR/package.json" <<'EOF'
 }
 EOF
 
-cat > "$TMP_DIR/package-lock.json" <<'EOF'
-{
-  "name": "beelot-test",
-  "version": "0.2.1",
-  "lockfileVersion": 3,
-  "packages": {
-    "": {
-      "name": "beelot-test",
-      "version": "0.2.1"
-    }
-  }
-}
-EOF
-
 pushd "$TMP_DIR" >/dev/null
-python3 "$PROJECT_ROOT/scripts/sync_versions.py" --source max >/dev/null
+python3 /home/stein/prj/beelot/scripts/sync_versions.py --source max >/dev/null
 popd >/dev/null
 
 if ! grep -q 'VERSION = "0.2.2"' "$TMP_DIR/assets/js/version.js"; then
@@ -90,12 +74,6 @@ fi
 if ! grep -q '"version": "0.2.2"' "$TMP_DIR/package.json"; then
   echo "Expected package.json to be updated to 0.2.2" >&2
   cat "$TMP_DIR/package.json" >&2
-  exit 1
-fi
-
-if [[ "$(grep -c '"version": "0.2.2"' "$TMP_DIR/package-lock.json")" -ne 2 ]]; then
-  echo "Expected both package-lock.json version fields to be updated to 0.2.2" >&2
-  cat "$TMP_DIR/package-lock.json" >&2
   exit 1
 fi
 

@@ -3,8 +3,6 @@
  * Handles reverse geocoding to convert GPS coordinates into human-readable location names with caching and verbose logging.
  */
 
-import { fetchWithTimeout } from './utils.js';
-
 export class LocationNameFromGPS {
   /**
    * Constructs a new LocationNameFromGPS instance.
@@ -73,7 +71,7 @@ export class LocationNameFromGPS {
     const url = `${this.apiUrl}?${params.toString()}`;
 
     try {
-      const response = await fetchWithTimeout(url, {
+      const response = await fetch(url, {
         headers: {
           'Accept-Language': 'de' // Set response language to German
         }
