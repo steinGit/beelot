@@ -33,6 +33,7 @@ import {
 } from './ui.js';
 
 import { PlotUpdater } from './plotUpdater.js';
+import { loadPredictionSettings, savePredictionSettings, PREDICTION_SETTINGS_KEY } from './predictionSettings.js';
 import { plotComparisonData } from './charts.js';
 import { calculateGTS, computeStartDate } from './logic.js';
 import {
@@ -1080,6 +1081,9 @@ function setComparisonMode(enabled) {
     gtsColorFieldset.style.display = enabled ? "none" : "";
   }
 
+  const predictionControl = document.querySelector('.prediction-plot-control');
+  if (predictionControl) predictionControl.hidden = enabled;
+
   const legendLabel = document.getElementById("legend-location-label");
   if (legendLabel) {
     legendLabel.style.display = enabled ? "none" : "";
@@ -1289,9 +1293,9 @@ function setPlotVisibility(showGts, showTemp) {
     : "Diagramm (Tagesmitteltemperaturen) anzeigen";
 }
 
-function applyLocationState(location) {
+function applyLocationState(location, { useToday = false } = {}) {
   const todayStr = getLocalTodayString();
-  const selectedDate = isSupportedHistoricalDate(location.ui.selectedDate)
+  const selectedDate = !useToday && isSupportedHistoricalDate(location.ui.selectedDate)
     ? location.ui.selectedDate
     : todayStr;
   datumInput.value = selectedDate;
@@ -1710,9 +1714,43 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   });
 
+  const predictionPlotCheckbox = document.getElementById('show-gts-prediction');
+  const syncPredictionControls = () => {
+    const settings = loadPredictionSettings();
+    if (predictionPlotCheckbox) predictionPlotCheckbox.checked = settings.showPrediction;
+    const horizonSelect = document.getElementById('prediction-horizon');
+    if (horizonSelect) horizonSelect.value = String(settings.horizonDays);
+  };
+  syncPredictionControls();
+  // The hint section is regenerated; delegate changes to its stable ancestor.
+  document.addEventListener('change', (event) => {
+    if (event.target.id === 'prediction-horizon') {
+      savePredictionSettings({ horizonDays: Number(event.target.value) });
+    } else if (event.target.id === 'show-gts-prediction') {
+      savePredictionSettings({ showPrediction: event.target.checked });
+    } else {
+      return;
+    }
+    syncPredictionControls();
+    if (!comparisonActive) plotUpdater.run();
+  });
+  window.addEventListener('storage', (event) => {
+    if (event.key === PREDICTION_SETTINGS_KEY || event.key === null) {
+      syncPredictionControls();
+      if (!comparisonActive) plotUpdater.run();
+    }
+  });
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+      syncPredictionControls();
+      if (!comparisonActive) plotUpdater.run();
+    }
+  });
+
   const activeLocation = getActiveLocation();
   if (activeLocation) {
-    applyLocationState(activeLocation);
+    // A new visit starts at today, rather than the date of the previous visit.
+    applyLocationState(activeLocation, { useToday: true });
   }
 
   // IMPORTANT: Regardless of whether we have a last location or not, run the logic once

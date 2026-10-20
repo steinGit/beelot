@@ -122,7 +122,10 @@ function buildPlotRows(chart, workbookDates = false) {
     ],
     ["Colors", ...seriesLabels],
     ["Line color", ...datasets.map((dataset) => serializeColor(dataset.borderColor))],
-    ["Fill color", ...datasets.map((dataset) => serializeColor(dataset.backgroundColor))]
+    ["Fill color", ...datasets.map((dataset) => serializeColor(dataset.backgroundColor))],
+    ...(datasets.some(dataset => dataset.predictionStartDate) ? [[
+      "Prädiktion ab", ...datasets.map(dataset => dataset.predictionStartDate || "")
+    ]] : [])
   ];
 }
 

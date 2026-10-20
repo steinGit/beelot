@@ -1,0 +1,246 @@
+{
+  "seed": 20261020,
+  "sampling": "uniform DACH land area; coordinates rounded to 0.01 degrees",
+  "locations": [
+    {
+      "id": "site-01",
+      "country": "AUT",
+      "latitude": 47.57,
+      "longitude": 15.13
+    },
+    {
+      "id": "site-02",
+      "country": "AUT",
+      "latitude": 47.0,
+      "longitude": 11.45
+    },
+    {
+      "id": "site-03",
+      "country": "CHE",
+      "latitude": 47.49,
+      "longitude": 9.48
+    },
+    {
+      "id": "site-04",
+      "country": "CHE",
+      "latitude": 46.49,
+      "longitude": 8.61
+    },
+    {
+      "id": "site-05",
+      "country": "DEU",
+      "latitude": 51.85,
+      "longitude": 8.34
+    },
+    {
+      "id": "site-06",
+      "country": "AUT",
+      "latitude": 48.08,
+      "longitude": 14.26
+    },
+    {
+      "id": "site-07",
+      "country": "DEU",
+      "latitude": 54.34,
+      "longitude": 13.62
+    },
+    {
+      "id": "site-08",
+      "country": "DEU",
+      "latitude": 50.98,
+      "longitude": 6.86
+    },
+    {
+      "id": "site-09",
+      "country": "CHE",
+      "latitude": 46.1,
+      "longitude": 6.86
+    },
+    {
+      "id": "site-10",
+      "country": "DEU",
+      "latitude": 52.07,
+      "longitude": 6.85
+    },
+    {
+      "id": "site-11",
+      "country": "DEU",
+      "latitude": 50.7,
+      "longitude": 7.98
+    },
+    {
+      "id": "site-12",
+      "country": "DEU",
+      "latitude": 50.59,
+      "longitude": 10.38
+    },
+    {
+      "id": "site-13",
+      "country": "DEU",
+      "latitude": 51.3,
+      "longitude": 11.55
+    },
+    {
+      "id": "site-14",
+      "country": "DEU",
+      "latitude": 51.67,
+      "longitude": 8.19
+    },
+    {
+      "id": "site-15",
+      "country": "DEU",
+      "latitude": 50.02,
+      "longitude": 9.01
+    },
+    {
+      "id": "site-16",
+      "country": "DEU",
+      "latitude": 49.83,
+      "longitude": 10.98
+    },
+    {
+      "id": "site-17",
+      "country": "DEU",
+      "latitude": 47.61,
+      "longitude": 10.87
+    },
+    {
+      "id": "site-18",
+      "country": "AUT",
+      "latitude": 47.21,
+      "longitude": 15.68
+    },
+    {
+      "id": "site-19",
+      "country": "DEU",
+      "latitude": 52.91,
+      "longitude": 11.09
+    },
+    {
+      "id": "site-20",
+      "country": "AUT",
+      "latitude": 47.12,
+      "longitude": 11.43
+    },
+    {
+      "id": "site-21",
+      "country": "AUT",
+      "latitude": 48.13,
+      "longitude": 13.54
+    },
+    {
+      "id": "site-22",
+      "country": "DEU",
+      "latitude": 51.92,
+      "longitude": 13.4
+    },
+    {
+      "id": "site-23",
+      "country": "DEU",
+      "latitude": 47.67,
+      "longitude": 11.96
+    },
+    {
+      "id": "site-24",
+      "country": "DEU",
+      "latitude": 47.63,
+      "longitude": 11.24
+    },
+    {
+      "id": "site-25",
+      "country": "AUT",
+      "latitude": 48.06,
+      "longitude": 12.96
+    },
+    {
+      "id": "site-26",
+      "country": "CHE",
+      "latitude": 46.43,
+      "longitude": 7.06
+    },
+    {
+      "id": "site-27",
+      "country": "DEU",
+      "latitude": 49.11,
+      "longitude": 12.19
+    },
+    {
+      "id": "site-28",
+      "country": "DEU",
+      "latitude": 51.66,
+      "longitude": 11.48
+    },
+    {
+      "id": "site-29",
+      "country": "DEU",
+      "latitude": 53.11,
+      "longitude": 10.25
+    },
+    {
+      "id": "site-30",
+      "country": "DEU",
+      "latitude": 48.21,
+      "longitude": 11.7
+    },
+    {
+      "id": "site-31",
+      "country": "DEU",
+      "latitude": 53.82,
+      "longitude": 11.59
+    },
+    {
+      "id": "site-32",
+      "country": "DEU",
+      "latitude": 51.23,
+      "longitude": 14.95
+    },
+    {
+      "id": "site-33",
+      "country": "DEU",
+      "latitude": 51.48,
+      "longitude": 6.53
+    },
+    {
+      "id": "site-34",
+      "country": "AUT",
+      "latitude": 48.88,
+      "longitude": 15.13
+    },
+    {
+      "id": "site-35",
+      "country": "DEU",
+      "latitude": 51.56,
+      "longitude": 13.88
+    },
+    {
+      "id": "site-36",
+      "country": "AUT",
+      "latitude": 46.6,
+      "longitude": 13.94
+    },
+    {
+      "id": "site-37",
+      "country": "DEU",
+      "latitude": 53.67,
+      "longitude": 7.5
+    },
+    {
+      "id": "site-38",
+      "country": "DEU",
+      "latitude": 48.72,
+      "longitude": 10.84
+    },
+    {
+      "id": "site-39",
+      "country": "DEU",
+      "latitude": 53.62,
+      "longitude": 13.19
+    },
+    {
+      "id": "site-40",
+      "country": "DEU",
+      "latitude": 51.8,
+      "longitude": 8.27
+    }
+  ]
+}

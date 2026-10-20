@@ -128,6 +128,14 @@
         <!-- This section will get populated by information.js -->
         <section class="hinweis-section">
           <h2>Imkerliche Information</h2>
+          <p class="prediction-controls">
+            <label for="prediction-horizon">Vorschau:</label>
+            <select id="prediction-horizon" name="prediction-horizon">
+              <option value="14" selected>2 Wochen</option>
+              <option value="21">3 Wochen</option>
+              <option value="28">4 Wochen</option>
+            </select>
+          </p>
           <p>
                 <a href="components/einstellungen.html">Die Tracht Einstellungen können ergänzt oder modifiziert werden.</a>
           </p>
@@ -170,6 +178,10 @@
               <option value="28">4 Wochen</option>
               <option value="ytd" selected>Seit Jahresanfang</option>
             </select>
+            <label class="prediction-plot-control">
+              <input type="checkbox" id="show-gts-prediction" checked />
+              Prädiktion anzeigen (gestrichelt)
+            </label>
             <br />
             <fieldset class="gts-range-group gts-control-group">
               <legend class="gts-range-title">GTS Zeitraum</legend>

@@ -1,0 +1,7 @@
+name: beelot-prediction
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy=1.26
+  - matplotlib-base=3.9

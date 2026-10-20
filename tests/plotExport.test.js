@@ -42,6 +42,11 @@ function createChart() {
 }
 
 describe("plot CSV export", () => {
+  test('identifies predicted dates when a plotted series includes a forecast', () => {
+    const chart = createChart();
+    chart.data.datasets[0].predictionStartDate = '2026-01-02';
+    expect(buildPlotCsv(chart)).toContain('Prädiktion ab,2026-01-02,\r\n');
+  });
   test("exports only visible series and preserves their colors as metadata", () => {
     expect(buildPlotCsv(createChart())).toBe(
       "\uFEFFDatum (Tag.Monat),Standort A,Standort B\r\n"

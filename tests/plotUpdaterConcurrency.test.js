@@ -5,6 +5,12 @@ import { plotData, plotDailyTemps, plotMultipleYearData } from '../assets/js/cha
 import { buildYearData } from '../assets/js/logic.js';
 import { LocationNameFromGPS } from '../assets/js/location_name_from_gps.js';
 import { formatDateLocal } from '../assets/js/utils.js';
+import { loadGtsPrediction } from '../assets/js/prediction.js';
+
+jest.mock('../assets/js/prediction.js', () => ({
+  ...jest.requireActual('../assets/js/prediction.js'),
+  loadGtsPrediction: jest.fn()
+}));
 
 jest.mock('../assets/js/charts.js', () => ({
   plotData: jest.fn(), plotDailyTemps: jest.fn(), plotMultipleYearData: jest.fn()
@@ -39,6 +45,8 @@ const switchTo = (id) => { store.setActiveLocation(id); updater.setLocationId(id
 
 beforeEach(() => {
   jest.clearAllMocks();
+  localStorage.removeItem('beelotPredictionSettings');
+  loadGtsPrediction.mockResolvedValue({ points: [] });
   document.body.innerHTML = `
     <input id="datum" value="2025-01-02">
     <select id="zeitraum"><option value="ytd">Year</option><option value="7">Week</option></select>
@@ -67,6 +75,43 @@ beforeEach(() => {
     locationNameOutput: document.querySelector('#name'),
     getViewSettings: () => viewSettings
   });
+});
+
+test('uses one prediction in hints and the GTS plot without changing measured results', async () => {
+  const prediction = { originDate: '2025-01-02', points: [{ date: '2025-01-03', gts: 15, predicted: true }] };
+  loadGtsPrediction.mockResolvedValue(prediction);
+  fetchHistoricalData.mockResolvedValue(weather(10));
+  await updater.run();
+  const stored = location(a).calculations;
+  expect(stored.gtsResults).toHaveLength(2);
+  expect(plotData.mock.calls[0][0]).toEqual([...stored.filteredResults, ...prediction.points]);
+  expect(plotData.mock.calls[0][1].max).toBeGreaterThanOrEqual(15);
+});
+
+test('turning prediction plotting off keeps the forecast available to hints', async () => {
+  localStorage.setItem('beelotPredictionSettings', JSON.stringify({ historyYears: 3, horizonDays: 28, showPrediction: false }));
+  loadGtsPrediction.mockResolvedValue({ originDate: '2025-01-02', points: [{ date: '2025-01-03', gts: 15, predicted: true }] });
+  fetchHistoricalData.mockResolvedValue(weather(10));
+  await updater.run();
+  expect(loadGtsPrediction.mock.calls[0][4]).toEqual({ historyYears: 3, horizonDays: 28, showPrediction: false });
+  expect(plotData.mock.calls[0][0]).toHaveLength(2);
+  expect(plotData.mock.calls[0][3]).toBe(false);
+});
+
+test('a stale prediction response cannot redraw another location', async () => {
+  const pending = deferred();
+  const started = deferred();
+  fetchHistoricalData.mockResolvedValue(weather(10));
+  loadGtsPrediction.mockImplementationOnce(() => { started.resolve(); return pending.promise; });
+  const oldRun = updater.run();
+  await started.promise;
+  switchTo(b);
+  await updater.run();
+  const displayed = document.body.innerHTML;
+  pending.resolve({ originDate: '2025-01-02', points: [{ date: '2025-01-03', gts: 9999, predicted: true }] });
+  await oldRun;
+  expect(document.body.innerHTML).toBe(displayed);
+  expect(plotData).toHaveBeenCalledTimes(1);
 });
 afterEach(() => {
   jest.restoreAllMocks();
@@ -114,7 +159,7 @@ test('a normal run stores calculations and displays both charts and hints', asyn
   expect(result.gtsResults.at(-1).gts).toBe(10);
   expect(result.lastGtsKey).toBe('2025-01-02|ytd');
   expect(document.querySelector('.hinweis-section').textContent).toBe('10');
-  expect(plotData).toHaveBeenCalledWith(result.filteredResults, { min: 0, max: 10 }, 'year');
+  expect(plotData).toHaveBeenCalledWith(result.filteredResults, { min: 0, max: 10 }, 'year', true);
   expect(plotDailyTemps).toHaveBeenCalledWith(result.temps.dates, [10, 10], { min: 10, max: 10 });
   expect(document.querySelector('#result').textContent).toContain('10.0');
 });
@@ -196,8 +241,8 @@ test('a late multi-year response caches for its owner without replacing the newe
   const displayed = document.body.innerHTML;
   pending.resolve([{ year: 2025, labels: ['01-01'], gtsValues: [5] }]);
   await oldRun;
-  expect(location(a).calculations.gtsYearCurves['2025-01-02|ytd|3']).toHaveLength(1);
-  expect(location(b).calculations.gtsYearCurves['2025-01-02|ytd|3']).toBeUndefined();
+  expect(location(a).calculations.gtsYearCurves['2025-01-02|ytd|3|prediction:10:14']).toHaveLength(1);
+  expect(location(b).calculations.gtsYearCurves['2025-01-02|ytd|3|prediction:10:14']).toBeUndefined();
   expect(plotMultipleYearData).not.toHaveBeenCalled();
   expect(document.body.innerHTML).toBe(displayed);
 });
