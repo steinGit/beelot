@@ -41,6 +41,11 @@ for `main.js`, `settings.js`, `plotUpdater.js`, and `charts.js`. Tagged releases
 run these checks, the suite in an alternate time zone, the dependency audit,
 and the maintenance-script tests before the release job can start.
 
+The scoped `js-yaml` override for `@istanbuljs/load-nyc-config` removes the
+vulnerable `sprintf-js` dependency (GHSA-hp3w-g68c-fv3c) from the coverage tools.
+The loader uses the compatible `load()` API. Remove the override when its
+upstream dependency supports a version without the vulnerable dependency.
+
 Serve the repository root over HTTP before testing the website in a browser.
 Opening `index.html` directly does not reliably load the HTML fragments.
 
