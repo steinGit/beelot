@@ -47,6 +47,10 @@
 
           <summary>Bedienung</summary>
 
+          <p>
+            Die folgenden Bilder zeigen teilweise ältere Oberflächen. Die aktuellen
+            Schritte und Einstellmöglichkeiten sind im Text beschrieben.
+          </p>
 
           <ol style="list-style-type: decimal; margin-left: 20px; padding: 0; line-height: 1.8;">
 
@@ -80,6 +84,9 @@
             </li>
             <li style="margin-bottom: 20px;">
               Im aktuell ausgewählten Standort (aktiver Reiter): Wähle einen Ort auf der Karte oder gib eine Adresse ein:<br>
+              Die <a href="components/faq.html#faq-address">Adresseingabe</a> ist auch nur mit Ortsname
+              und Land möglich. Für den genauen Bienenstand kannst du die Position
+              anschließend auf der Karte prüfen und anpassen.<br>
               <br>
               <img src="assets/img/ort_button.png" alt="Ort auf Karte wählen Button" style="width: 150px; height: auto;">
               <br>
@@ -92,7 +99,7 @@
             <li style="margin-bottom: 20px;">
               Jetzt bekommst Du die Grünland-Temperatur-Summe angezeigt und
               es werden, wenn imkerliche Informationen vorliegen, selbige auch aufgelistet.
-              Die Trachtpflanzen sind anklickbar für tiefergehende Information.
+              Trachtpflanzen mit hinterlegtem Link sind für weiterführende Informationen anklickbar.
               <br>
               <img src="assets/img/imkerliche_info.png" alt="Imkerliche Information" style="width: 400px; height: auto;">
               <br>
@@ -108,6 +115,8 @@
               <br>
               Entsprechend werden dann die Grünland-Temperatur-Summe und die imkerlichen Hinweise angezeigt.
               <br>
+              Beim erneuten Öffnen der Seite startet BeeLot mit dem heutigen Datum.
+              Mit „heute“ kehrst du auch nach einer manuellen Datumswahl dorthin zurück.<br>
               Datum und Visualisierungseinstellungen werden automatisch für alle Standorte synchronisiert. Das erleichtert auch das visuelle Vergleichen von Kurven (Tipp: Cursor-Taste rechts und links ermöglicht das Wechseln der Standorte reihum).
             </li>
             <li style="margin-bottom: 20px;">
@@ -117,11 +126,17 @@
               <br>
               <img src="assets/img/usage_curve1.png" alt="Einzelkurve GTS" style="width: 600px; height: auto;">
               <br>
-              Der Zeitraum ist wählbar.
+              Der Darstellungszeitraum zeigt die vergangenen 1, 2 oder 4 Wochen
+              bis zum ausgewählten Datum oder den Verlauf seit Jahresanfang.
+              Bei eingeschalteter Prädiktion wird die
+              <a href="components/faq.html#faq-prediction">Vorschau</a> zusätzlich daran
+              angehängt. Ihre Länge ist unabhängig vom Darstellungszeitraum einstellbar.
               <br>
               <img src="assets/img/usage_curve_4weeks.png" alt="Einzelkurve GTS mit 4-Wochen-Zeitraum" style="width: 600px; height: auto;">
               <br>
-              Die letzten 5 oder 10 Jahre sind einblendbar.
+              Du kannst das ausgewählte Jahr allein oder zusammen mit den Vorjahren
+              als 5- oder 10-Jahresansicht einblenden. Im Farbschema „Temperatur“
+              steht zusätzlich eine 20-Jahresansicht zur Verfügung.
               <br>
               <img src="assets/img/curve_queen_sorting.png" alt="Mehrfachkurve GTS der letzten 10 Jahre" style="width: 600px; height: auto;">
               <br>
@@ -134,12 +149,147 @@
               <img src="assets/img/usage_curve_selective.png" alt="Mehrfachkurve GTS selektiv auswählbar" style="width: 600px; height: auto;">
             </li>
             <li style="margin-bottom: 20px;">
-              Weiter unten kann der Temperaturverlauf angezeigt werden. Allerdings in der aktuellen Version 0.2 nur für das ausgewählte Jahr.
+              Weiter unten kannst du die Tagesmitteltemperaturen für das ausgewählte
+              Jahr und den Darstellungszeitraum anzeigen. Die historische GTS-Prädiktion
+              wird nur im GTS-Diagramm eingezeichnet.
               <br>
               <img src="assets/img/usage_curve2.png" alt="Temperaturverlauf" style="width: 600px; height: auto;">
             </li>
           </ol>
           <p>Viel Spaß beim Experimentieren!</p>
+        </details>
+
+        <details id="faq-address">
+          <summary>Wie funktioniert die Adresseingabe?</summary>
+          <ol>
+            <li>
+              Wähle den gewünschten Standort-Reiter und klicke auf „Adresse eingeben“.
+            </li>
+            <li>
+              Gib mindestens einen Ort an. Straße und Hausnummer kannst du ergänzen.
+              Prüfe das Land: Anfangs ist „Deutschland“ voreingestellt; für einen
+              Standort in Österreich, der Schweiz oder einem anderen Land ändere es entsprechend.
+            </li>
+            <li>
+              Klicke auf „Adresse verwenden“. Bei mehreren passenden Orten erscheint
+              „Mehrere Orte gefunden“. Wähle dort den passenden Eintrag und bestätige
+              mit „Auswahl übernehmen“. Bei einer eingegebenen Straße wird diese
+              anschließend im gewählten Ort gesucht.
+            </li>
+            <li>
+              Nach erfolgreicher Suche übernimmt BeeLot die Koordinaten und berechnet
+              die GTS. Mit „Ort auf Karte wählen“ kannst du die Lage prüfen, genauer
+              setzen und mit „Diesen Ort verwenden“ bestätigen.
+            </li>
+          </ol>
+          <p>
+            Ohne Straße wird eine Position im gefundenen Ort verwendet. Wenn eine
+            angegebene Straße im ausgewählten Ort nicht gefunden wird, verwendet
+            BeeLot den Ortsmittelpunkt und leert das Straßenfeld. Prüfe deshalb die
+            Kartenposition, wenn es auf den genauen Bienenstand ankommt.
+          </p>
+          <p>
+            Die Adresssuche nutzt Nominatim und bei Bedarf Photon. Falls kein passender
+            Treffer gefunden wird, ergänze den Ortsnamen oder wähle den Ort auf der Karte.
+            Die zuletzt übernommene Adresse wird im Browser gespeichert und beim
+            erneuten Öffnen vorgeschlagen.
+          </p>
+        </details>
+
+        <details id="faq-prediction">
+          <summary>Wie funktioniert die Prädiktion?</summary>
+          <p>
+            Ausgangspunkt ist die GTS am Datum, das du unter „Visualisierung“ ausgewählt
+            hast. Für jeden zukünftigen Tag ermittelt BeeLot, um wie viel die GTS in den
+            unmittelbar vorangegangenen Jahren zwischen denselben Kalendertagen
+            gestiegen ist. Den Durchschnitt dieser Zuwächse addiert BeeLot zum
+            Ausgangswert des ausgewählten Jahres.
+          </p>
+          <p>
+            Beispiel: Für eine Vorschau ab dem 12. April wird für jedes Vorjahr der
+            Zuwachs vom 12. auf den 13. April gemittelt, dann der Zuwachs vom 12. auf
+            den 14. April und so weiter. So folgt die Vorschau dem mittleren
+            jahreszeitlichen Verlauf. Auch bei einem ausgewählten Datum in der
+            Vergangenheit werden nur dessen Vorjahre verwendet.
+          </p>
+          <ul>
+            <li>
+              <strong>Vorjahre:</strong> In den
+              <a href="components/einstellungen.html">Einstellungen</a> unter
+              „Technische Einstellungen“ → „System“ kannst du 3 bis 10 Jahre wählen.
+              Standard sind 10 Jahre.
+            </li>
+            <li>
+              <strong>Vorschau:</strong> Unter „Imkerliche Information“ wählst du
+              2, 3 oder 4 Wochen, also 14, 21 oder 28 Tage. Standard sind 2 Wochen.
+              Die Vorschau endet spätestens am 31. Dezember.
+            </li>
+          </ul>
+          <p>
+            Diese Einstellungen gelten für alle Standorte und werden im Browser
+            gespeichert. Der Darstellungszeitraum des Diagramms bestimmt dagegen,
+            wie viel vom bisherigen Verlauf sichtbar ist.
+          </p>
+          <p>
+            Die Prädiktion ist eine Schätzung aus historischen Verläufen. Künftige
+            Kälte- oder Wärmephasen können davon abweichen. Die daraus geschätzten
+            Blühtermine dienen zur Orientierung; beobachte auch die Pflanzen am Standort.
+            Fehlen benötigte Vorjahresdaten, erscheint „Prädiktion nicht verfügbar“.
+            Die vorhandenen GTS-Daten bleiben nutzbar.
+          </p>
+        </details>
+
+        <details id="faq-prediction-plot">
+          <summary>Wie wird die Prädiktion im Diagramm dargestellt?</summary>
+          <p>
+            Mit „Prädiktion anzeigen (gestrichelt)“ beim Darstellungszeitraum schaltest
+            du die Vorschau im GTS-Diagramm ein oder aus. Sie ist anfangs eingeschaltet.
+            Die Kurve des ausgewählten Jahres wird ab dem ausgewählten Datum
+            gestrichelt fortgesetzt. Die Kurven der Vorjahre verwenden auch in diesem
+            zusätzlichen Zeitraum die bereits vorliegenden Temperaturdaten.
+          </p>
+          <p>
+            Bei eingeschalteter Prädiktion markieren ein rotes Datum an der
+            Datumsachse und eine senkrechte rote Linie den heutigen Tag, sofern
+            das aktuelle Jahr ausgewählt und dieser Tag im sichtbaren Zeitraum liegt.
+            Alle anderen Datumsbeschriftungen sind auf dem dunklen Achsenhintergrund weiß.
+          </p>
+          <p>
+            Das Ausschalten betrifft nur das Diagramm. Die Vorschau in der
+            „Imkerlichen Information“ bleibt erhalten. Im GTS-Export kennzeichnet
+            die Spalte „Extrapoliert“ die extrapolierten Werte mit <code>1</code>
+            und vorliegende Werte mit <code>0</code>.
+          </p>
+        </details>
+
+        <details id="faq-winter-treatment">
+          <summary>Wie entsteht die Empfehlung zur Oxalsäure-Träufelbehandlung?</summary>
+          <p>
+            Unter „Tracht“ in den <a href="components/einstellungen.html">Einstellungen</a>
+            kannst du „Oxalsäure-Träufelbehandlung prüfen“ ein- oder ausschalten.
+            Die Empfehlung ist standardmäßig aktiv und gilt für alle Standorte.
+            Sie verwendet Temperatur-Minima statt GTS-Schwellenwerten.
+          </p>
+          <p>
+            BeeLot sucht zwischen dem 1. November und dem 15. Dezember einschließlich
+            nach der ersten Folge von drei Frostnächten unter 0 °C. Als Näherung dienen
+            die Tagesminima der Lufttemperatur in 2 Metern Höhe. Alle drei Tage müssen
+            im Suchzeitraum liegen; 0 °C zählt nicht als Frost. Es werden nur vollständig
+            vergangene Tage bis zum ausgewählten Datum berücksichtigt.
+          </p>
+          <p>
+            Der Richttermin liegt 21 Tage nach der ersten Frostnacht dieser Folge.
+            Er erscheint in der „Imkerlichen Information“, sobald die drei
+            Frostnächte vorliegen, unabhängig von der GTS-Vorschau von 2, 3 oder
+            4 Wochen. Er bleibt bis sieben Tage nach dem Richttermin sichtbar.
+            Ein später Dezemberfrost kann so
+            einen Richttermin Anfang Januar ergeben. Ohne passende Frostfolge
+            erscheint keine Behandlungsempfehlung.
+          </p>
+          <p>
+            Die Faustregel ist ein Anlass, die Brutfreiheit am Volk zu prüfen.
+            Frost allein beweist sie nicht. Eine Behandlung setzt Brutfreiheit voraus.
+          </p>
         </details>
 
         <details>
@@ -248,7 +398,7 @@
               Werte im Februar mit 0.75.
             </p>
             <p>
-              Die Einheit der Grünland-Temperatur-Summe ist °Cd („Grad-Celsisus-Tage“).
+              Die Einheit der Grünland-Temperatur-Summe ist °Cd („Grad-Celsius-Tage“).
               Das d steht für days (Tage) und macht deutlich, dass es sich um
               eine aufsummierte Temperatur über mehrere Tage handelt.
             </p>
@@ -347,7 +497,7 @@
               Die Idee zu "BeeLot" kam mir nachts um 4 Uhr – wirklich! <br>
               Ich bin aufgewacht, und da war der Name: Bee-Lot, der Pi-lot für die Bienenhaltung. <br>
               Das Beste daran? So ein ungewöhnlicher Name bleibt im Gedächtnis. <br>
-              Bee-Lot ... das Lot ist ein Messinstrument. Wie cool ist das denn 😊
+              Bee-Lot ... das Lot ist ein Messinstrument.
             </p>
           </details>
           <details>
@@ -372,7 +522,7 @@
               Daten liefern.
             </p>
             <p>
-              Mit einem einzigen Klick auf den Standort ist alles erledigt 😊
+              Mit der Auswahl des Standorts startet die Berechnung.
             </p>
           </details>
           <details>
@@ -388,6 +538,7 @@
             </p>
             <p>
               Lokal in deinem Browser werden Standorte, Anzeige- und Karten-Einstellungen,
+              Adressvorschläge, Prädiktions- und
               <a href="components/einstellungen.html">Tracht-Einstellungen</a> sowie zwischengespeicherte
               Wetterdaten und Ortsnamen gespeichert.
               Dadurch können beim nächsten Aufruf der Seite diese Informationen automatisch wiederverwendet werden.
@@ -415,30 +566,34 @@
           <details>
             <summary>Wie entsteht die "Imkerliche Information"?</summary>
             <p>
-              BeeLot ergänzt die bekannte GTS um den durchschnittlichen Zuwachs der letzten J Jahre
-              ab dem gleichen Kalenderdatum. J lässt sich unter „Technische Einstellungen“ zwischen
-              3 und 10 wählen; der Standard ist 10 Jahre. Unter „Imkerliche Information“ kannst du
-              eine Vorschau von 2, 3 oder 4 Wochen auswählen. Standard sind 2 Wochen;
-              die Vorschau endet spätestens am Jahresende.
+              BeeLot vergleicht die GTS am ausgewählten Datum und die
+              <a href="components/faq.html#faq-prediction">Prädiktion</a> mit den Startschwellen der aktiven
+              Tracht-Einträge. Diese Pflanzen, Empfehlungen, Schwellenwerte und Links
+              kannst du in den <a href="components/einstellungen.html">Einstellungen</a>
+              unter „Tracht“ bearbeiten oder ergänzen.
             </p>
             <p>
-              Relevante Ereignisse, bei denen die Grünland-Temperatur-Summe (GTS) in der extrapolierten Kurve überschritten wird, werden vorausgeschätzt und entsprechend angezeigt.
+              Für Schwellen, die innerhalb der gewählten Vorschau von 2, 3 oder 4 Wochen
+              erreicht werden, wird das voraussichtliche Datum angezeigt. Daneben
+              bleiben die in den vergangenen sieben Tagen erreichten Startschwellen
+              sichtbar. Alle Zeitangaben beziehen sich auf das ausgewählte Datum.
             </p>
             <p>
-              Gleichzeitig werden Ereignisse der vergangenen Woche weiterhin eingeblendet, um einen vollständigen Überblick zu gewährleisten.
-            </p>
-            <p>
-              „Prädiktion anzeigen“ schaltet die gestrichelte Fortsetzung der ausgewählten Jahreskurve
-              ein oder aus. Die Tabellenvorschau bleibt erhalten. Bei eingeschalteter Prädiktion ist
-              das heutige Datum, sofern es im sichtbaren Zeitraum liegt, an der Datumsachse rot markiert.
+              Unter „Danach“ können weitere Einträge mit ihrer GTS-Schwelle stehen.
+              Für diese Einträge wird noch kein Datum vorausgesagt. Aufgeführt
+              werden nur aktive Einträge aus deinen Tracht-Einstellungen.
             </p>
           </details>
           <details>
             <summary>BeeLot in der Blühzeit ... und danach?</summary>
             <p>
-              Die meisten Trachten enden mit der Sommersonnenwende. Im zweiten Halbjahr bietet BeeLot daher nur noch begrenzt Anwendungsmöglichkeiten.
-              Vielleicht mit dem Hinweis, wann der erste Frost zu erwarten ist – drei Wochen danach ist die Oxalsäurebehandlung durch Beträufeln der Wintertraube fällig.
-              Diese Funktion ist derzeit noch nicht verfügbar.
+              Die GTS-Kurven und Jahresvergleiche sind über das ganze Jahr nutzbar.
+              Welche imkerlichen Hinweise erscheinen, hängt von den aktiven
+              Tracht-Einträgen und ihren Schwellenwerten ab. Die Vorschau endet
+              am Jahresende; zum Jahresbeginn beginnt auch die GTS wieder bei null.
+              Für die Winterbehandlung gibt es zusätzlich die
+              <a href="components/faq.html#faq-winter-treatment">frostbasierte Empfehlung zur Prüfung einer Oxalsäure-Träufelbehandlung</a>.
+              Ihr Richttermin wird aus bereits vergangenen Frosttagen berechnet.
             </p>
           </details>
           <details>
@@ -450,10 +605,17 @@
           <details>
             <summary>Wo kommen die Wetterdaten her?</summary>
             <p>
-              Die sind öffentlich. Ich beziehe sie von <a href="https://open-meteo.com">Open Meteo</a>.
+              BeeLot bezieht Tagesmitteltemperaturen für die Luft in 2 Metern Höhe
+              von <a href="https://open-meteo.com">Open-Meteo</a>.
+              Historische Werte kommen aus dem Wetterarchiv. Für die jüngsten Tage
+              können noch fehlende Archivwerte mit Daten der Forecast-API ergänzt werden.
             </p>
             <p>
-              Die Temperaturdaten werden in 2 Meter Höhe gemessen.
+              Das Archiv verwendet Reanalysedaten, die Beobachtungen und Wettermodelle
+              zusammenführen. Es handelt sich daher um standortbezogene berechnete
+              Daten. Eine eigene Wetterstation am Bienenstand ist nicht erforderlich.
+              Mehr dazu in der
+              <a href="https://open-meteo.com/en/docs/historical-weather-api">Open-Meteo-Dokumentation</a>.
             </p>
           </details>
         </details>
@@ -461,6 +623,42 @@
 
         <details>
           <summary>Technisches</summary>
+          <details id="faq-weather-cache">
+            <summary>Werden die Temperaturdaten für jede Prädiktion neu geladen?</summary>
+            <p>
+              BeeLot verwendet den Wetterdaten-Cache des jeweiligen Standorts im Browser.
+              Vollständige vergangene Jahre werden wiederverwendet, ohne zeitlich
+              abzulaufen. Nur fehlende Jahre werden von Open-Meteo geladen und gespeichert.
+              Das gilt für die Diagramme und für die Prädiktion.
+            </p>
+            <p>
+              Beim Ändern des Datums oder der Vorschau werden die vorhandenen
+              Temperaturwerte wiederverwendet und die Prädiktion neu berechnet.
+              Erhöhst du die Zahl der Vorjahre, werden nur zusätzlich benötigte,
+              noch nicht gespeicherte Jahre geladen. Bei einem neuen Standort oder
+              nach dem Leeren des Caches werden die benötigten Daten erneut abgerufen.
+            </p>
+            <p>
+              Archivdaten des laufenden Jahres werden höchstens sechs Stunden,
+              Daten der Forecast-API höchstens eine Stunde aus dem Cache verwendet.
+              Beim nächsten benötigten Abruf nach Ablauf dieser Zeit werden sie neu geladen.
+            </p>
+          </details>
+          <details>
+            <summary>Was ist der Unterschied zwischen „Clear Cache“ und „Clear Local Storage“?</summary>
+            <p>
+              Beide Knöpfe stehen in den Einstellungen unter „Technische Einstellungen“
+              → „System“. „Clear Cache“ entfernt zwischengespeicherte Wetterdaten und
+              Ortsnamen für alle Standorte. Standorte sowie Tracht- und
+              Prädiktions- und Frostempfehlungseinstellungen bleiben dabei erhalten.
+            </p>
+            <p>
+              „Clear Local Storage“ löscht alle lokal gespeicherten BeeLot-Daten,
+              einschließlich deiner Standorte, Adressvorschläge und selbst angepassten
+              Tracht-, Prädiktions- und Frostempfehlungseinstellungen. Nach dem erneuten Laden der Seite
+              startet BeeLot wieder mit den Standardeinstellungen.
+            </p>
+          </details>
           <details>
             <summary>Wie genau ist BeeLot (geographisch)?</summary>
             <p>
@@ -471,14 +669,18 @@
             <p>
               Konkret werden Breiten- und Längengrad (Latitude und Longitude) auf
               <strong>0,01 geografische Grad</strong> gerundet. Diese gerundeten Koordinaten
-              dienen als Schlüssel, unter dem die Temperaturdaten gespeichert werden.
-              Alle Orte, deren Koordinaten nach dieser Rundung gleich sind, teilen sich
-              dieselben Temperaturwerte.
+              werden für die Wetteranfragen und den Cache-Schlüssel verwendet.
+              Orte mit denselben gerundeten Koordinaten fragen dadurch dieselben
+              Wetterdaten ab.
             </p>
             <p>
-              Dadurch entstehen Flächen von ungefähr
-              <strong>700&nbsp;m × 1100&nbsp;m</strong>, für die jeweils gemeinsame
-              Temperaturwerte verwendet werden.
+              In Mitteleuropa entspricht diese Rundung ungefähr
+              <strong>700&nbsp;m × 1100&nbsp;m</strong>. Die tatsächliche räumliche
+              Auflösung und Genauigkeit der Wetterdaten hängen vom Wettermodell und
+              der Höhenanpassung ab. Gerade im Gebirge können deshalb auch nahe
+              beieinanderliegende Standorte unterschiedliche Temperaturwerte erhalten.
+              Die <a href="https://open-meteo.com/en/docs/historical-weather-api">Open-Meteo-Dokumentation</a>
+              beschreibt die Modelle und die Berücksichtigung der Geländehöhe.
             </p>
           </details>
           <details>
@@ -495,39 +697,44 @@
             <summary>Bekannte Bugs und die Abhilfe</summary>
             <details>
               <summary>
-                Not a bug, but a Feature: Plot-Kurven von Schaltjahren haben einen Datenpunkt mehr.
+                Warum haben Schaltjahre einen zusätzlichen Datenpunkt?
               </summary>
+              <p>
+                Schaltjahre enthalten den 29. Februar. Beim Jahresvergleich werden
+                die Kurven nach Kalendertag ausgerichtet, sodass März bis Dezember
+                trotz dieses zusätzlichen Tages vergleichbar bleiben. Für eine
+                Prädiktion am 29. Februar wird der Vergleichswert eines Vorjahres
+                ohne Schalttag aus dem 28. Februar und dem 1. März gemittelt.
+              </p>
             </details>
             <details>
               <summary>Die Trachtpflanzen sind nicht anklickbar</summary>
 
               <p>
-                Dein Browser verwendet einen Cache. Wenn zuvor eine ältere Version von BeeLot
-                genutzt wurde, kann es passieren, dass der Browser noch veraltete Inhalte
-                zwischenspeichert.
+                Ein Pflanzenname ist nur dann anklickbar, wenn für den Tracht-Eintrag
+                ein gültiger Weblink hinterlegt ist. Prüfe in den Einstellungen unter
+                „Tracht“ die Spalte „URL“ und ergänze gegebenenfalls einen Link mit
+                <code>https://</code> oder <code>http://</code>.
               </p>
 
               <p>
-                Du kannst den Browser jedoch zwingen, diese Daten zu verwerfen:
+                Wird nach einem Update noch eine alte Oberfläche angezeigt, lade die
+                Seite vollständig neu, zum Beispiel mit <strong>Strg&nbsp;+&nbsp;F5</strong>
+                unter Windows oder Linux. Das Neuladen ist unabhängig vom
+                Wetterdaten-Cache in den BeeLot-Einstellungen.
               </p>
 
-              <ol>
-                <li>Drücke <strong>CTRL&nbsp;+&nbsp;F5</strong>, um die Seite vollständig neu zu laden.</li>
-                <li>Führe anschließend die folgenden drei Schritte aus:</li>
-              </ol>
-
               <p>
-                <img
-                  src="assets/img/usage_reset_tracht.png"
-                  alt="Reset der Tracht-Tabelle"
-                  style="width: 600px; height: auto;">
+                Mit „RESET“ unter „Tracht“ kannst du die mitgelieferten Einträge
+                wiederherstellen. Dabei werden eigene Anpassungen an der Tracht-Tabelle
+                ersetzt.
               </p>
             </details>
           </details>
         </details>
 
         <details>
-          <summary>Über den Author</summary>
+          <summary>Über den Autor</summary>
           <p>
             Von Hause aus bin ich Informatiker und in der Automobilindustrie
             tätig. Dort ist mein Schwerpunkt das maschinelle Sehen. In anderen
@@ -647,6 +854,15 @@
       import { loadPageFooter } from "./assets/js/pageFragments.js";
 
       loadPageFooter();
+
+      function openLinkedAnswer() {
+        const target = document.getElementById(window.location.hash.slice(1));
+        for (let element = target; element; element = element.parentElement) {
+          if (element.tagName === "DETAILS") element.open = true;
+        }
+      }
+      openLinkedAnswer();
+      window.addEventListener("hashchange", openLinkedAnswer);
     </script>
   </body>
 </html>

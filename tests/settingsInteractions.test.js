@@ -83,4 +83,18 @@ describe("settings plant interactions", () => {
     select.dispatchEvent(new Event('change'));
     expect(JSON.parse(localStorage.getItem('beelotPredictionSettings'))).toEqual({ historyYears: 3, horizonDays: 21, showPrediction: false });
   });
+
+  test('persists the independent frost recommendation without changing plant rows', async () => {
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = 'winter-treatment-enabled';
+    document.body.append(checkbox);
+    localStorage.setItem('beelotWinterTreatment', JSON.stringify({ enabled: false }));
+    await import('../assets/js/settings');
+    expect(checkbox.checked).toBe(false);
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change'));
+    expect(JSON.parse(localStorage.getItem('beelotWinterTreatment'))).toEqual({ enabled: true });
+    expect(JSON.parse(localStorage.getItem('trachtData'))).toEqual([initialRow]);
+  });
 });

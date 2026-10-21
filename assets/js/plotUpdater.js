@@ -20,6 +20,7 @@ import { destroyAllCharts } from './chartManager.js';
 import { fetchMergedWeatherData } from './weatherData.js';
 import { appendPrediction, loadGtsPrediction } from './prediction.js';
 import { loadPredictionSettings } from './predictionSettings.js';
+import { loadWinterTreatmentEnabled, loadWinterTreatmentRecommendation } from './winterTreatment.js';
 import {
   clearServiceFailure,
   getServiceMessage,
@@ -154,6 +155,7 @@ export class PlotUpdater {
       yearRange: viewSettings.yearRange || 1,
       colorScheme: viewSettings.colorScheme || "queen",
       predictionSettings: Object.freeze(loadPredictionSettings()),
+      winterTreatmentEnabled: loadWinterTreatmentEnabled(),
       canDisplay: () => this.displayGeneration === generation,
       canStore: () => this.locationGenerations.get(locationId) === generation
     });
@@ -270,6 +272,18 @@ export class PlotUpdater {
       this.step15CreateTemperatureChart(endDate);
 
       // Step 16) Update hints
+      this.winterTreatment = null;
+      if (this.request.winterTreatmentEnabled) {
+        try {
+          this.winterTreatment = await loadWinterTreatmentRecommendation(
+            lat, lon, endDate, this.weatherCacheStore, localTodayMidnight
+          );
+        } catch (error) {
+          console.warn('[winterTreatment] Frost data unavailable.', error);
+          this.winterTreatment = { error: error.message };
+        }
+      }
+      if (!this.canDisplay()) return;
       await this.step16UpdateHinweisSection(gtsResults, endDate);
 
     } catch (err) {
@@ -1093,7 +1107,8 @@ export class PlotUpdater {
   async step16UpdateHinweisSection(gtsResults, endDate) {
     await updateHinweisSection(gtsResults, endDate, {
       prediction: this.prediction,
-      settings: this.request.predictionSettings
+      settings: this.request.predictionSettings,
+      winterTreatment: this.winterTreatment
     });
   }
 

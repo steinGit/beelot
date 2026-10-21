@@ -6,6 +6,13 @@ import { buildYearData, buildFullYearData } from '../assets/js/logic.js';
 import { LocationNameFromGPS } from '../assets/js/location_name_from_gps.js';
 import { formatDateLocal } from '../assets/js/utils.js';
 import { loadGtsPrediction } from '../assets/js/prediction.js';
+import { loadWinterTreatmentRecommendation } from '../assets/js/winterTreatment.js';
+import { updateHinweisSection } from '../assets/js/information.js';
+
+jest.mock('../assets/js/winterTreatment.js', () => ({
+  ...jest.requireActual('../assets/js/winterTreatment.js'),
+  loadWinterTreatmentRecommendation: jest.fn()
+}));
 
 jest.mock('../assets/js/prediction.js', () => ({
   ...jest.requireActual('../assets/js/prediction.js'),
@@ -46,7 +53,9 @@ const switchTo = (id) => { store.setActiveLocation(id); updater.setLocationId(id
 beforeEach(() => {
   jest.clearAllMocks();
   localStorage.removeItem('beelotPredictionSettings');
+  localStorage.removeItem('beelotWinterTreatment');
   loadGtsPrediction.mockResolvedValue({ points: [] });
+  loadWinterTreatmentRecommendation.mockResolvedValue(null);
   document.body.innerHTML = `
     <input id="datum" value="2025-01-02">
     <select id="zeitraum"><option value="ytd">Year</option><option value="7">Week</option></select>
@@ -149,6 +158,49 @@ test('a stale prediction response cannot redraw another location', async () => {
   await oldRun;
   expect(document.body.innerHTML).toBe(displayed);
   expect(plotData).toHaveBeenCalledTimes(1);
+});
+
+test('shares the frost reminder with hints and does not change GTS values', async () => {
+  const reminder = { date: '2025-01-02', firstFrostDate: '2024-12-12', lastFrostDate: '2024-12-14', daysUntil: 0 };
+  loadWinterTreatmentRecommendation.mockResolvedValue(reminder);
+  fetchHistoricalData.mockResolvedValue(weather(10));
+  await updater.run();
+  expect(loadWinterTreatmentRecommendation).toHaveBeenCalledWith(
+    48, 9, new Date(2025, 0, 2), expect.any(Object), expect.any(Date)
+  );
+  expect(updateHinweisSection.mock.calls.at(-1)[2].winterTreatment).toEqual(reminder);
+  expect(location(a).calculations.gtsResults.at(-1).gts).toBe(10);
+});
+
+test('disabling the frost recommendation skips its weather request', async () => {
+  localStorage.setItem('beelotWinterTreatment', JSON.stringify({ enabled: false }));
+  fetchHistoricalData.mockResolvedValue(weather(10));
+  await updater.run();
+  expect(loadWinterTreatmentRecommendation).not.toHaveBeenCalled();
+  expect(updateHinweisSection.mock.calls.at(-1)[2].winterTreatment).toBeNull();
+});
+
+test('an unavailable frost record leaves GTS and the information section usable', async () => {
+  loadWinterTreatmentRecommendation.mockRejectedValue(new Error('Missing minima'));
+  fetchHistoricalData.mockResolvedValue(weather(10));
+  await updater.run();
+  expect(updateHinweisSection.mock.calls.at(-1)[2].winterTreatment).toEqual({ error: 'Missing minima' });
+  expect(document.querySelector('#result').textContent).toContain('10.0');
+});
+
+test('a stale frost response cannot replace the hints of another location', async () => {
+  const pending = deferred(), started = deferred();
+  loadWinterTreatmentRecommendation.mockImplementationOnce(() => { started.resolve(); return pending.promise; });
+  fetchHistoricalData.mockResolvedValue(weather(10));
+  const oldRun = updater.run();
+  await started.promise;
+  switchTo(b);
+  await updater.run();
+  const displayed = document.body.innerHTML;
+  pending.resolve({ date: '2025-01-02', daysUntil: 0 });
+  await oldRun;
+  expect(updateHinweisSection).toHaveBeenCalledTimes(1);
+  expect(document.body.innerHTML).toBe(displayed);
 });
 afterEach(() => {
   jest.restoreAllMocks();

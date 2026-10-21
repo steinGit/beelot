@@ -21,6 +21,7 @@ import {
  * @param {Date} recentStartDate - First date eligible for forecast repair.
  * @param {Object|null} cacheStore - Optional location-owned cache store.
  * @param {Date} today - Current local date, injectable for deterministic tests.
+ * @param {string} variable - Daily mean or minimum temperature field.
  * @returns {Promise<{allDates: string[], allTemps: number[]}>} Sorted merged data.
  */
 export async function fetchMergedWeatherData(
@@ -30,10 +31,13 @@ export async function fetchMergedWeatherData(
   endDate,
   recentStartDate,
   cacheStore = null,
-  today = new Date()
+  today = new Date(),
+  variable = 'temperature_2m_mean'
 ) {
   const dataByDate = {};
   let historicalData;
+  const historicalOptions = variable === 'temperature_2m_mean' ? [] : [false, variable];
+  const recentOptions = variable === 'temperature_2m_mean' ? [] : [variable];
 
   try {
     historicalData = await fetchHistoricalData(
@@ -41,7 +45,8 @@ export async function fetchMergedWeatherData(
       lon,
       fetchStartDate,
       endDate,
-      cacheStore
+      cacheStore,
+      ...historicalOptions
     );
   } catch (error) {
     const localToday = new Date(today);
@@ -54,13 +59,14 @@ export async function fetchMergedWeatherData(
       lon,
       fetchStartDate,
       endDate,
-      cacheStore
+      cacheStore,
+      ...recentOptions
     );
   }
 
   const hasHistoricalTemperatures = historicalData?.daily?.time?.length > 0;
   if (hasHistoricalTemperatures) {
-    mergeValidDailyTemperatures(dataByDate, historicalData, true);
+    mergeValidDailyTemperatures(dataByDate, historicalData, true, variable);
   }
 
   const localToday = new Date(today);
@@ -77,10 +83,11 @@ export async function fetchMergedWeatherData(
       lon,
       firstMissingDate,
       endDate,
-      cacheStore
+      cacheStore,
+      ...recentOptions
     );
     if (recentData?.daily) {
-      mergeValidDailyTemperatures(dataByDate, recentData, false);
+      mergeValidDailyTemperatures(dataByDate, recentData, false, variable);
     }
   }
 

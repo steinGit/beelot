@@ -34,6 +34,7 @@ import {
 
 import { PlotUpdater } from './plotUpdater.js';
 import { loadPredictionSettings, savePredictionSettings, PREDICTION_SETTINGS_KEY } from './predictionSettings.js';
+import { WINTER_TREATMENT_SETTINGS_KEY } from './winterTreatment.js';
 import { plotComparisonData } from './charts.js';
 import { calculateGTS, computeStartDate } from './logic.js';
 import {
@@ -1735,7 +1736,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!comparisonActive) plotUpdater.run();
   });
   window.addEventListener('storage', (event) => {
-    if (event.key === PREDICTION_SETTINGS_KEY || event.key === null) {
+    if (event.key === PREDICTION_SETTINGS_KEY || event.key === WINTER_TREATMENT_SETTINGS_KEY || event.key === null) {
       syncPredictionControls();
       if (!comparisonActive) plotUpdater.run();
     }
