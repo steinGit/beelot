@@ -131,7 +131,7 @@ export async function updateHinweisSection(gtsResults, endDate, options = {}) {
         <select id="prediction-horizon" name="prediction-horizon">
           ${[14, 21, 28].map(days => `<option value="${days}"${days === F ? ' selected' : ''}>${days / 7} Wochen</option>`).join('')}
         </select>
-        <span>Durchschnitt der letzten ${settings.historyYears} Jahre</span>
+        <span>(Prädiktion basiert auf dem Durchschnitt der letzten ${settings.historyYears} Jahre)</span>
       </p>
     `;
     if (options.prediction?.error) {

@@ -94,6 +94,18 @@ function getExportLabels(chart, workbookDates = false) {
   });
 }
 
+function getExtrapolationFlags(chart, datasets) {
+  const predictions = datasets.map((dataset) => ({
+    dataset,
+    startDate: parseDateStringLocal(dataset.predictionStartDate)
+  })).filter(({ startDate }) => startDate);
+  return getExportLabels(chart, true).map((date, index) => Number(
+    date instanceof Date && predictions.some(({ dataset, startDate }) => (
+      date >= startDate && getDataValue(dataset, index) !== ""
+    ))
+  ));
+}
+
 function buildPlotRows(chart, workbookDates = false) {
   const labels = Array.isArray(chart?.data?.labels) ? chart.data.labels : [];
   const datasets = getVisibleDatasets(chart);
@@ -108,7 +120,7 @@ function buildPlotRows(chart, workbookDates = false) {
   ));
   const columnCount = datasets.length + 1;
   const exportLabels = getExportLabels(chart, workbookDates);
-  return [
+  const rows = [
     [getAxisTitle(chart, "x", "X"), ...seriesLabels],
     ...exportLabels.map((label, index) => [
       label,
@@ -127,6 +139,14 @@ function buildPlotRows(chart, workbookDates = false) {
       "Prädiktion ab", ...datasets.map(dataset => dataset.predictionStartDate || "")
     ]] : [])
   ];
+  if (chart.beelotPlotType === "GTS") {
+    const flags = getExtrapolationFlags(chart, datasets);
+    rows[0].push("Extrapoliert");
+    for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) {
+      rows[rowIndex].push(rowIndex <= labels.length ? flags[rowIndex - 1] : "");
+    }
+  }
+  return rows;
 }
 
 export function buildPlotCsv(chart) {

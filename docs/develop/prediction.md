@@ -31,7 +31,12 @@ The forecast is calculated once per execution and shared by the information
 table and selected-year GTS plot. Forecast points are separate from measured
 GTS, temperature arrays and cached comparison curves. Chart.js segment styling
 marks only future segments with a dashed line. Tooltips identify prediction
-values to two decimal places, and spreadsheet exports include a `Prädiktion ab` metadata row. The
+values to two decimal places. GTS exports in CSV, XLS and XLSX include a final
+`Extrapoliert` column: numeric 0 for observed values and 1 for predicted values
+of the youngest visible year. Flags use the plotted series' first prediction
+date, including when a historical forecast origin is selected. Hidden series
+and missing values do not trigger the flag. The `Prädiktion ab` metadata row
+also records each series' prediction start date. The
 enabled date axis uses a dark background for white date labels and marks the
 actual local current date red when it falls within the visible selected year.
 A vertical red grid line marks that date across the plot area while prediction

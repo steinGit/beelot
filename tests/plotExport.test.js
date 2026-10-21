@@ -7,6 +7,7 @@ import {
 
 function createChart() {
   return {
+    beelotPlotType: "comparison",
     beelotExportDates: ["2026-01-01", "2026-01-02"],
     data: {
       labels: ["01.01", "02.01"],
@@ -41,7 +42,61 @@ function createChart() {
   };
 }
 
+function createPredictionChart() {
+  const chart = createChart();
+  chart.beelotPlotType = "GTS";
+  chart.beelotExportDates = [
+    "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23"
+  ];
+  chart.data.labels = ["20.10", "21.10", "22.10", "23.10"];
+  chart.data.datasets = [
+    { label: "2025", data: [3700, 3710, 3720, 3730] },
+    {
+      label: "2026",
+      data: [4086.02, 4097.62, 4110.29, 4122.61],
+      predictionStartDate: "2026-10-22"
+    }
+  ];
+  return chart;
+}
+
 describe("plot CSV export", () => {
+  test("marks each GTS row from the first extrapolated date, independently of series order", () => {
+    const csv = buildPlotCsv(createPredictionChart());
+    expect(csv).toContain("Datum (Tag.Monat),2025,2026,Extrapoliert\r\n");
+    expect(csv).toContain("2026-10-20,3700,4086.02,0\r\n");
+    expect(csv).toContain("2026-10-21,3710,4097.62,0\r\n");
+    expect(csv).toContain("2026-10-22,3720,4110.29,1\r\n");
+    expect(csv).toContain("2026-10-23,3730,4122.61,1\r\n");
+    expect(csv).toContain("Prädiktion ab,,2026-10-22,\r\n");
+    expect(csv.trimEnd().split("\r\n").every((row) => row.split(",").length === 4))
+      .toBe(true);
+  });
+
+  test("marks observed GTS exports with zero when no prediction is plotted", () => {
+    const chart = createPredictionChart();
+    delete chart.data.datasets[1].predictionStartDate;
+    expect(buildPlotCsv(chart)).toContain("2026-10-22,3720,4110.29,0\r\n");
+  });
+
+  test("does not mark historical values as extrapolated when the forecast series is hidden", () => {
+    const chart = createPredictionChart();
+    chart.isDatasetVisible = (index) => index === 0;
+    expect(buildPlotCsv(chart)).toContain("2026-10-22,3720,0\r\n");
+  });
+
+  test("does not mark a missing forecast value as extrapolated", () => {
+    const chart = createPredictionChart();
+    chart.data.datasets[1].data[2] = null;
+    expect(buildPlotCsv(chart)).toContain("2026-10-22,3720,,0\r\n");
+  });
+
+  test.each(["temperature", "comparison"])("preserves the %s export columns", (plotType) => {
+    const chart = createChart();
+    chart.beelotPlotType = plotType;
+    expect(buildPlotCsv(chart)).not.toContain("Extrapoliert");
+  });
+
   test('identifies predicted dates when a plotted series includes a forecast', () => {
     const chart = createChart();
     chart.data.datasets[0].predictionStartDate = '2026-01-02';
@@ -167,6 +222,29 @@ describe("plot CSV export", () => {
     });
   });
 
+  test.each(["xlsx", "xls"])("exports numeric GTS extrapolation flags in %s", (exportFormat) => {
+    const worksheet = {};
+    const xlsxApi = {
+      utils: {
+        aoa_to_sheet: jest.fn(() => worksheet),
+        book_new: jest.fn(() => ({})),
+        book_append_sheet: jest.fn()
+      },
+      writeFile: jest.fn()
+    };
+    downloadPlotData(createPredictionChart(), "GTS", exportFormat, { xlsxApi });
+    const [rows] = xlsxApi.utils.aoa_to_sheet.mock.calls[0];
+    expect(rows.slice(0, 5)).toEqual([
+      ["Datum (Tag.Monat)", "2025", "2026", "Extrapoliert"],
+      [new Date(2026, 9, 20), 3700, 4086.02, 0],
+      [new Date(2026, 9, 21), 3710, 4097.62, 0],
+      [new Date(2026, 9, 22), 3720, 4110.29, 1],
+      [new Date(2026, 9, 23), 3730, 4122.61, 1]
+    ]);
+    expect(rows.every((row) => row.length === 4)).toBe(true);
+    expect(worksheet["!cols"]).toHaveLength(4);
+  });
+
   test("keeps export controls outside responsive chart containers", () => {
     const source = readFileSync("index.html", "utf8");
     const page = new DOMParser().parseFromString(source, "text/html");
@@ -198,5 +276,6 @@ describe("plot CSV export", () => {
     expect(text).toContain("JJJJ-MM-TT");
     expect(text).toContain("kein automatisch erzeugtes Excel-Diagramm");
     expect(text).toContain("Standard-Downloadordner");
+    expect(text).toContain("Extrapoliert");
   });
 });
