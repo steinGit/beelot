@@ -57,6 +57,22 @@
         </button>
         <div class="settings-content" id="tracht-content" hidden>
           <p>Hier kannst du Tracht-Einträge bearbeiten.</p>
+          <fieldset>
+            <legend>Frostbasierte Empfehlung</legend>
+            <label>
+              <input type="checkbox" id="winter-treatment-enabled" checked aria-describedby="winter-treatment-help">
+              Oxalsäure-Träufelbehandlung prüfen
+            </label>
+            <p id="winter-treatment-help">
+              Drei aufeinanderfolgende Frostnächte unter 0 °C zwischen 1. November
+              und 15. Dezember: Richttermin 21 Tage nach der ersten Frostnacht.
+              Die Erkennung nutzt die Tagesminima abgeschlossener Tage und ist
+              unabhängig von der GTS und deren Vorschauintervall. Der Richttermin
+              erscheint, sobald die drei Frostnächte vorliegen.
+              Vor einer Behandlung Brutfreiheit am Volk prüfen.
+              Die Empfehlung ist standardmäßig aktiv und gilt für alle Standorte.
+            </p>
+          </fieldset>
           <table id="tracht-table">
             <thead>
               <tr>

@@ -28,6 +28,20 @@ describe('updateHinweisSection', () => {
     expect(document.querySelector('.uncertainty-explanation')).toBeNull();
   });
 
+  test.each([14, 21, 28])('shows a frost reminder 19 days ahead with a %i-day GTS preview', async (horizonDays) => {
+    localStorage.setItem('trachtData', '[]');
+    await updateHinweisSection([{ date: '2025-11-03', gts: 0 }], new Date(2025, 10, 3), {
+      settings: { horizonDays, showPrediction: false },
+      winterTreatment: { date: '2025-11-22', firstFrostDate: '2025-11-01', lastFrostDate: '2025-11-03', daysUntil: 19 }
+    });
+    const section = document.querySelector('.hinweis-section');
+    expect(section.querySelector('.imker-info-table .winter-treatment-info a').textContent)
+      .toBe('Oxalsäure träufeln (nur brutfrei)');
+    expect(section.textContent).toContain('In 19 Tagen am 22.11.');
+    expect(section.querySelector('#prediction-horizon').value).toBe(String(horizonDays));
+    expect(section.textContent).not.toContain(`Keine Information zu den nächsten ${horizonDays} Tagen`);
+  });
+
   test('escapes forecast errors and does not retain the linear fallback', async () => {
     await updateHinweisSection([
       { date: '2026-01-01', gts: 0 }, { date: '2026-01-07', gts: 100 }

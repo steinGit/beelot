@@ -54,9 +54,15 @@ export function isOpenMeteoError(error) {
     return Boolean(error && error.isOpenMeteoError);
 }
 
-function ensureDailyData(data, context) {
+function validateTemperatureVariable(variable) {
+    if (!['temperature_2m_mean', 'temperature_2m_min'].includes(variable)) {
+        throw new TypeError(`Unsupported temperature variable: ${variable}`);
+    }
+}
+
+function ensureDailyData(data, context, variable = 'temperature_2m_mean') {
     const dates = data?.daily?.time;
-    const temperatures = data?.daily?.temperature_2m_mean;
+    const temperatures = data?.daily?.[variable];
     if (
         !Array.isArray(dates)
         || !Array.isArray(temperatures)
@@ -72,10 +78,12 @@ function ensureDailyData(data, context) {
  * @param {Object} target - Date-keyed temperature collection.
  * @param {Object} data - Open-Meteo daily response.
  * @param {boolean} overwrite - Whether valid existing entries may be replaced.
+ * @param {string} variable - Daily mean or minimum temperature field.
  */
-export function mergeValidDailyTemperatures(target, data, overwrite = true) {
-    ensureDailyData(data, "daily-merge");
-    const { time, temperature_2m_mean: temperatures } = data.daily;
+export function mergeValidDailyTemperatures(target, data, overwrite = true, variable = 'temperature_2m_mean') {
+    validateTemperatureVariable(variable);
+    ensureDailyData(data, "daily-merge", variable);
+    const { time, [variable]: temperatures } = data.daily;
 
     for (let index = 0; index < time.length; index++) {
         const dateKey = time[index];
@@ -212,8 +220,12 @@ function computeCacheKey(type, lat, lon, yearOrRange) {
  * @param {Date} start - Start date.
  * @param {Date} end - End date.
  * @returns {Promise<Object>} - The fetched historical data.
+ * @param {Object|null} cacheStore - Location-owned weather cache.
+ * @param {boolean} allowForecastFallback - Permit recent data when today's archive fails.
+ * @param {string} variable - Daily mean or minimum; each has independent cache keys.
  */
-export async function fetchHistoricalData(lat, lon, start, end, cacheStore = null, allowForecastFallback = true) {
+export async function fetchHistoricalData(lat, lon, start, end, cacheStore = null, allowForecastFallback = true, variable = 'temperature_2m_mean') {
+    validateTemperatureVariable(variable);
     // Validate Date objects
     if (!isValidDate(start) || !isValidDate(end)) {
         throw new Error("Invalid start or end date provided.");
@@ -241,12 +253,12 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
         }
 
         // Cache key for the entire year
-        const yearKey = computeCacheKey('historical', lat, lon, startYear);
+        const yearKey = computeCacheKey(variable === 'temperature_2m_min' ? 'historical_min' : 'historical', lat, lon, startYear);
         const cachedYearData = getCachedData(yearKey, cacheStore);
         if (cachedYearData) {
-            ensureDailyData(cachedYearData, "historical-cache");
+            ensureDailyData(cachedYearData, "historical-cache", variable);
             debugLog(`Cached full-year data found for ${yearKey}.`);
-            return extractDateRangeFromYearData(cachedYearData, start, end);
+            return extractDateRangeFromYearData(cachedYearData, start, end, variable);
         }
 
         // Fetch the full year if not cached
@@ -255,15 +267,15 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
 
         debugLog(`Fetching full-year data for ${startYear}.`);
 
-        const data = await fetchHistoricalYear(lat, lon, fullYearStart, fullYearEnd);
+        const data = await fetchHistoricalYear(lat, lon, fullYearStart, fullYearEnd, variable);
         setCachedData(yearKey, data, cacheStore);
 
-        return extractDateRangeFromYearData(data, start, end);
+        return extractDateRangeFromYearData(data, start, end, variable);
     }
 
     // Handle current year as usual (date range caching)
     const cacheKey = computeCacheKey(
-        'historical',
+        variable === 'temperature_2m_min' ? 'historical_min' : 'historical',
         lat,
         lon,
         `${formatDateLocal(start)}_${formatDateLocal(end)}`
@@ -274,7 +286,7 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
         CURRENT_YEAR_CACHE_MAX_AGE_MS
     );
     if (cachedData) {
-        ensureDailyData(cachedData, "historical-cache");
+        ensureDailyData(cachedData, "historical-cache", variable);
         debugLog(`Historical data loaded from cache (key=${cacheKey}).`);
         return cachedData;
     }
@@ -285,7 +297,7 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
     const roundedLon = Math.round(lon * 100) / 100;
     const url = `https://archive-api.open-meteo.com/v1/era5?latitude=${roundedLat}&longitude=${roundedLon}&start_date=${formatDateLocal(
         start
-    )}&end_date=${formatDateLocal(end)}&daily=temperature_2m_mean&timezone=Europe%2FBerlin`;
+    )}&end_date=${formatDateLocal(end)}&daily=${variable}&timezone=Europe%2FBerlin`;
 
     try {
         const response = await fetchWithTimeout(url);
@@ -293,7 +305,7 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
             throw new OpenMeteoError(`Open-Meteo error: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
-        ensureDailyData(data, "historical");
+        ensureDailyData(data, "historical", variable);
         setCachedData(cacheKey, data, cacheStore, Date.now());
         return data;
     } catch (error) {
@@ -303,7 +315,7 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
             today.setHours(0, 0, 0, 0);
             if (end >= today) {
                 debugWarn("Falling back to forecast data for recent dates.");
-                return fetchRecentData(lat, lon, start, end, cacheStore);
+                return fetchRecentData(lat, lon, start, end, cacheStore, variable);
             }
         }
         if (isOpenMeteoError(error)) {
@@ -321,12 +333,12 @@ export async function fetchHistoricalData(lat, lon, start, end, cacheStore = nul
  * @param {Date} end - End date (end of the year).
  * @returns {Promise<Object>} - The full-year historical data.
  */
-async function fetchHistoricalYear(lat, lon, start, end) {
+async function fetchHistoricalYear(lat, lon, start, end, variable) {
     const roundedLat = Math.round(lat * 100) / 100;
     const roundedLon = Math.round(lon * 100) / 100;
     const url = `https://archive-api.open-meteo.com/v1/era5?latitude=${roundedLat}&longitude=${roundedLon}&start_date=${formatDateLocal(
         start
-    )}&end_date=${formatDateLocal(end)}&daily=temperature_2m_mean&timezone=Europe%2FBerlin`;
+    )}&end_date=${formatDateLocal(end)}&daily=${variable}&timezone=Europe%2FBerlin`;
 
     try {
         const response = await fetchWithTimeout(url);
@@ -334,7 +346,7 @@ async function fetchHistoricalYear(lat, lon, start, end) {
             throw new OpenMeteoError(`Open-Meteo error: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
-        ensureDailyData(data, "historical-year");
+        ensureDailyData(data, "historical-year", variable);
         return data;
     } catch (error) {
         debugError(`Error fetching full-year data: ${error.message}`);
@@ -352,7 +364,7 @@ async function fetchHistoricalYear(lat, lon, start, end) {
  * @param {Date} end - End date for extraction.
  * @returns {Object} - The extracted data within the specified date range.
  */
-function extractDateRangeFromYearData(yearData, start, end) {
+function extractDateRangeFromYearData(yearData, start, end, variable) {
     const startStr = formatDateLocal(start);
     const endStr = formatDateLocal(end);
     const indices = yearData.daily.time.map((date, idx) =>
@@ -362,7 +374,7 @@ function extractDateRangeFromYearData(yearData, start, end) {
     return {
         daily: {
             time: indices.map(idx => yearData.daily.time[idx]),
-            temperature_2m_mean: indices.map(idx => yearData.daily.temperature_2m_mean[idx]),
+            [variable]: indices.map(idx => yearData.daily[variable][idx]),
         },
     };
 }
@@ -374,21 +386,24 @@ function extractDateRangeFromYearData(yearData, start, end) {
  * @param {Date} start - Start date.
  * @param {Date} end - End date.
  * @returns {Promise<Object>} - The fetched recent data.
+ * @param {Object|null} cacheStore - Location-owned weather cache.
+ * @param {string} variable - Daily mean or minimum; each has independent cache keys.
  */
-export async function fetchRecentData(lat, lon, start, end, cacheStore = null) {
+export async function fetchRecentData(lat, lon, start, end, cacheStore = null, variable = 'temperature_2m_mean') {
+    validateTemperatureVariable(variable);
     // Validate Date objects
     if (!isValidDate(start) || !isValidDate(end)) {
         throw new Error("Invalid start or end date provided.");
     }
 
-    const cacheKey = computeCacheKey('recent', lat, lon, `${formatDateLocal(start)}_${formatDateLocal(end)}`);
+    const cacheKey = computeCacheKey(variable === 'temperature_2m_min' ? 'recent_min' : 'recent', lat, lon, `${formatDateLocal(start)}_${formatDateLocal(end)}`);
     const cachedData = getCachedData(
         cacheKey,
         cacheStore,
         RECENT_CACHE_MAX_AGE_MS
     );
     if (cachedData) {
-        ensureDailyData(cachedData, "recent-cache");
+        ensureDailyData(cachedData, "recent-cache", variable);
         debugLog(`Recent data loaded from cache (key=${cacheKey}).`);
         return cachedData;
     }
@@ -397,7 +412,7 @@ export async function fetchRecentData(lat, lon, start, end, cacheStore = null) {
     const roundedLon = Math.round(lon * 100) / 100;
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${roundedLat}&longitude=${roundedLon}&start_date=${formatDateLocal(
         start
-    )}&end_date=${formatDateLocal(end)}&daily=temperature_2m_mean&timezone=Europe%2FBerlin`;
+    )}&end_date=${formatDateLocal(end)}&daily=${variable}&timezone=Europe%2FBerlin`;
 
     try {
         const response = await fetchWithTimeout(url);
@@ -406,7 +421,7 @@ export async function fetchRecentData(lat, lon, start, end, cacheStore = null) {
         }
 
         const data = await response.json();
-        ensureDailyData(data, "recent");
+        ensureDailyData(data, "recent", variable);
         setCachedData(cacheKey, data, cacheStore, Date.now());
         return data;
     } catch (error) {

@@ -8,6 +8,7 @@ import { defaultTrachtData } from './tracht_data.js';
 import { normalizeTrachtData } from './trachtDataValidation.js';
 import { parseDateStringLocal } from './utils.js';
 import { loadPredictionSettings, normalizePredictionSettings } from './predictionSettings.js';
+import { appendWinterTreatmentInformation } from './winterTreatment.js';
 
 const DEFAULT_URL_BY_PLANT = new Map(
     defaultTrachtData
@@ -321,11 +322,12 @@ export async function updateHinweisSection(gtsResults, endDate, options = {}) {
         }
     }
 
-    if (noPastInfoLine) {
+    const winterDays = options.winterTreatment?.daysUntil;
+    if (noPastInfoLine && !(Number.isFinite(winterDays) && winterDays <= 0)) {
         html += noPastInfoLine;
     }
 
-    if (timelineRows.length > 0) {
+    if (timelineRows.length > 0 || Number.isFinite(winterDays)) {
         html += `
           <table class="imker-info-table">
             <tbody>
@@ -341,7 +343,7 @@ export async function updateHinweisSection(gtsResults, endDate, options = {}) {
     }
 
     if (noFutureInfoLine) {
-        html += noFutureInfoLine;
+        if (!(Number.isFinite(winterDays) && winterDays > 0)) html += noFutureInfoLine;
     }
 
     if (danachRows.length > 0) {
@@ -357,6 +359,7 @@ export async function updateHinweisSection(gtsResults, endDate, options = {}) {
 
     const restoreForecastFocus = document.activeElement?.id === 'prediction-horizon';
     hinweisSection.innerHTML = html;
+    appendWinterTreatmentInformation(hinweisSection, options.winterTreatment, recommendationPrefix);
     if (restoreForecastFocus) {
         document.getElementById('prediction-horizon')?.focus({ preventScroll: true });
     }

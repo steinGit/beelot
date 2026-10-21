@@ -73,3 +73,14 @@ test('a fresh visit starts at today instead of the previous visit date', async (
         jest.useRealTimers();
     }
 });
+
+test('refreshes information after frost settings change in another page', async () => {
+    const { PlotUpdater } = await import('../assets/js/plotUpdater.js');
+    await import('../assets/js/main.js');
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    const updater = PlotUpdater.mock.results.at(-1).value;
+    const initialRuns = updater.run.mock.calls.length;
+    localStorage.setItem('beelotWinterTreatment', JSON.stringify({ enabled: false }));
+    window.dispatchEvent(new StorageEvent('storage', { key: 'beelotWinterTreatment' }));
+    expect(updater.run).toHaveBeenCalledTimes(initialRuns + 1);
+});

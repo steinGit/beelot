@@ -6,6 +6,15 @@
 import { clearAllLocationCaches } from "./locationStore.js";
 import { normalizeTrachtData } from "./trachtDataValidation.js";
 import { loadPredictionSettings, savePredictionSettings } from "./predictionSettings.js";
+import { loadWinterTreatmentEnabled, saveWinterTreatmentEnabled } from "./winterTreatment.js";
+
+const winterTreatmentCheckbox = document.getElementById('winter-treatment-enabled');
+if (winterTreatmentCheckbox) {
+  winterTreatmentCheckbox.checked = loadWinterTreatmentEnabled();
+  winterTreatmentCheckbox.addEventListener('change', () => {
+    saveWinterTreatmentEnabled(winterTreatmentCheckbox.checked);
+  });
+}
 
 const predictionHistorySelect = document.getElementById('prediction-history-years');
 if (predictionHistorySelect) {
