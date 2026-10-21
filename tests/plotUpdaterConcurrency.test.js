@@ -2,7 +2,7 @@ import { PlotUpdater } from '../assets/js/plotUpdater.js';
 import * as store from '../assets/js/locationStore.js';
 import { fetchHistoricalData, fetchRecentData } from '../assets/js/dataService.js';
 import { plotData, plotDailyTemps, plotMultipleYearData } from '../assets/js/charts.js';
-import { buildYearData } from '../assets/js/logic.js';
+import { buildYearData, buildFullYearData } from '../assets/js/logic.js';
 import { LocationNameFromGPS } from '../assets/js/location_name_from_gps.js';
 import { formatDateLocal } from '../assets/js/utils.js';
 import { loadGtsPrediction } from '../assets/js/prediction.js';
@@ -86,6 +86,43 @@ test('uses one prediction in hints and the GTS plot without changing measured re
   expect(stored.gtsResults).toHaveLength(2);
   expect(plotData.mock.calls[0][0]).toEqual([...stored.filteredResults, ...prediction.points]);
   expect(plotData.mock.calls[0][1].max).toBeGreaterThanOrEqual(15);
+});
+
+test.each([
+  [5, 'queen'],
+  [20, 'temperature']
+])('extends only the selected year with prediction in a %i-year %s plot', async (yearRange, colorScheme) => {
+  viewSettings = { yearRange, colorScheme };
+  const observedYears = [
+    { year: 2025, labels: ['1.1', '2.1'], gtsValues: [5, 10] },
+    { year: 2024, labels: ['1.1', '2.1', '3.1'], gtsValues: [2, 10, 14] }
+  ];
+  const originalYears = JSON.parse(JSON.stringify(observedYears));
+  const builder = yearRange === 20 ? buildFullYearData : buildYearData;
+  builder.mockResolvedValueOnce(observedYears);
+  loadGtsPrediction.mockResolvedValue({
+    originDate: '2025-01-02',
+    points: [{ date: '2025-01-03', gts: 15, predicted: true }]
+  });
+  fetchHistoricalData.mockResolvedValue(weather(10));
+
+  await updater.run();
+
+  expect(builder.mock.calls.at(-1).at(-1)).toEqual(new Date(2025, 0, 3));
+  expect(plotMultipleYearData).toHaveBeenCalledWith([
+    {
+      year: 2025,
+      labels: ['1.1', '2.1', '3.1'],
+      gtsValues: [5, 10, 15],
+      predictionStartIndex: 2
+    },
+    originalYears[1]
+  ], { min: 0, max: 20 }, colorScheme, true);
+  expect(observedYears).toEqual(originalYears);
+  expect(location(a).calculations.gtsYearCurves[
+    `2025-01-02|ytd|${yearRange}|prediction:10:14`
+  ]).toEqual(originalYears);
+  expect(location(a).calculations.gtsResults).toHaveLength(2);
 });
 
 test('turning prediction plotting off keeps the forecast available to hints', async () => {

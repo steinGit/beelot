@@ -1,9 +1,33 @@
 import fs from "node:fs";
+import { execFileSync } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
+import process from "node:process";
 
 const repositoryRoot = path.resolve(process.cwd());
 
 describe("external dependency pinning", () => {
+  test("loads YAML coverage configuration with the overridden parser", () => {
+    const configDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "beelot-nyc-"));
+    try {
+      fs.writeFileSync(path.join(configDirectory, ".nycrc.yaml"),
+        "all: true\ncheck-coverage: true\ninclude:\n  - assets/js/**/*.js\n", "utf8");
+      const output = execFileSync(process.execPath, ["--input-type=commonjs", "--eval", `
+        const { loadNycConfig } = require('@istanbuljs/load-nyc-config');
+        loadNycConfig({ cwd: process.argv[1], nycrcPath: '.nycrc.yaml' })
+          .then(config => console.log(JSON.stringify(config)))
+          .catch(error => { console.error(error); process.exitCode = 1; });
+      `, configDirectory], { cwd: repositoryRoot, encoding: "utf8" });
+      expect(JSON.parse(output)).toEqual(expect.objectContaining({
+        all: true,
+        checkCoverage: true,
+        include: ["assets/js/**/*.js"]
+      }));
+    } finally {
+      fs.rmSync(configDirectory, { recursive: true, force: true });
+    }
+  });
+
   test("pins browser CDN assets and requires integrity metadata", () => {
     const html = fs.readFileSync(path.join(repositoryRoot, "index.html"), "utf8");
     const document = new DOMParser().parseFromString(html, "text/html");

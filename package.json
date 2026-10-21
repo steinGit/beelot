@@ -1,6 +1,6 @@
 {
   "name": "beelot",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Unit testing suite for beelot website.",
   "type": "module",
   "engines": {
@@ -26,6 +26,11 @@
     "globals": "^17.13.0",
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2"
+  },
+  "overrides": {
+    "@istanbuljs/load-nyc-config": {
+      "js-yaml": "4.3.2"
+    }
   },
   "keywords": [
     "javascript",
