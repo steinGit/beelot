@@ -1,6 +1,6 @@
 // --- FILE: /home/fridtjofstein/privat/beelot/assets/js/charts.js ---
 
-import { formatDayMonth, parseDateStringLocal } from './utils.js';
+import { formatDateLocal, formatDayMonth, parseDateStringLocal } from './utils.js';
 import { createChart } from './chartManager.js';
 
 const tagPlotType = (chart, plotType, exportDates = []) => {
@@ -125,7 +125,7 @@ const computeTickStep = ({ labels, canvas, fontSize }) => {
     return { step, maxTicks };
 };
 
-const buildXAxisTickOptions = (labels, fontSize, canvas) => {
+const buildXAxisTickOptions = (labels, fontSize, canvas, todayIndex = -1, predictionEnabled = false) => {
     const lastIndex = labels.length - 1;
     let cachedCanvasWidth = null;
     let cachedTickLayout = null;
@@ -138,17 +138,22 @@ const buildXAxisTickOptions = (labels, fontSize, canvas) => {
         }
         return cachedTickLayout;
     };
-    const initialTickLayout = resolveTickLayout(null);
     return {
         maxRotation: 0,
         minRotation: 0,
         autoSkip: false,
-        maxTicksLimit: initialTickLayout.maxTicks,
+        align: 'inner',
+        maxTicksLimit: resolveTickLayout(null).maxTicks,
         font: {
             size: fontSize
         },
-        callback(value, index) {
+        color: predictionEnabled ? (context) => Number(context.tick?.value ?? context.index) === todayIndex ? '#ff5555' : '#ffffff' : undefined,
+        callback(value) {
+            // Tick indices may change when Chart.js rebuilds or samples ticks.
+            const index = Number(value);
             const { step } = resolveTickLayout(this);
+            if (index === todayIndex) return labels[index];
+            if (todayIndex >= 0 && Math.abs(index - todayIndex) < step) return '';
             const leavesRoomForLastLabel = lastIndex - index >= step;
             if (
                 index === 0
@@ -160,6 +165,39 @@ const buildXAxisTickOptions = (labels, fontSize, canvas) => {
             return "";
         }
     };
+};
+
+const gtsXAxis = (labels, fontSize, canvas, predictionEnabled, year) => {
+    const today = new Date();
+    const todayIndex = predictionEnabled && year === today.getFullYear()
+        ? labels.indexOf(formatDayMonth(formatDateLocal(today))) : -1;
+    return {
+        min: 0,
+        max: Math.max(0, labels.length - 1),
+        backgroundColor: predictionEnabled ? '#303030' : undefined,
+        grid: {
+            color: (context) => todayIndex >= 0 && context.tick?.value === todayIndex
+                ? '#ff0000' : context.tick?.label ? 'rgba(0, 0, 0, 0.1)' : 'transparent',
+            lineWidth: (context) => todayIndex >= 0 && context.tick?.value === todayIndex ? 1.5 : 1
+        },
+        title: {
+            display: true,
+            text: 'Datum (Tag.Monat)',
+            color: predictionEnabled ? '#ffffff' : undefined
+        },
+        ticks: {
+            ...buildXAxisTickOptions(labels, fontSize, canvas, todayIndex, predictionEnabled),
+            maxTicksLimit: undefined
+        }
+    };
+};
+
+const gtsTooltipLabel = (context, predicted) => {
+    const value = Number(context.parsed?.y ?? context.raw);
+    const formatted = Number.isFinite(value)
+        ? new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)
+        : context.formattedValue;
+    return `${context.dataset.label}${predicted ? ' (Prädiktion)' : ''}: ${formatted} °Cd`;
 };
 
 const parseColorToRgb = (color) => {
@@ -234,15 +272,16 @@ const getColorForIndex = (yearIndex, totalYears, year, scheme) => {
  * Plot a single GTS dataset (the existing approach).
  * E.g. filteredResults => array of { date, gts }.
  */
-export function plotData(results, yRange = null, colorScheme = "queen") {
+export function plotData(results, yRange = null, colorScheme = "queen", predictionEnabled = false) {
     if (!results || results.length === 0) {
         console.warn("[charts.js] plotData() aufgerufen mit leeren Ergebnissen.");
         return null;
     }
 
     const POINTS_THRESHOLD = 100;
-    const pointRadius = results.length > POINTS_THRESHOLD ? 0 : 5;
-    const pointHoverRadius = results.length > POINTS_THRESHOLD ? 0 : 7;
+    const observedCount = results.filter(result => !result.predicted).length;
+    const pointRadius = observedCount > POINTS_THRESHOLD ? 0 : 5;
+    const pointHoverRadius = observedCount > POINTS_THRESHOLD ? 0 : 7;
 
     const labels = results.map(r => formatDayMonth(r.date));
 
@@ -260,7 +299,6 @@ export function plotData(results, yRange = null, colorScheme = "queen") {
     const bgColor = colorToRgba(yearColor, 0.2);
 
     const canvas = document.getElementById('plot-canvas');
-    const xTickOptions = buildXAxisTickOptions(labels, axisFontSize, canvas);
     const chartGTS = tagPlotType(createChart(canvas, {
         type: 'line',
         data: {
@@ -268,12 +306,16 @@ export function plotData(results, yRange = null, colorScheme = "queen") {
             datasets: [{
                 label: String(endDate.getFullYear()),
                 data: data,
+                predictionStartDate: results.find(result => result.predicted)?.date,
                 borderColor: yearColor,
                 backgroundColor: bgColor,
                 fill: true,
                 tension: 0.1,
-                pointRadius: pointRadius,
-                pointHoverRadius: pointHoverRadius
+                pointRadius: (context) => results[context.dataIndex]?.predicted ? 0 : pointRadius,
+                pointHoverRadius: pointHoverRadius,
+                segment: {
+                    borderDash: (context) => results[context.p1DataIndex]?.predicted ? [6, 4] : undefined
+                }
             }]
         },
         options: {
@@ -295,19 +337,16 @@ export function plotData(results, yRange = null, colorScheme = "queen") {
                         }
                     }
                 },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Datum (Tag.Monat)'
-                    },
-                    ticks: xTickOptions
-                }
+                x: gtsXAxis(labels, axisFontSize, canvas, predictionEnabled, endDate.getFullYear())
             },
             plugins: {
                 tooltip: {
                     enabled: true,
                     mode: 'index',
                     intersect: false,
+                    callbacks: {
+                        label: (context) => gtsTooltipLabel(context, results[context.dataIndex]?.predicted)
+                    },
                     itemSort: (a, b) => {
                         const aValue = Number(a.parsed?.y);
                         const bValue = Number(b.parsed?.y);
@@ -441,11 +480,14 @@ export function plotDailyTemps(dates, temps, yRange = null) {
  *    ...
  * ]
  */
-export function plotMultipleYearData(multiYearData, yRange = null, colorScheme = "queen") {
+export function plotMultipleYearData(multiYearData, yRange = null, colorScheme = "queen", predictionEnabled = false) {
     const canvas = document.getElementById('plot-canvas');
 
     const years = multiYearData.map(item => item.year);
     const newestYear = Math.max(...years);
+    const newestYearData = multiYearData.find(item => item.year === newestYear);
+    const masterLabels = newestYearData?.labels || [];
+    const observedCount = newestYearData?.predictionStartIndex ?? masterLabels.length;
     const isMobile = isMobileLayout();
     const isSmallMobile = isSmallMobileLayout();
     const axisFontSize = isSmallMobile ? 9 : (isMobile ? 10 : 12);
@@ -494,28 +536,31 @@ export function plotMultipleYearData(multiYearData, yRange = null, colorScheme =
             ? temperatureColors.get(item.year)
             : getColorForIndex(yearIndex, multiYearData.length, item.year, scheme);
         const isOlder = yearIndex >= 5;
-        const pointRadius = getPointRadius(item.gtsValues.length);
-        const pointHoverRadius = getPointHoverRadius(item.gtsValues.length);
+        const pointRadius = getPointRadius(observedCount);
+        const pointHoverRadius = getPointHoverRadius(observedCount);
         const bgColor = colorToRgba(borderColor, 0.0);
+        const valuesByDate = new Map(item.labels.map((label, index) => [label, item.gtsValues[index]]));
 
         return {
             label: `${item.year}`,
-            data: item.gtsValues,
+            data: masterLabels.map(label => valuesByDate.get(label) ?? null),
+            spanGaps: true,
+            predictionStartDate: Number.isInteger(item.predictionStartIndex)
+                ? buildExportDatesForYear(item.labels, item.year)[item.predictionStartIndex] : undefined,
             borderColor: borderColor,
             backgroundColor: bgColor,
             fill: true,
             tension: 0.1,
-            pointRadius: pointRadius,
+            pointRadius: (context) => Number.isInteger(item.predictionStartIndex)
+                && context.dataIndex >= item.predictionStartIndex ? 0 : pointRadius,
             pointHoverRadius: pointHoverRadius,
-            pointStyle: isOlder ? 'triangle' : 'circle'
+            pointStyle: isOlder ? 'triangle' : 'circle',
+            segment: {
+                borderDash: (context) => Number.isInteger(item.predictionStartIndex)
+                    && context.p1DataIndex >= item.predictionStartIndex ? [6, 4] : undefined
+            }
         };
     });
-
-    // The newest year can be shorter than completed historical years.
-    // Its labels define the visible date range for every curve.
-    const newestYearData = multiYearData.find((item) => item.year === newestYear);
-    const masterLabels = newestYearData?.labels || [];
-    const xTickOptions = buildXAxisTickOptions(masterLabels, axisFontSize, canvas);
 
     // console.log("[charts.js] plotMultipleYearData() masterLabels = ", masterLabels);
 
@@ -530,13 +575,7 @@ export function plotMultipleYearData(multiYearData, yRange = null, colorScheme =
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Datum (Tag.Monat)'
-                    },
-                    ticks: xTickOptions
-                },
+                x: gtsXAxis(masterLabels, axisFontSize, canvas, predictionEnabled, newestYear),
                 y: {
                     beginAtZero: false,
                     min: yRange ? yRange.min : undefined,
@@ -565,7 +604,14 @@ export function plotMultipleYearData(multiYearData, yRange = null, colorScheme =
                         }
                         return bValue - aValue;
                     },
-                    callbacks: {}
+                    callbacks: {
+                        label: (context) => {
+                            const entry = multiYearData[context.datasetIndex];
+                            const predicted = Number.isInteger(entry?.predictionStartIndex)
+                                && context.dataIndex >= entry.predictionStartIndex;
+                            return gtsTooltipLabel(context, predicted);
+                        }
+                    }
                 },
                 legend: {
                     display: true,

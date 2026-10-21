@@ -5,6 +5,16 @@
 
 import { clearAllLocationCaches } from "./locationStore.js";
 import { normalizeTrachtData } from "./trachtDataValidation.js";
+import { loadPredictionSettings, savePredictionSettings } from "./predictionSettings.js";
+
+const predictionHistorySelect = document.getElementById('prediction-history-years');
+if (predictionHistorySelect) {
+  predictionHistorySelect.value = String(loadPredictionSettings().historyYears);
+  predictionHistorySelect.addEventListener('change', () => {
+    const settings = savePredictionSettings({ historyYears: Number(predictionHistorySelect.value) });
+    predictionHistorySelect.value = String(settings.historyYears);
+  });
+}
 
 // Funktion zum Ein-/Ausklappen der Abschnitte
 document.querySelectorAll('.settings-heading').forEach((heading) => {

@@ -7,6 +7,54 @@ describe('updateHinweisSection', () => {
     document.body.innerHTML = `<section class="hinweis-section"></section>`;
   });
 
+  test('uses the shared forecast and renders three columns without uncertainty', async () => {
+    localStorage.setItem('trachtData', JSON.stringify([
+      { active: true, TS_start: 6, TS_end: 6, plant: 'Past' },
+      { active: true, TS_start: 35, TS_end: 35, plant: 'Future' },
+      { active: true, TS_start: 34, TS_end: 34, plant: 'Custom' }
+    ]));
+    const points = Array.from({ length: 14 }, (_, index) => ({ date: `2026-01-${String(8 + index).padStart(2, '0')}`, gts: 7 + (index + 1) * 2 }));
+    await updateHinweisSection([
+      { date: '2026-01-01', gts: 1 },
+      { date: '2026-01-06', gts: 6 },
+      { date: '2026-01-07', gts: 7 }
+    ], new Date(2026, 0, 7), { prediction: { points }, settings: { historyYears: 10, horizonDays: 14 } });
+    const rows = Array.from(document.querySelectorAll('.imker-info-table tr'));
+    const future = rows.find(row => row.textContent.includes('Future'));
+    expect(future.textContent).toContain('21.1.');
+    expect(future.children).toHaveLength(3);
+    expect(document.querySelectorAll('.imker-col-uncertainty')).toHaveLength(0);
+    expect(document.querySelector('#prediction-horizon').value).toBe('14');
+    expect(document.querySelector('.uncertainty-explanation')).toBeNull();
+  });
+
+  test('escapes forecast errors and does not retain the linear fallback', async () => {
+    await updateHinweisSection([
+      { date: '2026-01-01', gts: 0 }, { date: '2026-01-07', gts: 100 }
+    ], new Date(2026, 0, 7), { prediction: { error: '<img src=x onerror=alert(1)>' }, settings: { horizonDays: 28 } });
+    const section = document.querySelector('.hinweis-section');
+    expect(section.querySelector('img')).toBeNull();
+    expect(section.textContent).toContain('Prädiktion nicht verfügbar');
+    expect(section.textContent).toContain('Keine Information zu den nächsten 28 Tagen');
+    expect(section.textContent).not.toMatch(/In \d+ Tagen/);
+  });
+
+  test('preserves keyboard focus when rebuilding the preview selector', async () => {
+    const observed = [{ date: '2026-01-07', gts: 7 }];
+    await updateHinweisSection(observed, new Date(2026, 0, 7));
+    document.getElementById('prediction-horizon').focus();
+    await updateHinweisSection(observed, new Date(2026, 0, 7), { settings: { horizonDays: 21 } });
+    expect(document.activeElement).toBe(document.getElementById('prediction-horizon'));
+    expect(document.activeElement.value).toBe('21');
+  });
+
+  test('can predict a threshold from the first day of the year', async () => {
+    localStorage.setItem('trachtData', JSON.stringify([{ active: true, TS_start: 35, TS_end: 35, plant: 'Early flower' }]));
+    const points = Array.from({ length: 14 }, (_, index) => ({ date: `2026-01-${String(index + 2).padStart(2, '0')}`, gts: 35 + index }));
+    await updateHinweisSection([{ date: '2026-01-01', gts: 0 }], new Date(2026, 0, 1), { prediction: { points } });
+    expect(document.querySelector('.imker-info-table').textContent).toContain('Morgen am 2.1.');
+  });
+
   test('uses "Gestern" when a forecast item is one day in the past', async () => {
     const endDate = new Date(2026, 0, 7);
     const gtsResults = [

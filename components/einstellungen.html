@@ -95,6 +95,24 @@
         </button>
 
         <div class="settings-content" id="sonstiges-content" hidden>
+          <p>
+            <label for="prediction-history-years">Vorjahre für die Prädiktion:</label>
+            <select id="prediction-history-years" name="prediction-history-years" aria-describedby="prediction-history-help">
+              <option value="3">3 Jahre</option>
+              <option value="4">4 Jahre</option>
+              <option value="5">5 Jahre</option>
+              <option value="6">6 Jahre</option>
+              <option value="7">7 Jahre</option>
+              <option value="8">8 Jahre</option>
+              <option value="9">9 Jahre</option>
+              <option value="10" selected>10 Jahre</option>
+            </select>
+          </p>
+          <p id="prediction-history-help">
+            Die Prädiktion verwendet den durchschnittlichen GTS-Zuwachs der letzten
+            Jahre ab dem gleichen Kalenderdatum. Die besten Ergebnisse werden
+            mit 10 Jahren erzielt.
+          </p>
           <p>Local Storage</p>
 
           <!-- Clear Local Storage Buttons -->

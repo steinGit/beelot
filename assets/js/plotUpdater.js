@@ -18,6 +18,8 @@ import { formatDateLocal, isValidDate, parseDateStringLocal } from './utils.js';
 import { LocationNameFromGPS } from './location_name_from_gps.js'; // Import the new class
 import { destroyAllCharts } from './chartManager.js';
 import { fetchMergedWeatherData } from './weatherData.js';
+import { appendPrediction, loadGtsPrediction } from './prediction.js';
+import { loadPredictionSettings } from './predictionSettings.js';
 import {
   clearServiceFailure,
   getServiceMessage,
@@ -151,6 +153,7 @@ export class PlotUpdater {
       date: this.datumInput.value,
       yearRange: viewSettings.yearRange || 1,
       colorScheme: viewSettings.colorScheme || "queen",
+      predictionSettings: Object.freeze(loadPredictionSettings()),
       canDisplay: () => this.displayGeneration === generation,
       canStore: () => this.locationGenerations.get(locationId) === generation
     });
@@ -244,6 +247,18 @@ export class PlotUpdater {
 
       // Step 13) Destroy old charts
       this.step13DestroyOldCharts();
+
+      // Keep the observed plots usable even when a reference year is unavailable.
+      try {
+        this.prediction = await loadGtsPrediction(
+          lat, lon, gtsResults, endDate, this.request.predictionSettings,
+          this.weatherCacheStore, () => this.canDisplay()
+        );
+      } catch (error) {
+        console.warn('[prediction] Historical prediction unavailable.', error);
+        this.prediction = { points: [], error: error.message };
+      }
+      if (!this.canDisplay()) return;
 
       // Step 14) GTS chart creation
       await this.step14CreateGTSChart(lat, lon, plotStartDate, endDate, filteredResults);
@@ -598,6 +613,11 @@ export class PlotUpdater {
     }
 
     const yearRange = this.request.yearRange;
+    const predictionEnabled = this.request.predictionSettings?.showPrediction === true;
+    const prediction = predictionEnabled ? this.prediction : null;
+    const plottedResults = appendPrediction(filteredResults, prediction);
+    const historicalEndDate = prediction?.points?.length
+      ? parseDateStringLocal(prediction.points[prediction.points.length - 1].date) : endDate;
     if (yearRange > 1) {
       let multiYearData;
       const selectedYear = endDate.getFullYear();
@@ -611,7 +631,8 @@ export class PlotUpdater {
           plotStartDate,
           endDate,
           this.weatherCacheStore,
-          filteredResults
+          filteredResults,
+          historicalEndDate
         );
       } else {
         multiYearData = await buildYearData(
@@ -621,20 +642,33 @@ export class PlotUpdater {
           endDate,
           filteredResults,
           yearRange,
-          this.weatherCacheStore
+          this.weatherCacheStore,
+          historicalEndDate
         );
       }
       this.storeMultiYearData(viewKey, multiYearData);
+      // Only the selected year's future is predicted; past years use observations.
+      if (prediction?.points?.length) {
+        multiYearData = multiYearData.map(item => item.year === selectedYear ? {
+          ...item,
+          predictionStartIndex: item.gtsValues.length,
+          labels: [...item.labels, ...prediction.points.map(point => {
+            const date = parseDateStringLocal(point.date);
+            return `${date.getDate()}.${date.getMonth() + 1}`;
+          })],
+          gtsValues: [...item.gtsValues, ...prediction.points.map(point => point.gts)]
+        } : item);
+      }
       const gtsStats = this.computeStatsFromMultiYear(multiYearData);
       this.storeAxisStats("gts", endDate, gtsStats);
       const yRange = this.computeGlobalYRange("gts", this.buildGtsViewKey(endDate));
       if (!this.canDisplay()) return;
-      this.chartGTS = plotMultipleYearData(multiYearData, yRange, this.request.colorScheme);
+      this.chartGTS = plotMultipleYearData(multiYearData, yRange, this.request.colorScheme, predictionEnabled);
     } else {
-      const gtsStats = this.computeStatsFromValues(filteredResults.map((item) => item.gts));
+      const gtsStats = this.computeStatsFromValues(plottedResults.map((item) => item.gts));
       this.storeAxisStats("gts", endDate, gtsStats);
       const yRange = this.computeGlobalYRange("gts", this.buildGtsViewKey(endDate));
-      this.chartGTS = plotData(filteredResults, yRange, this.request.colorScheme);
+      this.chartGTS = plotData(plottedResults, yRange, this.request.colorScheme, predictionEnabled);
     }
   }
 
@@ -1057,12 +1091,18 @@ export class PlotUpdater {
    * @param {Date} endDate - End date for reference in messages.
    */
   async step16UpdateHinweisSection(gtsResults, endDate) {
-    await updateHinweisSection(gtsResults, endDate);
+    await updateHinweisSection(gtsResults, endDate, {
+      prediction: this.prediction,
+      settings: this.request.predictionSettings
+    });
   }
 
   buildGtsViewKey(endDate) {
     const dateKey = formatDateLocal(endDate);
-    return `${dateKey}|${this.request.timeframe}|${this.request.yearRange}`;
+    const settings = this.request.predictionSettings;
+    const forecastKey = settings?.showPrediction
+      ? `|prediction:${settings.historyYears}:${settings.horizonDays}` : '';
+    return `${dateKey}|${this.request.timeframe}|${this.request.yearRange}${forecastKey}`;
   }
 
   buildTempViewKey(endDate) {

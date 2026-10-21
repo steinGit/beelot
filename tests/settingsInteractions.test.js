@@ -70,4 +70,17 @@ describe("settings plant interactions", () => {
     ]);
     expect(document.querySelectorAll("#tracht-table tbody tr")).toHaveLength(2);
   });
+
+  test('loads and persists J while preserving the selected forecast window', async () => {
+    const select = document.createElement('select');
+    select.id = 'prediction-history-years';
+    select.innerHTML = [3, 4, 5, 6, 7, 8, 9, 10].map(year => `<option value="${year}">${year}</option>`).join('');
+    document.body.append(select);
+    localStorage.setItem('beelotPredictionSettings', JSON.stringify({ historyYears: 7, horizonDays: 21, showPrediction: false }));
+    await import('../assets/js/settings');
+    expect(select.value).toBe('7');
+    select.value = '3';
+    select.dispatchEvent(new Event('change'));
+    expect(JSON.parse(localStorage.getItem('beelotPredictionSettings'))).toEqual({ historyYears: 3, horizonDays: 21, showPrediction: false });
+  });
 });

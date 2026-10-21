@@ -182,7 +182,8 @@ export async function buildYearData(
     baseEndDate,
     data_current_year,
     yearsCount,
-    cacheStore = null
+    cacheStore = null,
+    historicalEndDate = baseEndDate
 ) {
     // TODO: Define a maximum supported year range if needed.
     const mainYear = baseEndDate.getFullYear();
@@ -202,8 +203,8 @@ export async function buildYearData(
         );
         const yearPlotEnd = createLocalStartOfDay(
             y,
-            baseEndDate.getMonth(),
-            baseEndDate.getDate()
+            (y === mainYear ? baseEndDate : historicalEndDate).getMonth(),
+            (y === mainYear ? baseEndDate : historicalEndDate).getDate()
         );
 
         if (y === mainYear) {
@@ -280,7 +281,8 @@ export async function buildFullYearData(
     baseStartDate,
     baseEndDate,
     cacheStore = null,
-    data_current_year = null
+    data_current_year = null,
+    historicalEndDate = baseEndDate
 ) {
     const allResults = [];
 
@@ -297,8 +299,8 @@ export async function buildFullYearData(
             );
             const yearPlotEnd = createLocalStartOfDay(
                 y,
-                baseEndDate.getMonth(),
-                baseEndDate.getDate()
+                (y === endYear ? baseEndDate : historicalEndDate).getMonth(),
+                (y === endYear ? baseEndDate : historicalEndDate).getDate()
             );
             if (y === endYear && Array.isArray(data_current_year)) {
                 const endOfDay = new Date(yearPlotEnd);

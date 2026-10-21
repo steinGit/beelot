@@ -7,6 +7,7 @@
 import { defaultTrachtData } from './tracht_data.js';
 import { normalizeTrachtData } from './trachtDataValidation.js';
 import { parseDateStringLocal } from './utils.js';
+import { loadPredictionSettings, normalizePredictionSettings } from './predictionSettings.js';
 
 const DEFAULT_URL_BY_PLANT = new Map(
     defaultTrachtData
@@ -14,7 +15,7 @@ const DEFAULT_URL_BY_PLANT = new Map(
         .map((row) => [row.plant.trim(), row.url])
 );
 
-export async function updateHinweisSection(gtsResults, endDate) {
+export async function updateHinweisSection(gtsResults, endDate, options = {}) {
     // 0) Grab the <section> element
     const hinweisSection = document.querySelector(".hinweis-section");
     if (!hinweisSection) {
@@ -53,33 +54,23 @@ export async function updateHinweisSection(gtsResults, endDate) {
         }
     }
 
-    // 2) Extend curve by F=14 days linearly => D_E
+    // Extend the observed curve with the shared historical-average forecast.
+    const settings = normalizePredictionSettings(options.settings || loadPredictionSettings());
     const R = 7;   // Rearview window
-    const F = 14;  // Forecast window
+    const F = settings.horizonDays;
     const maxDays = isLeap ? 366 : 365;
     const m = Math.min(n + F, maxDays);
-
-    // Slope from last F days in D_C
-    let slope = 0;
-    const windowSize = Math.min(F, n - 1);
-    if (windowSize > 0) {
-        let sum = 0;
-        const startSlopeDay = n - windowSize;
-        for (let i = startSlopeDay; i < n; i++) {
-            if (D_C[i + 1] != null && D_C[i] != null) {
-                sum += (D_C[i + 1] - D_C[i]);
-            }
-        }
-        slope = sum / windowSize;
-    }
 
     const D_E = [];
     for (let i = 1; i <= n; i++) {
         D_E[i] = D_C[i];
     }
-    for (let i = n + 1; i <= m; i++) {
-        D_E[i] = D_E[i - 1] + slope;
-    }
+    (options.prediction?.points || []).forEach((point) => {
+        const date = parseDateStringLocal(point.date);
+        if (!date || date.getFullYear() !== year || !Number.isFinite(point.gts)) return;
+        const index = dayOfYear(date);
+        if (index > n && index <= m) D_E[index] = point.gts;
+    });
 
     const TSUM_current = D_E[n] || 0;
     const TSUM_max = D_E[m] || TSUM_current;
@@ -98,7 +89,7 @@ export async function updateHinweisSection(gtsResults, endDate) {
 
     // 4) forecast_list => items with TSUM_start > TSUM_current but <= TSUM_max
     let forecast_list = [];
-    if (n > 5) {
+    if (options.prediction?.points?.length) {
         forecast_list = relevant_list.filter(
             row => row.TSUM_start > TSUM_current
         );
@@ -134,6 +125,18 @@ export async function updateHinweisSection(gtsResults, endDate) {
 
     // 6) Build HTML
     let html = "<h2>Imkerliche Information</h2>\n";
+    html += `
+      <p class="prediction-controls">
+        <label for="prediction-horizon">Vorschau:</label>
+        <select id="prediction-horizon" name="prediction-horizon">
+          ${[14, 21, 28].map(days => `<option value="${days}"${days === F ? ' selected' : ''}>${days / 7} Wochen</option>`).join('')}
+        </select>
+        <span>(Prädiktion basiert auf dem Durchschnitt der letzten ${settings.historyYears} Jahre)</span>
+      </p>
+    `;
+    if (options.prediction?.error) {
+        html += `<p role="status">Prädiktion nicht verfügbar: ${escapeHtml(options.prediction.error)}</p>`;
+    }
     html += `
       <p>
         <span class="small-gray-text">
@@ -327,9 +330,9 @@ export async function updateHinweisSection(gtsResults, endDate) {
           <table class="imker-info-table">
             <tbody>
               <tr class="imker-info-header">
-                <td class="imker-col-time">Datum</td>
-                <td class="imker-col-content">Blütenstart / Empfehlung</td>
-                <td class="imker-col-gts">GTS [°Cd]</td>
+                <th scope="col" class="imker-col-time">Datum</th>
+                <th scope="col" class="imker-col-content">Blütenstart / Empfehlung</th>
+                <th scope="col" class="imker-col-gts">GTS [°Cd]</th>
               </tr>
               ${timelineRows.join("\n")}
             </tbody>
@@ -352,7 +355,11 @@ export async function updateHinweisSection(gtsResults, endDate) {
         `;
     }
 
+    const restoreForecastFocus = document.activeElement?.id === 'prediction-horizon';
     hinweisSection.innerHTML = html;
+    if (restoreForecastFocus) {
+        document.getElementById('prediction-horizon')?.focus({ preventScroll: true });
+    }
 }
 
 // ----------------------
