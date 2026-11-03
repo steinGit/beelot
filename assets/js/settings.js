@@ -130,7 +130,9 @@ export function populateTrachtTable(data) {
     checkbox.checked = row.active;
     checkbox.setAttribute("aria-label", `Aktiv, Zeile ${idx + 1}: ${row.plant}`);
     checkbox.addEventListener("click", () => toggleActive(idx));
-    tdCheck.appendChild(checkbox);
+    const checkboxLabel = document.createElement("label");
+    checkboxLabel.appendChild(checkbox);
+    tdCheck.appendChild(checkboxLabel);
     tr.appendChild(tdCheck);
 
     // TS_start

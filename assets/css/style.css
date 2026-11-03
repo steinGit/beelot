@@ -303,3 +303,59 @@ footer nav a:hover {
   color: red;        
   text-decoration: none; /* No underline on hover */
 }
+
+:root {
+    --touch-target-size: 44px;
+    --touch-focus-color: #333;
+}
+
+:where(button, select, input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), summary) {
+    min-width: var(--touch-target-size);
+    min-height: var(--touch-target-size);
+}
+
+:where(label:has(> input[type="checkbox"]), label:has(> input[type="radio"])) {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: var(--touch-target-size);
+    min-height: var(--touch-target-size);
+    cursor: pointer;
+}
+
+header nav a,
+footer nav a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--touch-target-size);
+    min-height: var(--touch-target-size);
+}
+
+:where(button, input, select, summary, header a, footer a):focus-visible {
+    outline: 2px solid var(--touch-focus-color);
+    outline-offset: 2px;
+}
+
+/* Keep the larger footer target from covering form controls while scrolling. */
+footer {
+    position: static;
+    display: flex;
+    justify-content: flex-end;
+}
+
+@media (max-width: 30rem) {
+    header nav {
+        gap: 0;
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    header nav a {
+        margin: 0;
+    }
+
+    header nav img {
+        margin-left: 0;
+    }
+}

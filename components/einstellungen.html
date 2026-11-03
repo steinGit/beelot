@@ -14,7 +14,7 @@
     <div id="header-placeholder">
       <header>
         <div class="logo-container">
-          <a href="index.html">
+          <a href="index.html" aria-label="BeeLot-Startseite">
             <img src="assets/img/bee_logo02.png" alt="Logo" class="logo">
           </a>
           <div class="logo-text">
@@ -25,7 +25,7 @@
         <nav>
           <a href="index.html">Home</a>
           <a href="components/faq.html">FAQ</a>
-          <a href="components/einstellungen.html">
+          <a href="components/einstellungen.html" aria-label="Einstellungen öffnen">
             <img src="assets/img/gear.png" alt="Einstellungen">
           </a>
         </nav>
@@ -73,24 +73,26 @@
               Die Empfehlung ist standardmäßig aktiv und gilt für alle Standorte.
             </p>
           </fieldset>
-          <table id="tracht-table">
-            <thead>
-              <tr>
-                <th rowspan="2" class="checkbox-cell">Aktiv</th>
-                <th colspan="2">Temperatur Summe</th>
-                <th rowspan="2" class="plant-cell">Pflanze</th>
-                <th rowspan="2" class="trash-cell">Löschen</th>
-                <th rowspan="2">URL</th>
-              </tr>
-              <tr>
-                <th class="numeric-cell">Start</th>
-                <th class="numeric-cell">Ende</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- Populated by JS -->
-            </tbody>
-          </table>
+          <div class="table-scroll" role="region" aria-label="Trachteinstellungen" tabindex="0">
+            <table id="tracht-table">
+              <thead>
+                <tr>
+                  <th rowspan="2" class="checkbox-cell">Aktiv</th>
+                  <th colspan="2">Temperatur Summe</th>
+                  <th rowspan="2" class="plant-cell">Pflanze</th>
+                  <th rowspan="2" class="trash-cell">Löschen</th>
+                  <th rowspan="2">URL</th>
+                </tr>
+                <tr>
+                  <th class="numeric-cell">Start</th>
+                  <th class="numeric-cell">Ende</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
           <button class="add-button" id="add-tracht-row-button">+ Zeile hinzufügen</button>
           <button class="reset-button" id="reset-tracht-data-button">RESET</button>
         </div>

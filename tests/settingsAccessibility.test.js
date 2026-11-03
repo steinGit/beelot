@@ -65,4 +65,23 @@ describe("settings accessibility", () => {
     document.getElementById("clear-local-storage-button").click();
     expect(localStorage.length).toBe(0);
   });
+
+  test("clicking the checkbox label toggles the stored row exactly once", async () => {
+    const row = {
+      active: true,
+      TS_start: 100,
+      TS_end: 200,
+      plant: "Hasel",
+      url: "https://example.invalid"
+    };
+    localStorage.setItem("trachtData", JSON.stringify([row]));
+    const { populateTrachtTable } = await import("../assets/js/settings");
+    populateTrachtTable([row]);
+
+    document.querySelector('.checkbox-cell input').labels[0].click();
+    expect(JSON.parse(localStorage.getItem("trachtData"))[0].active).toBe(false);
+
+    document.querySelector('.checkbox-cell input').labels[0].click();
+    expect(JSON.parse(localStorage.getItem("trachtData"))[0]).toEqual(row);
+  });
 });

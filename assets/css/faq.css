@@ -52,3 +52,15 @@ details summary:hover {
 details[open] {
     border-color: #ff8000;
 }
+
+@media (max-width: 48rem) {
+    .faq-section img {
+        max-width: 100%;
+        /* Preserve image proportions even with existing inline heights. */
+        object-fit: contain;
+    }
+
+    .faq-section {
+        overflow-wrap: anywhere;
+    }
+}
