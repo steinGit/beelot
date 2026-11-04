@@ -299,7 +299,7 @@ export class PlotUpdater {
       if (this.hinweisSection) {
         this.hinweisSection.innerHTML = "<h2>Imkerliche Information</h2>";
         const errorLine = document.createElement("p");
-        errorLine.style.color = "red";
+        errorLine.style.color = "var(--text-danger-color)";
         const message = err && typeof err.message === "string"
           ? err.message
           : "Unbekannter Fehler";
@@ -341,7 +341,7 @@ export class PlotUpdater {
 
       if (this.hinweisSection) {
         this.hinweisSection.innerHTML = `<h2>Imkerliche Information</h2>
-          <p style="color: grey;">Kein Standort definiert.</p>`;
+          <p style="color: var(--text-muted-color);">Kein Standort definiert.</p>`;
       }
       return false;
     }
@@ -523,7 +523,7 @@ export class PlotUpdater {
       }
       if (this.hinweisSection) {
         this.hinweisSection.innerHTML = `<h2>Imkerliche Information</h2>
-          <p style="color: grey;">Keine ausreichenden Daten zur Berechnung vorhanden.</p>`;
+          <p style="color: var(--text-muted-color);">Keine ausreichenden Daten zur Berechnung vorhanden.</p>`;
       }
       return false;
     }

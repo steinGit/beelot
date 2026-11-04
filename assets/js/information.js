@@ -195,7 +195,7 @@ export async function updateHinweisSection(gtsResults, endDate, options = {}) {
 
     // 6A) Rearview info
     if (rearview_list.length === 0) {
-        noPastInfoLine = `<p style="color: grey;">
+        noPastInfoLine = `<p style="color: var(--text-muted-color);">
           Keine Information zu den letzten ${R} Tagen
         </p>`;
     } else {
@@ -218,7 +218,7 @@ export async function updateHinweisSection(gtsResults, endDate, options = {}) {
                 `${group.dateText}:`
             );
             if (group.relText === "Heute") {
-                const style = "font-weight: bold; color: #ff8020;";
+                const style = "font-weight: bold; color: var(--text-accent-color);";
                 pushRow(
                     timelineRows,
                     timeHtml,
@@ -270,7 +270,7 @@ export async function updateHinweisSection(gtsResults, endDate, options = {}) {
             );
         });
     } else {
-        noFutureInfoLine = `<p style="color: grey;">
+        noFutureInfoLine = `<p style="color: var(--text-muted-color);">
           Keine Information zu den nächsten ${F} Tagen
         </p>`;
 
@@ -309,8 +309,8 @@ export async function updateHinweisSection(gtsResults, endDate, options = {}) {
                 }).join(", ");
                 const hasRecommendation = items.some((item) => getRecommendationInfo(item).isRecommendation);
                 const style = hasRecommendation
-                    ? "font-weight: bold; color: #608000;"
-                    : "color: #608000;";
+                    ? "font-weight: bold; color: var(--text-upcoming-color);"
+                    : "color: var(--text-upcoming-color);";
                 pushRow(
                     danachRows,
                     "",

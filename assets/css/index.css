@@ -355,7 +355,7 @@
 
 #address-choice-apply-btn:disabled {
     background-color: #d4d9dd;
-    color: #6e757c;
+    color: var(--text-disabled-color);
     cursor: not-allowed;
     box-shadow: none;
 }
@@ -374,7 +374,7 @@
 
 #address-apply-btn:disabled {
     background-color: #d4d9dd;
-    color: #6e757c;
+    color: var(--text-disabled-color);
     cursor: not-allowed;
     box-shadow: none;
 }

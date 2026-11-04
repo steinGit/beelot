@@ -46,7 +46,7 @@ details summary {
 }
 
 details summary:hover {
-    color: #ff8000;
+    color: var(--text-accent-color);
 }
 
 details[open] {

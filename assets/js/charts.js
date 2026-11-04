@@ -174,7 +174,7 @@ const gtsXAxis = (labels, fontSize, canvas, predictionEnabled, year) => {
     return {
         min: 0,
         max: Math.max(0, labels.length - 1),
-        backgroundColor: predictionEnabled ? '#303030' : undefined,
+        backgroundColor: predictionEnabled ? '#242424' : undefined,
         grid: {
             color: (context) => todayIndex >= 0 && context.tick?.value === todayIndex
                 ? '#ff0000' : context.tick?.label ? 'rgba(0, 0, 0, 0.1)' : 'transparent',

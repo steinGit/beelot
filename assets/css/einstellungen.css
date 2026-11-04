@@ -112,9 +112,6 @@ h1 {
     white-space: normal; /* Allow multiline */
     overflow-wrap: break-word; /* Wrap text within input */
 }
-#tracht-table .plant-cell input:focus {
-    outline: 1px solid #ff8000; /* Highlight on focus */
-}
 #tracht-table .trash-cell {
     width: 90px;
 }
@@ -125,7 +122,7 @@ h1 {
 
 /* row-active, row-inactive, .add-button, etc. */
 .row-active { color: black; }
-.row-inactive { color: #a0a0a0; }
+.row-inactive { color: var(--text-muted-color); }
 
 .add-button {
     margin-top: 10px;
@@ -133,7 +130,7 @@ h1 {
     cursor: pointer;
 }
 .reset-button {
-    color: red;
+    color: var(--text-danger-color);
     font-weight: bold;
     margin-top: 10px;
     cursor: pointer;
@@ -147,10 +144,5 @@ h1 {
     .table-scroll {
         max-width: 100%;
         overflow-x: auto;
-    }
-
-    .table-scroll:focus-visible {
-        outline: 2px solid currentColor;
-        outline-offset: 2px;
     }
 }
