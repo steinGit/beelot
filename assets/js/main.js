@@ -1102,6 +1102,7 @@ function setComparisonMode(enabled) {
   if (gtsPlotContainer) {
     gtsPlotContainer.classList.toggle("visible", enabled || gtsPlotContainer.classList.contains("visible"));
   }
+  updatePlotExpandedStates();
 }
 
 function isSupportedHistoricalDate(value) {
@@ -1282,6 +1283,15 @@ async function refreshAllLocationCalculations() {
   }
 }
 
+function updatePlotExpandedStates() {
+  toggleGtsPlotBtn.setAttribute("aria-expanded", String(
+    gtsPlotContainer.classList.contains("visible") && gtsPlotContainer.style.display !== "none"
+  ));
+  toggleTempPlotBtn.setAttribute("aria-expanded", String(
+    tempPlotContainer.classList.contains("visible") && tempPlotContainer.style.display !== "none"
+  ));
+}
+
 function setPlotVisibility(showGts, showTemp) {
   gtsPlotContainer.classList.toggle("visible", showGts);
   toggleGtsPlotBtn.textContent = showGts
@@ -1292,6 +1302,7 @@ function setPlotVisibility(showGts, showTemp) {
   toggleTempPlotBtn.textContent = showTemp
     ? "Diagramm (Tagesmitteltemperaturen) ausblenden"
     : "Diagramm (Tagesmitteltemperaturen) anzeigen";
+  updatePlotExpandedStates();
 }
 
 function applyLocationState(location, { useToday = false } = {}) {
@@ -2197,6 +2208,7 @@ function setupEventListeners() {
     toggleGtsPlotBtn.textContent = gtsPlotContainer.classList.contains("visible")
       ? "Diagramm (GTS) ausblenden"
       : "Diagramm (GTS) anzeigen";
+    updatePlotExpandedStates();
     updateActiveLocationUiState({
       gtsPlotVisible: gtsPlotContainer.classList.contains("visible")
     });
@@ -2207,6 +2219,7 @@ function setupEventListeners() {
     toggleTempPlotBtn.textContent = tempPlotContainer.classList.contains("visible")
       ? "Diagramm (Tagesmitteltemperaturen) ausblenden"
       : "Diagramm (Tagesmitteltemperaturen) anzeigen";
+    updatePlotExpandedStates();
     updateActiveLocationUiState({
       tempPlotVisible: tempPlotContainer.classList.contains("visible")
     });

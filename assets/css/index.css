@@ -355,7 +355,7 @@
 
 #address-choice-apply-btn:disabled {
     background-color: #d4d9dd;
-    color: #6e757c;
+    color: var(--text-disabled-color);
     cursor: not-allowed;
     box-shadow: none;
 }
@@ -374,7 +374,7 @@
 
 #address-apply-btn:disabled {
     background-color: #d4d9dd;
-    color: #6e757c;
+    color: var(--text-disabled-color);
     cursor: not-allowed;
     box-shadow: none;
 }
@@ -565,4 +565,55 @@
   box-shadow: 2px 2px 5px rgba(60, 60, 60, 0.3);
   border: none;       /* optional: remove default border */
   cursor: pointer;    /* optional: show pointer on hover */
+}
+
+.date-navigation,
+.date-navigation-field,
+.date-navigation-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.date-navigation {
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.date-navigation input,
+.date-navigation button {
+    margin-top: 0;
+}
+
+.date-navigation-actions {
+    flex-wrap: wrap;
+}
+
+.address-fields {
+    grid-template-columns: 90px minmax(0, 1fr);
+}
+
+.address-actions,
+.modal-actions,
+.map-controls {
+    flex-wrap: wrap;
+}
+
+/* The existing map controller sets display: block inline when opening it. */
+#map-popup[aria-hidden="false"] {
+    display: flex !important;
+    flex-direction: column;
+}
+
+#map {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+}
+
+.leaflet-control-zoom a,
+.leaflet-popup-close-button {
+    min-width: var(--touch-target-size);
+    min-height: var(--touch-target-size);
+    line-height: var(--touch-target-size);
 }

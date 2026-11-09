@@ -44,7 +44,7 @@
     <div id="header-placeholder">
       <header>
         <div class="logo-container">
-          <a href="index.html">
+          <a href="index.html" aria-label="BeeLot-Startseite">
             <img src="assets/img/bee_logo02.png" alt="Logo" class="logo">
           </a>
           <div class="logo-text">
@@ -55,7 +55,7 @@
         <nav>
           <a href="index.html">Home</a>
           <a href="components/faq.html">FAQ</a>
-          <a href="components/einstellungen.html">
+          <a href="components/einstellungen.html" aria-label="Einstellungen öffnen">
             <img src="assets/img/gear.png" alt="Einstellungen">
           </a>
         </nav>
@@ -148,15 +148,19 @@
         <section class="plot-section">
           <h2>Visualisierung</h2>
           <div class="input-group">
-            <label for="datum">
-              <span id="datum-label" class="tooltip-anchor" tabindex="0" aria-describedby="datum-tooltip">Datum:</span>
-            </label>
-            <input type="date" id="datum" name="datum" min="1940-01-01" />
-            <button id="datum-plus">+</button>
-            <button id="datum-minus">-</button>
-            <!-- Always visible -->
-            <button id="datum-heute">heute</button>
-            <br />
+            <div class="date-navigation" role="group" aria-label="Datumsnavigation">
+              <div class="date-navigation-field">
+                <label for="datum">
+                  <span id="datum-label" class="tooltip-anchor" tabindex="0" aria-describedby="datum-tooltip">Datum:</span>
+                </label>
+                <input type="date" id="datum" name="datum" min="1940-01-01" aria-label="Datum für GTS und imkerliche Informationen" />
+              </div>
+              <div class="date-navigation-actions">
+                <button id="datum-plus" type="button" aria-label="Nächster Tag">+</button>
+                <button id="datum-minus" type="button" aria-label="Vorheriger Tag">-</button>
+                <button id="datum-heute" type="button" aria-label="Heute anzeigen">heute</button>
+              </div>
+            </div>
             <span class="small-gray-text">
               Hinweis: benutze die "+" und "-" Taste auf der Tastatur oder Numpad
             </span>
@@ -166,7 +170,7 @@
           </div>
 
           <h2>
-            <button id="toggle-gts-plot">Diagramm (GTS) anzeigen</button>
+            <button id="toggle-gts-plot" aria-expanded="false" aria-controls="gts-plot-container">Diagramm (GTS) anzeigen</button>
           </h2>
           <div id="legend-location-label" class="legend-location-label" tabindex="0"></div>
           <div class="plot-container" id="gts-plot-container">
@@ -241,7 +245,7 @@
           </div>
 
           <h2>
-            <button id="toggle-temp-plot">Diagramm (Tagesmitteltemperaturen) anzeigen</button>
+            <button id="toggle-temp-plot" aria-expanded="false" aria-controls="temp-plot-container">Diagramm (Tagesmitteltemperaturen) anzeigen</button>
           </h2>
           <div class="plot-container" id="temp-plot-container">
             <canvas id="temp-plot"></canvas>
@@ -272,7 +276,7 @@
     >
       <div class="map-controls">
         <h3 id="map-dialog-title" class="visually-hidden">Standort auf Karte wählen</h3>
-        <button id="map-close-btn">Schließen</button>
+        <button id="map-close-btn" aria-label="Kartendialog schließen">Schließen</button>
         <button id="map-save-btn">Diesen Ort verwenden</button>
       </div>
       <div id="map"></div>
@@ -306,7 +310,7 @@
         </div>
         <div class="address-actions">
           <button id="address-apply-btn" type="button">Adresse verwenden</button>
-          <button id="address-close-btn" type="button">Schließen</button>
+          <button id="address-close-btn" type="button" aria-label="Adressdialog schließen">Schließen</button>
         </div>
       </div>
     </div>

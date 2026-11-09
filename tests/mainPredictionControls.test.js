@@ -84,3 +84,57 @@ test('refreshes information after frost settings change in another page', async 
     window.dispatchEvent(new StorageEvent('storage', { key: 'beelotWinterTreatment' }));
     expect(updater.run).toHaveBeenCalledTimes(initialRuns + 1);
 });
+
+test.each([
+    ['Nächster Tag', '2024-02-28', '2024-02-29'],
+    ['Nächster Tag', '2024-02-29', '2024-03-01'],
+    ['Vorheriger Tag', '2024-03-01', '2024-02-29'],
+    ['Nächster Tag', '2024-12-31', '2025-01-01'],
+    ['Vorheriger Tag', '2025-01-01', '2024-12-31']
+])('the named date action %s changes %s to %s once', async (name, start, expected) => {
+    const { PlotUpdater } = await import('../assets/js/plotUpdater.js');
+    await import('../assets/js/main.js');
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    const updater = PlotUpdater.mock.results.at(-1).value;
+    const initialRuns = updater.run.mock.calls.length;
+    const date = document.getElementById('datum');
+    date.value = start;
+
+    document.querySelector(`button[aria-label="${name}"]`).click();
+
+    expect(date.value).toBe(expected);
+    expect(updater.run).toHaveBeenCalledTimes(initialRuns + 1);
+    const store = JSON.parse(localStorage.getItem('beelotLocations'));
+    expect(store.locations[store.activeId].ui.selectedDate).toBe(expected);
+});
+
+test('the named today action restores the local date and retains the date label', async () => {
+    jest.useFakeTimers().setSystemTime(new Date(2026, 10, 3, 12));
+    try {
+        await import('../assets/js/main.js');
+        document.dispatchEvent(new Event('DOMContentLoaded'));
+        const date = document.getElementById('datum');
+        date.value = '2024-02-29';
+
+        document.querySelector('button[aria-label="Heute anzeigen"]').click();
+
+        expect(date.value).toBe('2026-11-03');
+        expect(date.labels[0].textContent.trim()).toBe('Datum:');
+        expect(date.type).toBe('date');
+    } finally {
+        jest.useRealTimers();
+    }
+});
+
+test('date shortcuts still work when a date button has keyboard focus', async () => {
+    await import('../assets/js/main.js');
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    const date = document.getElementById('datum');
+    date.value = '2024-02-28';
+    document.querySelector('button[aria-label="Nächster Tag"]').focus();
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '+', bubbles: true }));
+    expect(date.value).toBe('2024-02-29');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '-', bubbles: true }));
+    expect(date.value).toBe('2024-02-28');
+});

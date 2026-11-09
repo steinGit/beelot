@@ -8,6 +8,15 @@ import {
 
 let lastChartConfig = null;
 
+function contrastRatio(first, second) {
+    const luminance = (hex) => [1, 3, 5]
+        .map(index => parseInt(hex.slice(index, index + 2), 16) / 255)
+        .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
+        .reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+    const values = [luminance(first), luminance(second)].sort((a, b) => a - b);
+    return (values[1] + 0.05) / (values[0] + 0.05);
+}
+
 beforeAll(() => {
     HTMLCanvasElement.prototype.getContext = jest.fn(() => ({}));
     global.Chart = class {
@@ -122,7 +131,8 @@ describe('plotData', () => {
             expect(x.ticks.color({ index: 12 })).toBe('#ffffff');
             expect(x.ticks.callback(11, 1)).toBe('12.4');
             expect(x.ticks.color({ index: 1, tick: { value: 11 } })).toBe('#ff5555');
-            expect(x.backgroundColor).toBe('#303030');
+            expect(contrastRatio(x.ticks.color({ index: 11 }), x.backgroundColor))
+                .toBeGreaterThanOrEqual(4.5);
             expect(x.grid.color({ tick: { value: 11, label: '12.4' } })).toBe('#ff0000');
             expect(x.grid.lineWidth({ tick: { value: 11 } })).toBe(1.5);
             expect(x.grid.color({ tick: { value: 12, label: '13.4' } })).toBe('rgba(0, 0, 0, 0.1)');
